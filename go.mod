@@ -1,4 +1,4 @@
-module validation-handler-graphsync
+module validation-bot
 
 go 1.18
 
