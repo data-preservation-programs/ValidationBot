@@ -121,7 +121,7 @@ func TestRetrievalDeals_CompleteDownload(t *testing.T) {
 		MaxDurationSeconds: 3600,
 		MaxDownloadBytes:   32 * 1024 * 1024 * 1024,
 		Provider:           "f03223",
-		Cid:                "bafybeiee7fchamcdeykdnruphxjkbp5gtapao6dysa75ijdzvi3wa7wdhy",
+		Cid:                "bafybeibxlbpejjvrfs7c3ytnpxyem5n4nkxbu7wecjcmrrawxuqojana3y",
 	})
 	fmt.Printf("result: %+v", result)
 	validateSuccessResult(result, err, t)
@@ -133,7 +133,7 @@ func TestRetrievalDeals_Timeout(t *testing.T) {
 		MaxDurationSeconds: 5,
 		MaxDownloadBytes:   100 * 1024 * 1024,
 		Provider:           "f03223",
-		Cid:                "bafybeiee7fchamcdeykdnruphxjkbp5gtapao6dysa75ijdzvi3wa7wdhy",
+		Cid:                "bafybeibxlbpejjvrfs7c3ytnpxyem5n4nkxbu7wecjcmrrawxuqojana3y",
 	})
 	fmt.Printf("result: %+v", result)
 	validateSuccessResult(result, err, t)
@@ -145,7 +145,7 @@ func TestRetrievalDeals_ReachesMaxSize(t *testing.T) {
 		MaxDurationSeconds: 60,
 		MaxDownloadBytes:   10 * 1024 * 1024,
 		Provider:           "f03223",
-		Cid:                "bafybeiee7fchamcdeykdnruphxjkbp5gtapao6dysa75ijdzvi3wa7wdhy",
+		Cid:                "bafybeibxlbpejjvrfs7c3ytnpxyem5n4nkxbu7wecjcmrrawxuqojana3y",
 	})
 	fmt.Printf("result: %+v", result)
 	validateSuccessResult(result, err, t)

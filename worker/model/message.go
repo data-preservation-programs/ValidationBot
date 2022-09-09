@@ -11,6 +11,7 @@ type ValidationInput struct {
 type ValidationResult struct {
 	Success           bool      `json:"success"`
 	TimeToFirstByteMs int64     `json:"time_to_first_byte_ms"`
+	BytesDownloaded   uint64    `json:"bytes_downloaded"`
 	AverageSpeedBps   float64   `json:"average_speed_bps"`
 	SpeedBpsP1        float64   `json:"speed_bps_p1"`
 	SpeedBpsP5        float64   `json:"speed_bps_p5"`

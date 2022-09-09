@@ -12,6 +12,9 @@ import (
 	flatfs "github.com/ipfs/go-ds-flatfs"
 	levelds "github.com/ipfs/go-ds-leveldb"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	basicnode "github.com/ipld/go-ipld-prime/node/basic"
+	"github.com/ipld/go-ipld-prime/traversal/selector"
+	"github.com/ipld/go-ipld-prime/traversal/selector/builder"
 	"github.com/libp2p/go-libp2p"
 	"github.com/mitchellh/go-homedir"
 	"os"
@@ -25,8 +28,13 @@ type timeBytesPair struct {
 	bytes uint64
 }
 
+type timeEventPair struct {
+	time  time.Time
+	event rep.RetrievalEvent
+}
+
 type metrics struct {
-	retrievalEvents map[rep.Code]time.Time
+	retrievalEvents []timeEventPair
 	bytesReceived   []timeBytesPair
 }
 
@@ -34,40 +42,52 @@ type retrievalHelper struct {
 	maxAllowedDownloadBytes uint64
 	metrics                 metrics
 	done                    chan interface{}
-	finished                bool // do we need a mutex
 }
 
 func (r retrievalHelper) OnRetrievalEvent(event rep.RetrievalEvent) {
-	if r.finished {
-		return
-	}
-	r.metrics.retrievalEvents[event.Code()] = time.Now()
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{time.Now(), event})
 	fmt.Printf("[%s]RetrievalEvent - code: %s, phase: %s\n", time.Now().UTC().Format(time.RFC3339Nano), event.Code(), event.Phase())
 	if event.Code() == rep.FailureCode || event.Code() == rep.SuccessCode {
 		r.done <- event.Code()
-		r.finished = true
 	}
 }
 
+func getRetrievalEventByCode(eventList []timeEventPair, code rep.Code) *timeEventPair {
+	for _, event := range eventList {
+		if event.event.Code() == code {
+			return &event
+		}
+	}
+	return nil
+}
+
 func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
-	if _, ok := r.metrics.retrievalEvents[rep.FailureCode]; ok {
+	if event := getRetrievalEventByCode(r.metrics.retrievalEvents, rep.FailureCode); event != nil {
 		return &model.ValidationResult{
-			Success:   false,
-			ErrorCode: model.RetrievalFailed,
+			Success:      false,
+			ErrorCode:    model.RetrievalFailed,
+			ErrorMessage: event.event.(rep.RetrievalEventFailure).ErrorMessage(),
 		}
 	}
 	// Calculate Time to first byte and average speed
 	ttfb := int64(0)
 	avgSpeed := 0.0
-	if acceptedTime, ok := r.metrics.retrievalEvents[rep.AcceptedCode]; ok {
-		if firstByteTime, ok := r.metrics.retrievalEvents[rep.FirstByteCode]; ok {
-			ttfb = firstByteTime.Sub(acceptedTime).Milliseconds()
-			if len(r.metrics.bytesReceived) > 0 {
-				avgSpeed = float64(r.metrics.bytesReceived[len(r.metrics.bytesReceived)-1].bytes) /
-					(r.metrics.bytesReceived[len(r.metrics.bytesReceived)-1].time.Sub(firstByteTime).Seconds())
-			}
+	accepted := getRetrievalEventByCode(r.metrics.retrievalEvents, rep.AcceptedCode)
+	firstByte := getRetrievalEventByCode(r.metrics.retrievalEvents, rep.FirstByteCode)
+	if accepted != nil && firstByte != nil {
+		ttfb = firstByte.time.Sub(accepted.time).Milliseconds()
+		if len(r.metrics.bytesReceived) > 0 {
+			avgSpeed = float64(r.metrics.bytesReceived[len(r.metrics.bytesReceived)-1].bytes) /
+				(r.metrics.bytesReceived[len(r.metrics.bytesReceived)-1].time.Sub(firstByte.time).Seconds())
 		}
 	}
+	// Calculate bytes downloaded
+	bytesDownloaded := uint64(0)
+	if len(r.metrics.bytesReceived) > 0 {
+		bytesDownloaded = r.metrics.bytesReceived[len(r.metrics.bytesReceived)-1].bytes
+	}
+
+	// Calculate speed percentiles
 	speeds := make([]float64, 0)
 	for i := 1; i < len(r.metrics.bytesReceived); i++ {
 		speeds = append(speeds,
@@ -89,6 +109,7 @@ func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 	}
 	return &model.ValidationResult{
 		Success:           true,
+		BytesDownloaded:   bytesDownloaded,
 		TimeToFirstByteMs: ttfb,
 		AverageSpeedBps:   avgSpeed,
 		SpeedBpsP1:        percentiles[0],
@@ -104,9 +125,6 @@ func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 }
 
 func (r *retrievalHelper) onBytesReceived(bytesReceived uint64) {
-	if r.finished {
-		return
-	}
 	// Register the bytes received at the current time
 	r.metrics.bytesReceived = append(r.metrics.bytesReceived, timeBytesPair{
 		time.Now(), bytesReceived,
@@ -115,7 +133,6 @@ func (r *retrievalHelper) onBytesReceived(bytesReceived uint64) {
 	// Consider hitting max download bytes as a success event and should early terminate
 	if bytesReceived >= r.maxAllowedDownloadBytes {
 		r.done <- rep.SuccessCode
-		r.finished = true
 	}
 }
 
@@ -150,10 +167,19 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 
 	defer closer()
 	helper := retrievalHelper{metrics: metrics{
-		retrievalEvents: make(map[rep.Code]time.Time),
+		retrievalEvents: make([]timeEventPair, 0),
 		bytesReceived:   make([]timeBytesPair, 0),
 	}, done: make(chan interface{}), maxAllowedDownloadBytes: message.MaxDownloadBytes}
 	fc.SubscribeToRetrievalEvents(helper)
+
+	// Selector Node
+	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
+	selectorNode := ssb.ExploreRecursive(
+		selector.RecursionLimitDepth(3),
+		ssb.ExploreAll(ssb.ExploreRecursiveEdge())).Node()
+	// -> above does not work, "data transfer failed: datatransfer error: response rejected"
+	selectorNode = nil
+
 	go func() {
 		query, err := fc.RetrievalQuery(ctx, provider, c)
 		if err != nil {
@@ -162,7 +188,6 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 				ErrorCode:    model.RetrievalQueryFailed,
 				ErrorMessage: err.Error(),
 			}
-			helper.finished = true
 			return
 		}
 		if query.Status == retrievalmarket.QueryResponseUnavailable {
@@ -171,7 +196,6 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 				ErrorCode:    model.QueryResponseUnavailable,
 				ErrorMessage: query.Message,
 			}
-			helper.finished = true
 			return
 		} else if query.Status == retrievalmarket.QueryResponseError {
 			helper.done <- &model.ValidationResult{
@@ -179,18 +203,16 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 				ErrorCode:    model.QueryResponseError,
 				ErrorMessage: query.Message,
 			}
-			helper.finished = true
 			return
 		}
 
-		proposal, err := retrievehelper.RetrievalProposalForAsk(query, c, nil)
+		proposal, err := retrievehelper.RetrievalProposalForAsk(query, c, selectorNode)
 		if err != nil {
 			helper.done <- &model.ValidationResult{
 				Success:      false,
 				ErrorCode:    model.InternalError,
 				ErrorMessage: err.Error(),
 			}
-			helper.finished = true
 			return
 		}
 		_, err = fc.RetrieveContentWithProgressCallback(
@@ -207,7 +229,6 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 				ErrorCode:    model.RetrievalFailed,
 				ErrorMessage: err.Error(),
 			}
-			helper.finished = true
 			return
 		}
 	}()
