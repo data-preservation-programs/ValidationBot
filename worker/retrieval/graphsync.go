@@ -7,6 +7,7 @@ import (
 	"github.com/application-research/filclient/rep"
 	"github.com/application-research/filclient/retrievehelper"
 	"github.com/filecoin-project/go-address"
+	datatransfer "github.com/filecoin-project/go-data-transfer"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
 	"github.com/ipfs/go-cid"
 	flatfs "github.com/ipfs/go-ds-flatfs"
@@ -40,7 +41,7 @@ type metrics struct {
 
 type retrievalHelper struct {
 	maxAllowedDownloadBytes uint64
-	metrics                 metrics
+	metrics                 *metrics
 	done                    chan interface{}
 }
 
@@ -61,7 +62,7 @@ func getRetrievalEventByCode(eventList []timeEventPair, code rep.Code) *timeEven
 	return nil
 }
 
-func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
+func (r retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 	if event := getRetrievalEventByCode(r.metrics.retrievalEvents, rep.FailureCode); event != nil {
 		return &model.ValidationResult{
 			Success:      false,
@@ -89,11 +90,18 @@ func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 
 	// Calculate speed percentiles
 	speeds := make([]float64, 0)
-	for i := 1; i < len(r.metrics.bytesReceived); i++ {
-		speeds = append(speeds,
-			(float64(r.metrics.bytesReceived[i].bytes-r.metrics.bytesReceived[i-1].bytes))/
-				(r.metrics.bytesReceived[i].time.Sub(r.metrics.bytesReceived[i-1].time).Seconds()),
-		)
+	if len(r.metrics.bytesReceived) > 0 {
+		lastTime := r.metrics.bytesReceived[0].time
+		lastBytes := r.metrics.bytesReceived[0].bytes
+		for i := 1; i < len(r.metrics.bytesReceived); i++ {
+			currentTime := r.metrics.bytesReceived[i].time
+			currentBytes := r.metrics.bytesReceived[i].bytes
+			if i == len(r.metrics.bytesReceived)-1 || currentTime.Sub(lastTime).Seconds() >= 1 {
+				speeds = append(speeds, float64(currentBytes-lastBytes)/currentTime.Sub(lastTime).Seconds())
+				lastTime = currentTime
+				lastBytes = currentBytes
+			}
+		}
 	}
 	sort.Slice(speeds, func(i, j int) bool {
 		return speeds[i] < speeds[j]
@@ -124,7 +132,7 @@ func (r *retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 	}
 }
 
-func (r *retrievalHelper) onBytesReceived(bytesReceived uint64) {
+func (r retrievalHelper) onBytesReceived(bytesReceived uint64) {
 	// Register the bytes received at the current time
 	r.metrics.bytesReceived = append(r.metrics.bytesReceived, timeBytesPair{
 		time.Now(), bytesReceived,
@@ -166,11 +174,41 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 	}
 
 	defer closer()
-	helper := retrievalHelper{metrics: metrics{
+	helper := retrievalHelper{metrics: &metrics{
 		retrievalEvents: make([]timeEventPair, 0),
 		bytesReceived:   make([]timeBytesPair, 0),
 	}, done: make(chan interface{}), maxAllowedDownloadBytes: message.MaxDownloadBytes}
 	fc.SubscribeToRetrievalEvents(helper)
+	eventsToLog := []datatransfer.EventCode{
+		datatransfer.Cancel,
+		datatransfer.Error,
+		datatransfer.PauseInitiator,
+		datatransfer.PauseResponder,
+		datatransfer.Disconnected,
+		datatransfer.RequestTimedOut,
+		datatransfer.SendDataError,
+		datatransfer.ReceiveDataError,
+		datatransfer.RequestCancelled,
+	}
+	isEventToLog := func(i datatransfer.EventCode) bool {
+		for _, e := range eventsToLog {
+			if e == i {
+				return true
+			}
+		}
+		return false
+	}
+	fc.SubscribeToDataTransferEvents(func(event datatransfer.Event, channelState datatransfer.ChannelState) {
+		if isEventToLog(event.Code) {
+			fmt.Printf(
+				"[%s]DataTransferEvent - EventCode: %s, EventMessage: %s, ChannelStatus: %s, ChannelMessage: %s\n",
+				event.Timestamp.UTC().Format(time.RFC3339Nano),
+				datatransfer.Events[event.Code],
+				event.Message,
+				datatransfer.Statuses[channelState.Status()],
+				channelState.Message())
+		}
+	})
 
 	// Selector Node
 	ssb := builder.NewSelectorSpecBuilder(basicnode.Prototype.Any)
@@ -235,16 +273,19 @@ func (g GraphSyncRetrievalHandler) HandleRetrieval(ctx context.Context, message 
 	// If max duration seconds is reached, early terminate with the current stats
 	select {
 	case f := <-helper.done:
+		fc.Libp2pTransferMgr.Stop()
 		switch f.(type) {
 		case rep.Code:
 			return helper.CalculateValidationResult(), nil
 		case *model.ValidationResult:
 			return f.(*model.ValidationResult), nil
+		default:
+			return nil, fmt.Errorf("unexpected type %T", f)
 		}
 	case <-time.After(time.Duration(message.MaxDurationSeconds) * time.Second):
+		fc.Libp2pTransferMgr.Stop()
 		return helper.CalculateValidationResult(), nil
 	}
-	return nil, nil
 }
 
 func getFilClient(ctx context.Context, cfgdir string) (*filclient.FilClient, func(), error) {

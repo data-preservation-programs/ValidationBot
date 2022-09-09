@@ -13,8 +13,8 @@ import (
 func TestOnBytesReceived(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 500,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
@@ -23,6 +23,7 @@ func TestOnBytesReceived(t *testing.T) {
 		r.onBytesReceived(100)
 		r.onBytesReceived(300)
 		r.onBytesReceived(600)
+		time.Sleep(1 * time.Second)
 		r.onBytesReceived(1000)
 	}()
 	select {
@@ -54,17 +55,15 @@ func TestOnBytesReceived(t *testing.T) {
 func TestOnRetrievalEvent(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 0,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
 	}
-	go func() {
-		r.OnRetrievalEvent(rep.NewRetrievalEventAccepted(
-			rep.RetrievalPhase, cid.Cid{}, "", address.Undef))
-	}()
-	if _, ok := r.metrics.retrievalEvents[rep.AcceptedCode]; !ok {
+	r.OnRetrievalEvent(rep.NewRetrievalEventAccepted(
+		rep.RetrievalPhase, cid.Cid{}, "", address.Undef))
+	if getRetrievalEventByCode(r.metrics.retrievalEvents, rep.AcceptedCode) == nil {
 		t.Errorf("Expected AcceptedCode to be present in metrics")
 	}
 }
@@ -72,8 +71,8 @@ func TestOnRetrievalEvent(t *testing.T) {
 func TestOnRetrievalEventWithSuccessCode(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 0,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
@@ -97,7 +96,7 @@ func TestOnRetrievalEventWithSuccessCode(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Errorf("Expected channel to have an item")
 	}
-	if _, ok := r.metrics.retrievalEvents[rep.SuccessCode]; !ok {
+	if getRetrievalEventByCode(r.metrics.retrievalEvents, rep.SuccessCode) == nil {
 		t.Errorf("Expected AcceptedCode to be present in metrics")
 	}
 }
@@ -105,13 +104,16 @@ func TestOnRetrievalEventWithSuccessCode(t *testing.T) {
 func TestCalculateValidationResult_Failure(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 0,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
 	}
-	r.metrics.retrievalEvents[rep.FailureCode] = time.Now()
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  time.Now(),
+		event: rep.NewRetrievalEventFailure(rep.QueryPhase, cid.Cid{}, "", address.Undef, "errorMessage"),
+	})
 	result := r.CalculateValidationResult()
 	if result.Success {
 		t.Errorf("Expected result to be false")
@@ -119,21 +121,33 @@ func TestCalculateValidationResult_Failure(t *testing.T) {
 	if result.ErrorCode != model.RetrievalFailed {
 		t.Errorf("Expected result to have the correct error code")
 	}
+	if result.ErrorMessage != "errorMessage" {
+		t.Errorf("Expected result to have the correct error message")
+	}
 }
 
 func TestCalculateValidationResult_NoDownload(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 0,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
 	}
 	now := time.Now()
-	r.metrics.retrievalEvents[rep.AcceptedCode] = now
-	r.metrics.retrievalEvents[rep.FirstByteCode] = now.Add(1 * time.Second)
-	r.metrics.retrievalEvents[rep.SuccessCode] = now.Add(2 * time.Second)
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now,
+		event: rep.NewRetrievalEventAccepted(rep.QueryPhase, cid.Cid{}, "", address.Undef),
+	})
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now.Add(1 * time.Second),
+		event: rep.NewRetrievalEventFirstByte(rep.QueryPhase, cid.Cid{}, "", address.Undef),
+	})
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now.Add(2 * time.Second),
+		event: rep.NewRetrievalEventSuccess(rep.QueryPhase, cid.Cid{}, "", address.Undef, 0, 0),
+	})
 	result := r.CalculateValidationResult()
 	if !result.Success {
 		t.Errorf("Expected result to be true")
@@ -152,16 +166,25 @@ func TestCalculateValidationResult_NoDownload(t *testing.T) {
 func TestCalculateValidationResult_WithDownload(t *testing.T) {
 	r := retrievalHelper{
 		maxAllowedDownloadBytes: 0,
-		metrics: metrics{
-			retrievalEvents: make(map[rep.Code]time.Time),
+		metrics: &metrics{
+			retrievalEvents: make([]timeEventPair, 0),
 			bytesReceived:   make([]timeBytesPair, 0),
 		},
 		done: make(chan interface{}),
 	}
 	now := time.Now()
-	r.metrics.retrievalEvents[rep.AcceptedCode] = now
-	r.metrics.retrievalEvents[rep.FirstByteCode] = now.Add(1 * time.Second)
-	r.metrics.retrievalEvents[rep.SuccessCode] = now.Add(2 * time.Second)
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now,
+		event: rep.NewRetrievalEventAccepted(rep.QueryPhase, cid.Cid{}, "", address.Undef),
+	})
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now.Add(1 * time.Second),
+		event: rep.NewRetrievalEventFirstByte(rep.QueryPhase, cid.Cid{}, "", address.Undef),
+	})
+	r.metrics.retrievalEvents = append(r.metrics.retrievalEvents, timeEventPair{
+		time:  now.Add(2 * time.Second),
+		event: rep.NewRetrievalEventSuccess(rep.QueryPhase, cid.Cid{}, "", address.Undef, 0, 0),
+	})
 	received := 0
 	for i := 0; i < 100; i++ {
 		received += 200 - i
