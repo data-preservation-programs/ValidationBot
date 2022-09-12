@@ -107,7 +107,7 @@ func validateSuccessResult(result *model.ValidationResult, err error, t *testing
 	if result.TimeToFirstByteMs < 1 {
 		t.Errorf("time to first byte should be greater than 0")
 	}
-	if result.AverageSpeedBps < 1 {
+	if result.SpeedBpsAvg < 1 {
 		t.Errorf("average speed should be greater than 0")
 	}
 	if result.SpeedBpsP50 < 1 {

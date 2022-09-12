@@ -155,7 +155,7 @@ func TestCalculateValidationResult_NoDownload(t *testing.T) {
 	if result.TimeToFirstByteMs != 1000 {
 		t.Errorf("Expected result to have the correct time to first byte")
 	}
-	if result.AverageSpeedBps != 0 {
+	if result.SpeedBpsAvg != 0 {
 		t.Errorf("Expected result to have the correct average speed")
 	}
 	if result.SpeedBpsP50 != 0 {
@@ -201,7 +201,7 @@ func TestCalculateValidationResult_WithDownload(t *testing.T) {
 	if result.TimeToFirstByteMs != 1000 {
 		t.Errorf("Expected result to have the correct time to first byte")
 	}
-	if result.AverageSpeedBps < 153 || result.AverageSpeedBps > 154 {
+	if result.SpeedBpsAvg < 153 || result.SpeedBpsAvg > 154 {
 		t.Errorf("Expected result to have the correct average speed")
 	}
 	if result.SpeedBpsP1 != 101 {

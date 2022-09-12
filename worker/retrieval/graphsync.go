@@ -119,7 +119,7 @@ func (r retrievalHelper) CalculateValidationResult() *model.ValidationResult {
 		Success:           true,
 		BytesDownloaded:   bytesDownloaded,
 		TimeToFirstByteMs: ttfb,
-		AverageSpeedBps:   avgSpeed,
+		SpeedBpsAvg:       avgSpeed,
 		SpeedBpsP1:        percentiles[0],
 		SpeedBpsP5:        percentiles[1],
 		SpeedBpsP10:       percentiles[2],
