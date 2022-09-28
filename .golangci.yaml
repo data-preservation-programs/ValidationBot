@@ -1,0 +1,40 @@
+run:
+  tests: true
+  skip-dirs:
+    - extern
+  skip-files:
+    - _test\.go
+    - pubsubtest/util.go
+
+linters:
+  enable-all: true
+  disable:
+    - typecheck
+    - nosnakecase
+    - exhaustivestruct
+    - interfacer
+    - structcheck
+    - golint
+    - ifshort
+    - scopelint
+    - varcheck
+    - maligned
+    - deadcode
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - wastedassign
+    - gofumpt
+    - gci
+    - goimports
+
+linters-settings:
+  varnamelen:
+    ignore-type-assert-ok: true
+    ignore-chan-recv-ok: true
+    ignore-map-index-ok: true
+  paralleltest:
+    ignore-missing: true
+  exhaustruct:
+    exclude:
+      - 'dispatcher\.common\.TaskDef'
