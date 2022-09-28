@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 
+	"validation-bot/observer"
+
 	"validation-bot/auditor"
 	"validation-bot/store"
 
@@ -11,6 +13,7 @@ import (
 	"validation-bot/task"
 
 	"github.com/google/uuid"
+	"github.com/ipfs/go-cid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -80,6 +83,40 @@ func main() {
 			return
 		}
 	}
+	if viper.GetBool("observer.enabled") {
+		err := startObserver(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot start observer")
+			return
+		}
+	}
+}
+
+func startObserver(ctx context.Context) error {
+	resultSubscriber := store.NewW3StoreSubscriber()
+	connectionString := viper.GetString("observer.database_connection_string")
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	if err != nil {
+		return errors.Wrap(err, "cannot open database connection")
+	}
+
+	trustedPeers := viper.GetStringSlice("observer.trusted_peers")
+	peers := make(map[peer.ID]*cid.Cid, len(trustedPeers))
+	for _, trustedPeer := range trustedPeers {
+		peerId, err := peer.Decode(trustedPeer)
+		if err != nil {
+			return errors.Wrap(err, "cannot decode peer id")
+		}
+		peers[peerId] = nil
+	}
+
+	observer, err := observer.NewObserver(db, resultSubscriber, peers)
+	if err != nil {
+		return errors.Wrap(err, "cannot create observer")
+	}
+
+	observer.Start(ctx)
+	return nil
 }
 
 func startAuditor(ctx context.Context) error {
@@ -96,8 +133,13 @@ func startAuditor(ctx context.Context) error {
 		return errors.Wrap(err, "cannot create task subscriber")
 	}
 
-	// TODO provider implementation
-	var resultPublisher store.ResultPublisher
+	resultPublisher, err := store.NewW3StorePublisher(
+		ctx,
+		viper.GetString("auditor.w3s_token"),
+		viper.GetString("auditor.private_key"))
+	if err != nil {
+		return errors.Wrap(err, "cannot create result publisher")
+	}
 
 	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
 	peers := make([]peer.ID, len(trustedPeers))

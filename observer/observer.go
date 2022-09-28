@@ -60,7 +60,8 @@ func (o Observer) Start(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case entry := <-entries:
-					log.Info().Str("from", peerID.String()).Interface("cid", entry.Cid.String()).Msg("received message")
+					log.Info().Str("from", peerID.String()).
+						Interface("cid", entry.PreviousCid.String()).Msg("received message")
 					err := o.storeResult(ctx, entry)
 					if err != nil {
 						log.Error().Err(err).Msg("failed to handle result")
