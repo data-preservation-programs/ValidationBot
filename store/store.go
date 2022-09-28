@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type ResultPublisher interface {
@@ -16,8 +17,7 @@ type Entry struct {
 }
 
 type ResultSubscriber interface {
-	Subscribe(ctx context.Context, last cid.Cid) error
-	Next(ctx context.Context) (Entry, error)
+	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error)
 }
 
 type Store interface {

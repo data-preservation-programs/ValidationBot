@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"encoding/base64"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -28,6 +29,29 @@ type PubsubConfig struct {
 	PeerID     peer.ID
 	ListenAddr string
 	TopicName  string
+}
+
+func NewPubsubConfig(privateKeyStr string, listenAddr string, topicName string) (*PubsubConfig, error) {
+	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot decode private key")
+	}
+
+	privateKey, err := crypto.UnmarshalPrivateKey(privateKeyBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal private key")
+	}
+
+	peerID, err := peer.IDFromPrivateKey(privateKey)
+
+	pubsubConfig := PubsubConfig{
+		PrivateKey: privateKey,
+		PeerID:     peerID,
+		ListenAddr: listenAddr,
+		TopicName:  topicName,
+	}
+
+	return &pubsubConfig, nil
 }
 
 func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pTaskSubscriber, error) {

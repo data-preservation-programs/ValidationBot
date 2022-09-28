@@ -16,6 +16,7 @@ type Task struct {
 }
 
 type Result struct {
+	task.Task
 	Echo string `json:"echo"`
 }
 
@@ -32,7 +33,8 @@ func (v Validator) Validate(ctx context.Context, input []byte) ([]byte, error) {
 	}
 
 	result := Result{
-		task.Input,
+		Task: task.Task,
+		Echo: task.Input,
 	}
 
 	output, err := json.Marshal(result)

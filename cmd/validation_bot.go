@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
+
+	"validation-bot/auditor"
+	"validation-bot/store"
 
 	"validation-bot/dispatcher"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -27,37 +28,35 @@ func main() {
 	api.Logger = lecho.From(log.Logger)
 	api.Use(middleware.Recover())
 	if viper.GetBool("dispatcher.enabled") {
-		dispatcher, err := startDispatcher(ctx)
+		dispatcherGroup, err := startDispatcher(ctx)
 		if err != nil {
-			log.Error().Err(err).Msg("cannot start dispatcher")
+			log.Error().Err(err).Msg("cannot start dispatcherGroup")
+			return
 		}
 
-		api.POST("/dispatcher/task", func(c echo.Context) error {
-			definition := new(task.Definition)
-			if err := c.Bind(definition); err != nil {
-				log.Warn().Err(err).Msg("cannot bind task definition")
-				return c.String(400, "cannot parse task definition"+err.Error())
-			}
-			err = dispatcher.Create(c.Request().Context(), definition)
+		api.POST("/dispatcherGroup/task", func(c echo.Context) error {
+			var definition task.Definition
+			err := c.Bind(&definition)
 			if err != nil {
-				return errors.Wrap(err, "cannot create task definition")
+				return err
 			}
 
-			type Response struct {
-				ID uuid.UUID `json:"id"`
+			err = dispatcherGroup.Create(c.Request().Context(), &definition)
+			if err != nil {
+				return err
 			}
 
-			return c.JSON(200, Response{ID: definition.ID})
+			return c.NoContent(200)
 		})
 
-		api.DELETE("/dispatcher/task/:id", func(c echo.Context) error {
+		api.DELETE("/dispatcherGroup/task/:id", func(c echo.Context) error {
 			id := c.Param("id")
 			parsedId, err := uuid.Parse(id)
 			if err != nil {
 				return c.String(400, "invalid id")
 			}
 
-			err = dispatcher.Remove(c.Request().Context(), parsedId)
+			err = dispatcherGroup.Remove(c.Request().Context(), parsedId)
 			if err != nil {
 				return errors.Wrap(err, "cannot delete task definition")
 			}
@@ -65,8 +64,8 @@ func main() {
 			return c.String(200, "ok")
 		})
 
-		api.GET("/dispatcher/task", func(c echo.Context) error {
-			definitions, err := dispatcher.List(c.Request().Context())
+		api.GET("/dispatcherGroup/task", func(c echo.Context) error {
+			definitions, err := dispatcherGroup.List(c.Request().Context())
 			if err != nil {
 				return errors.Wrap(err, "cannot list task definitions")
 			}
@@ -74,42 +73,83 @@ func main() {
 			return c.JSON(200, definitions)
 		})
 	}
+	if viper.GetBool("auditor.enabled") {
+		err := startAuditor(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot start auditor")
+			return
+		}
+	}
+}
+
+func startAuditor(ctx context.Context) error {
+	pubsubConfig, err := task.NewPubsubConfig(
+		viper.GetString("auditor.private_key"),
+		viper.GetString("auditor.listen_addr"),
+		viper.GetString("auditor.topic_name"))
+	if err != nil {
+		return errors.Wrap(err, "cannot create pubsub config")
+	}
+
+	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *pubsubConfig)
+	if err != nil {
+		return errors.Wrap(err, "cannot create task subscriber")
+	}
+
+	// TODO provider implementation
+	var resultPublisher store.ResultPublisher
+
+	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
+	peers := make([]peer.ID, len(trustedPeers))
+	for i, trustedPeer := range trustedPeers {
+		peerId, err := peer.Decode(trustedPeer)
+		if err != nil {
+			return errors.Wrap(err, "cannot decode peer id")
+		}
+		peers[i] = peerId
+	}
+
+	auditor, err := auditor.NewAuditor(auditor.Config{
+		ResultPublisher: resultPublisher,
+		TaskSubscriber:  taskSubscriber,
+		TrustedPeers:    peers,
+	})
+	if err != nil {
+		return errors.Wrap(err, "cannot create auditor")
+	}
+
+	go func() {
+		err := auditor.Start(ctx)
+		if err != nil {
+			log.Error().Err(err).Msg("auditor stopped")
+		}
+	}()
+
+	return nil
 }
 
 func startDispatcher(ctx context.Context) (*dispatcher.Group, error) {
-	connectionString := viper.GetString("database.connection_string")
+	connectionString := viper.GetString("dispatcher.database_connection_string")
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot connect to the database")
+		return nil, errors.Wrap(err, "cannot open database connection")
 	}
 
-	privateKeyStr := viper.GetString("dispatcher.private_key")
-	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)
+	pubsubConfig, err := task.NewPubsubConfig(
+		viper.GetString("dispatcher.private_key"),
+		viper.GetString("dispatcher.listen_addr"),
+		viper.GetString("dispatcher.topic_name"))
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot decode private key")
+		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
-	privateKey, err := crypto.UnmarshalPrivateKey(privateKeyBytes)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal private key")
-	}
-
-	peerID, err := peer.IDFromPrivateKey(privateKey)
-
-	pubsubConfig := task.PubsubConfig{
-		PrivateKey: privateKey,
-		PeerID:     peerID,
-		ListenAddr: viper.GetString("dispatcher.listen_addr"),
-		TopicName:  viper.GetString("dispatcher.topic_name"),
-	}
-
-	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, pubsubConfig)
+	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, *pubsubConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create task publisher")
 	}
 
 	dispatcherConfig := dispatcher.Config{
-		Db:            db,
+		Db:            db.WithContext(ctx),
 		TaskPublisher: taskPublisher,
 	}
 

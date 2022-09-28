@@ -29,9 +29,9 @@ type Auditor struct {
 }
 
 type Config struct {
-	trustedPeers    []peer.ID
-	resultPublisher store.ResultPublisher
-	taskSubscriber  task.Subscriber
+	TrustedPeers    []peer.ID
+	ResultPublisher store.ResultPublisher
+	TaskSubscriber  task.Subscriber
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
@@ -40,9 +40,9 @@ func NewAuditor(config Config) (*Auditor, error) {
 
 	auditor := Auditor{
 		validators:      validators,
-		trustedPeers:    config.trustedPeers,
-		resultPublisher: config.resultPublisher,
-		taskSubscriber:  config.taskSubscriber,
+		trustedPeers:    config.TrustedPeers,
+		resultPublisher: config.ResultPublisher,
+		taskSubscriber:  config.TaskSubscriber,
 	}
 
 	return &auditor, nil

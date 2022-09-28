@@ -48,7 +48,7 @@ func TestAuditor_Start(t *testing.T) {
 		PeerID:       peerID,
 		ListenAddr:   "/ip4/0.0.0.0/tcp/" + strconv.Itoa(subPort),
 		topicName:    topic,
-		trustedPeers: []string{},
+		TrustedPeers: []string{},
 		publisher:    mockPublisher,
 	})
 	assert.Nil(err)
