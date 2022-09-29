@@ -9,13 +9,13 @@ import (
 type Type = string
 
 const (
-	EchoType Type = "echo"
+	Echo Type = "echo"
 )
 
 type Task struct {
 	Type         Type      `json:"type"`
-	Target       string    `json:"target"`
 	DefinitionID uuid.UUID `json:"definition_id"`
+	Target       string    `json:"target"`
 }
 
 type Definition struct {

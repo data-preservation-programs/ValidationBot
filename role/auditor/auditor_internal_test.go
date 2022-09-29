@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	TestType task.Type = "test"
+	TestType task.Type = "module"
 )
 
 type MockValidator struct {
@@ -39,7 +39,7 @@ func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
 func TestAuditor_Start(t *testing.T) {
 	assert := assert.New(t)
 	private, _, peerID := pubsubtest.GeneratePeerID(t)
-	topic, pubPort, subPort := "test", 5556, 5557
+	topic, pubPort, subPort := "module", 5556, 5557
 	mockPublisher := new(MockPublisher)
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
@@ -59,14 +59,14 @@ func TestAuditor_Start(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	task := []byte("{\"type\":\"test\",\"target\":\"target\",\"input\":\"hello\"}")
+	task := []byte("{\"type\":\"module\",\"target\":\"target\",\"input\":\"hello\"}")
 	go func(ctx context.Context) {
 		pubsubtest.PublishTask(ctx, t, pubPort, subPort, peerID, topic, task)
 		<-ctx.Done()
 	}(ctx)
 	auditor.Start(ctx)
 
-	// Verify the test validator has been called with the test task
+	// Verify the module validator has been called with the module task
 	mockValidator.AssertCalled(t, "Validate", mock.Anything, task)
 	// Verify the message has been published
 	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte("test_output"))

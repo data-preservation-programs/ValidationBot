@@ -35,7 +35,6 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 	peerCid := peer.ToCid(peerID)
 	entries := make(chan Entry)
 	go func() {
-		lastCid := new(cid.Cid)
 		for {
 			latest, err := getLastRecord(ctx, s.client, peerCid.String())
 			if err != nil {
@@ -49,7 +48,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 				time.Sleep(time.Second * 60)
 				continue
 			}
-			// Push all entries from latestCid until lastCid
+			// Push all entries from latestCid until last
 			for {
 				got, err := s.client.R().SetContext(ctx).Get("https://api.web3.storage/car/" + latestCid.String())
 				if err != nil {
@@ -68,12 +67,12 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 				entry := bindnode.Unwrap(builder.Build()).(*Entry)
 				entries <- *entry
 
-				if entry.PreviousCid.Equals(*lastCid) {
+				if entry.PreviousCid.Equals(*last) {
 					break
 				}
 			}
 
-			lastCid = &latestCid
+			last = &latestCid
 		}
 	}()
 	return entries, nil
