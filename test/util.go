@@ -1,8 +1,9 @@
-package pubsubtest
+package test
 
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"strconv"
 	"testing"
 	"time"
@@ -24,6 +25,13 @@ func GeneratePeerID(t *testing.T) (crypto.PrivKey, crypto.PubKey, peer.ID) {
 	assert.Nil(err)
 	log.Info().Str("peerID", peerID.String()).Msg("peerID created")
 	return private, public, peerID
+}
+
+func MarshalPrivateKey(t *testing.T, private crypto.PrivKey) string {
+	assert := assert.New(t)
+	bytes, err := crypto.MarshalPrivateKey(private)
+	assert.Nil(err)
+	return base64.StdEncoding.EncodeToString(bytes)
 }
 
 func PublishTask(ctx context.Context, t *testing.T, pubPort int,

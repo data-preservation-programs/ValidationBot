@@ -2,14 +2,14 @@ package auditor
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 
 	"validation-bot/task"
 
-	"validation-bot/pubsubtest"
+	"validation-bot/test"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -38,30 +38,24 @@ func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
 
 func TestAuditor_Start(t *testing.T) {
 	assert := assert.New(t)
-	private, _, peerID := pubsubtest.GeneratePeerID(t)
+	_, _, peerID := test.GeneratePeerID(t)
 	topic, pubPort, subPort := "module", 5556, 5557
 	mockPublisher := new(MockPublisher)
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	auditor, err := NewAuditor(context.Background(), Config{
-		PrivateKey:   private,
-		PeerID:       peerID,
-		ListenAddr:   "/ip4/0.0.0.0/tcp/" + strconv.Itoa(subPort),
-		topicName:    topic,
-		TrustedPeers: []string{},
-		publisher:    mockPublisher,
+	auditor, err := NewAuditor(Config{
+		TrustedPeers: []peer.ID{},
 	})
 	assert.Nil(err)
 
 	mockValidator := new(MockValidator)
-	auditor.validators[TestType] = mockValidator
 	mockValidator.On("Validate", mock.Anything, mock.Anything).Return([]byte("test_output"), nil)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	task := []byte("{\"type\":\"module\",\"target\":\"target\",\"input\":\"hello\"}")
 	go func(ctx context.Context) {
-		pubsubtest.PublishTask(ctx, t, pubPort, subPort, peerID, topic, task)
+		test.PublishTask(ctx, t, pubPort, subPort, peerID, topic, task)
 		<-ctx.Done()
 	}(ctx)
 	auditor.Start(ctx)

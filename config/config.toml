@@ -1,0 +1,22 @@
+[dispatcher]
+enabled = true
+database_connection_string = "dbname=validation_bot"
+private_key = ""
+listen_addr = "/ip4/0.0.0.0/tcp/7998"
+check_interval = "5m"
+
+[auditor]
+enabled = true
+trusted_peers = []
+private_key = ""
+listen_addr = "/ip4/0.0.0.0/tcp/7999"
+w3s_token = "your_token"
+
+[observer]
+enabled = true
+database_connection_string = "dbname=validation_bot"
+trusted_peers = []
+
+[module]
+    [module.echo]
+    enabled = true

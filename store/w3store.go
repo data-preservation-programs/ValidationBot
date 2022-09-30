@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -79,12 +80,14 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 }
 
 type W3StorePublisher struct {
-	client       *resty.Client
-	peerId       peer.ID
-	peerCid      cid.Cid
-	privateKey   crypto.PrivKey
-	lastCid      *cid.Cid
-	lastSequence *uint64
+	client         *resty.Client
+	peerId         peer.ID
+	peerCid        cid.Cid
+	privateKey     crypto.PrivKey
+	lastCid        *cid.Cid
+	lastSequence   *uint64
+	initialized    bool
+	initializedMux sync.Mutex
 }
 
 func NewW3StorePublisher(ctx context.Context, token string, privateKeyStr string) (*W3StorePublisher, error) {
@@ -105,24 +108,34 @@ func NewW3StorePublisher(ctx context.Context, token string, privateKeyStr string
 	peerCid := peer.ToCid(peerId)
 
 	w3Store := &W3StorePublisher{
-		client:     client,
-		peerId:     peerId,
-		privateKey: privateKey,
-		peerCid:    peerCid,
-	}
-
-	entry, err := getLastRecord(ctx, client, peerCid.String())
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get last record")
-	}
-
-	w3Store.lastSequence = entry.Sequence
-	_, *w3Store.lastCid, err = cid.CidFromBytes(entry.Value)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get last cid")
+		client:         client,
+		peerId:         peerId,
+		privateKey:     privateKey,
+		peerCid:        peerCid,
+		initialized:    false,
+		initializedMux: sync.Mutex{},
 	}
 
 	return w3Store, nil
+}
+
+func (s *W3StorePublisher) initialize(ctx context.Context) error {
+	s.initializedMux.Lock()
+	defer s.initializedMux.Unlock()
+	entry, err := getLastRecord(ctx, s.client, s.peerCid.String())
+	if err != nil {
+		return errors.Wrap(err, "failed to get last record")
+	}
+
+	s.lastSequence = entry.Sequence
+	_, *s.lastCid, err = cid.CidFromBytes(entry.Value)
+	if err != nil {
+		return errors.Wrap(err, "failed to get last cid")
+	}
+
+	s.initialized = true
+
+	return nil
 }
 
 func (s *W3StorePublisher) publishNewRecord(ctx context.Context, value []byte) error {

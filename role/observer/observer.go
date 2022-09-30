@@ -18,11 +18,11 @@ import (
 )
 
 type Observer struct {
-	Db               *gorm.DB
-	TrustedPeers     []peer.ID
-	LastCids         []*cid.Cid
-	ResultSubscriber store.ResultSubscriber
-	Modules          map[string]module.Module
+	db               *gorm.DB
+	trustedPeers     []peer.ID
+	lastCids         []*cid.Cid
+	resultSubscriber store.ResultSubscriber
+	modules          map[string]module.Module
 }
 
 func NewObserver(db *gorm.DB,
@@ -42,21 +42,21 @@ func NewObserver(db *gorm.DB,
 	}
 
 	return &Observer{
-		Db:               db,
-		TrustedPeers:     peers,
-		LastCids:         cids,
-		ResultSubscriber: resultSubscriber,
-		Modules:          mods,
+		db:               db,
+		trustedPeers:     peers,
+		lastCids:         cids,
+		resultSubscriber: resultSubscriber,
+		modules:          mods,
 	}, nil
 }
 
 func (o Observer) Start(ctx context.Context) <-chan error {
 	errChannel := make(chan error)
-	for i, peerID := range o.TrustedPeers {
+	for i, peerID := range o.trustedPeers {
 		i, peerID := i, peerID
 		go func() {
-			last := o.LastCids[i]
-			entries, err := o.ResultSubscriber.Subscribe(ctx, peerID, last)
+			last := o.lastCids[i]
+			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to receive next message")
 				return
@@ -87,7 +87,7 @@ func (o Observer) storeResult(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal data to get the type")
 	}
 
-	mod, ok := o.Modules[entryTask.Type]
+	mod, ok := o.modules[entryTask.Type]
 	if !ok {
 		return errors.Errorf("unknown task type %s", entryTask.Type)
 	}
@@ -98,7 +98,7 @@ func (o Observer) storeResult(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal to concrete type")
 	}
 
-	err = o.Db.WithContext(ctx).Create(result).Error
+	err = o.db.WithContext(ctx).Create(result).Error
 	if err != nil {
 		return errors.Wrap(err, "failed to store concrete result")
 	}

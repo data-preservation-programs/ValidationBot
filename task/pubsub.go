@@ -3,25 +3,35 @@ package task
 import (
 	"context"
 	"encoding/base64"
+	"time"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 )
 
 type Publisher interface {
 	Publish(ctx context.Context, task []byte) error
+	Connect(ctx context.Context, addr peer.AddrInfo) error
 }
 
 type Subscriber interface {
 	Next(ctx context.Context) (*peer.ID, []byte, error)
+	AddrInfo() peer.AddrInfo
 }
 
 type Libp2pTaskSubscriber struct {
+	addrInfo     peer.AddrInfo
 	subscription *pubsub.Subscription
+}
+
+func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
+	return s.addrInfo
 }
 
 type PubsubConfig struct {
@@ -77,7 +87,12 @@ func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pT
 		return nil, errors.Wrap(err, "cannot subscribe to TopicName")
 	}
 
-	return &Libp2pTaskSubscriber{subscription: subscription}, nil
+	addrInfo := peer.AddrInfo{
+		ID:    host.ID(),
+		Addrs: host.Addrs(),
+	}
+
+	return &Libp2pTaskSubscriber{subscription: subscription, addrInfo: addrInfo}, nil
 }
 
 func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
@@ -92,7 +107,29 @@ func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error
 }
 
 type Libp2pTaskPublisher struct {
-	topic *pubsub.Topic
+	topic  *pubsub.Topic
+	libp2p host.Host
+}
+
+func (l Libp2pTaskPublisher) Connect(ctx context.Context, addr peer.AddrInfo) error {
+	err := l.libp2p.Connect(ctx, addr)
+	if err != nil {
+		return errors.Wrap(err, "cannot connect to peer")
+	}
+
+	// This will wait until the peer has been fully connected to the same topic
+	for {
+		if slices.Contains(l.topic.ListPeers(), addr.ID) {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return errors.Wrap(ctx.Err(), "context is done")
+		case <-time.After(100 * time.Millisecond):
+			continue
+		}
+	}
 }
 
 func (l Libp2pTaskPublisher) Publish(ctx context.Context, task []byte) error {
@@ -117,5 +154,5 @@ func NewLibp2pTaskPublisher(ctx context.Context, config PubsubConfig) (*Libp2pTa
 		return nil, errors.Wrap(err, "cannot join TopicName")
 	}
 
-	return &Libp2pTaskPublisher{topic: topic}, nil
+	return &Libp2pTaskPublisher{topic: topic, libp2p: host}, nil
 }

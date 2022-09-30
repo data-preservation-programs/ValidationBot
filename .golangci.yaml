@@ -4,7 +4,7 @@ run:
     - extern
   skip-files:
     - _test\.go
-    - pubsubtest/util.go
+    - test/util.go
 
 linters:
   enable-all: true
