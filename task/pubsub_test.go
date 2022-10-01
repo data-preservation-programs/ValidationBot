@@ -39,10 +39,12 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 		from, data, err := subscriber.Next(ctx)
 		assert.Nil(err)
 		assert.Equal("test", string(data))
-		assert.Equal(publisherPeerId, from)
+		assert.Equal(publisherPeerId, *from)
 		done <- true
 	}()
 
+	err = publisher.Connect(ctx, subscriber.AddrInfo())
+	assert.Nil(err)
 	err = publisher.Publish(ctx, []byte("test"))
 	assert.Nil(err)
 	<-done
