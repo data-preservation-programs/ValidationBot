@@ -214,7 +214,8 @@ func main() {
 }
 
 func newObserver() (*observer.Observer, error) {
-	resultSubscriber := store.NewW3StoreSubscriber()
+	retryInterval := viper.GetInt64("observer.retry_interval_second")
+	resultSubscriber := store.NewW3StoreSubscriber(time.Duration(retryInterval) * time.Second)
 	connectionString := viper.GetString("observer.database_connection_string")
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 	if err != nil {
@@ -260,7 +261,6 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 	}
 
 	resultPublisher, err := store.NewW3StorePublisher(
-		ctx,
 		viper.GetString("auditor.w3s_token"),
 		viper.GetString("auditor.private_key"))
 	if err != nil {

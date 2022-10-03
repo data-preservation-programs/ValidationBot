@@ -67,7 +67,7 @@ func (o Observer) Start(ctx context.Context) <-chan error {
 					return
 				case entry := <-entries:
 					log.Info().Str("from", peerID.String()).
-						Interface("cid", entry.PreviousCid.String()).Msg("received message")
+						Interface("cid", entry.Previous.String()).Msg("received message")
 					err = o.storeResult(ctx, entry.Message)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "failed to store result")

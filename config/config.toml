@@ -14,6 +14,7 @@ w3s_token = "your_token"
 
 [observer]
 enabled = true
+retry_interval_second = 60
 database_connection_string = "dbname=validation_bot"
 trusted_peers = []
 

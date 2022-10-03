@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,70 +13,151 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipns"
 	ipns_pb "github.com/ipfs/go-ipns/pb"
+	carv2 "github.com/ipld/go-car/v2"
+	"github.com/ipld/go-car/v2/blockstore"
 	"github.com/ipld/go-ipld-prime/codec/dagcbor"
+	"github.com/ipld/go-ipld-prime/datamodel"
+	"github.com/ipld/go-ipld-prime/fluent/qp"
+	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	basicnode "github.com/ipld/go-ipld-prime/node/basic"
-	"github.com/ipld/go-ipld-prime/node/bindnode"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
+	mbase "github.com/multiformats/go-multibase"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
 
 type W3StoreSubscriber struct {
-	client *resty.Client
+	client        *resty.Client
+	retryInterval time.Duration
 }
 
-func NewW3StoreSubscriber() W3StoreSubscriber {
+func NewW3StoreSubscriber(retryInterval time.Duration) W3StoreSubscriber {
 	client := resty.New()
 	return W3StoreSubscriber{
-		client: client,
+		client:        client,
+		retryInterval: retryInterval,
 	}
 }
 
-func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
+func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last cid.Cid) (<-chan Entry, error) {
 	peerCid := peer.ToCid(peerID)
 	entries := make(chan Entry)
 	go func() {
 		for {
-			latest, err := getLastRecord(ctx, s.client, peerCid.String())
+			peerStr, err := mbase.Encode(mbase.Base36, peerCid.Bytes())
+			if err != nil {
+				log.Error().Err(err).Msg("cannot encode peer cid")
+				return
+			}
+			latest, err := getLastRecord(ctx, s.client, peerStr)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get last record")
-				time.Sleep(time.Second * 60)
+				time.Sleep(s.retryInterval)
 				continue
 			}
-			_, latestCid, err := cid.CidFromBytes(latest.Value)
+			latestCid, err := cid.Decode(string(latest.Value))
 			if err != nil {
-				log.Error().Err(err).Msg("failed to get last cid")
-				time.Sleep(time.Second * 60)
+				log.Error().Err(err).Msg("failed to decode last cid")
+				time.Sleep(s.retryInterval)
 				continue
 			}
 			// Push all entries from latestCid until last
-			for {
-				got, err := s.client.R().SetContext(ctx).Get("https://api.web3.storage/car/" + latestCid.String())
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get car")
-					time.Sleep(time.Second * 60)
-					continue
-				}
-
-				buffer := bytes.NewReader(got.Body())
-				builder := basicnode.Prototype.Any.NewBuilder()
-				err = dagcbor.Decode(builder, buffer)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to decode car")
-					continue
-				}
-				entry := bindnode.Unwrap(builder.Build()).(*Entry)
-				entries <- *entry
-
-				if entry.PreviousCid.Equals(*last) {
-					break
-				}
+			downloaded, err := s.downloadChainedEntriesUntil(ctx, latestCid)
+			reverse(downloaded)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to download chained entries")
+				time.Sleep(s.retryInterval)
+				continue
 			}
 
-			last = &latestCid
+			for _, entry := range downloaded {
+				entries <- entry
+				last = entry.Previous
+			}
 		}
 	}()
+	return entries, nil
+}
+
+func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid.Cid, to cid.Cid) ([]Entry, error) {
+	entries := make([]Entry, 0)
+	for {
+		toStr := to.String()
+		got, err := s.client.R().SetContext(ctx).Get("https://api.web3.storage/car/" + toStr)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get car")
+			time.Sleep(s.retryInterval)
+			continue
+		}
+
+		car, err := carv2.NewReader(bytes.NewReader(got.Body()))
+
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot read car")
+		}
+
+		dataReader, err := car.DataReader()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get data reader")
+		}
+
+		store, err := blockstore.NewReadOnly(dataReader, nil,
+			blockstore.UseWholeCIDs(true),
+			carv2.ZeroLengthSectionAsEOF(true))
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot create blockstore")
+		}
+
+		blk, err := store.Get(ctx, to)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get block")
+		}
+
+		buffer := bytes.NewBuffer(blk.RawData())
+		builder := basicnode.Prototype.List.NewBuilder()
+		err = dagcbor.Decode(builder, buffer)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot decode block")
+		}
+
+		node := builder.Build()
+		message, err := node.LookupByIndex(0)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get message")
+		}
+
+		previousNode, err := node.LookupByIndex(1)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get previous node")
+		}
+
+		entryBytes, err := message.AsBytes()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get entry bytes")
+		}
+
+		previousCid := new(cid.Cid)
+
+		if previousNode.Kind() == datamodel.Kind_Link {
+			previousLink, err := previousNode.AsLink()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to get previous link")
+				break
+			}
+			c := previousLink.(cidlink.Link).Cid
+			previousCid = &c
+		}
+
+		entries = append(entries, Entry{
+			Message:  entryBytes,
+			Previous: previousCid,
+		})
+
+		if previousCid == nil || (from != nil && previousCid.Equals(*from)) {
+			break
+		}
+	}
 	return entries, nil
 }
 
@@ -90,7 +172,7 @@ type W3StorePublisher struct {
 	initializedMux sync.Mutex
 }
 
-func NewW3StorePublisher(ctx context.Context, token string, privateKeyStr string) (*W3StorePublisher, error) {
+func NewW3StorePublisher(token string, privateKeyStr string) (*W3StorePublisher, error) {
 	client := resty.New()
 	client.SetAuthToken(token)
 
@@ -122,15 +204,26 @@ func NewW3StorePublisher(ctx context.Context, token string, privateKeyStr string
 func (s *W3StorePublisher) initialize(ctx context.Context) error {
 	s.initializedMux.Lock()
 	defer s.initializedMux.Unlock()
-	entry, err := getLastRecord(ctx, s.client, s.peerCid.String())
+	if s.initialized {
+		return nil
+	}
+
+	peerStr, err := mbase.Encode(mbase.Base36, s.peerCid.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "cannot encode peer cid")
+	}
+	entry, err := getLastRecord(ctx, s.client, peerStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to get last record")
 	}
 
-	s.lastSequence = entry.Sequence
-	_, *s.lastCid, err = cid.CidFromBytes(entry.Value)
-	if err != nil {
-		return errors.Wrap(err, "failed to get last cid")
+	if entry != nil {
+		s.lastSequence = entry.Sequence
+		lastCid, err := cid.Decode(string(entry.Value))
+		s.lastCid = &lastCid
+		if err != nil {
+			return errors.Wrap(err, "failed to get last cid")
+		}
 	}
 
 	s.initialized = true
@@ -138,9 +231,12 @@ func (s *W3StorePublisher) initialize(ctx context.Context) error {
 	return nil
 }
 
-func (s *W3StorePublisher) publishNewRecord(ctx context.Context, value []byte) error {
-	*s.lastSequence++
-	ipnsEntry, err := ipns.Create(s.privateKey, value, *s.lastSequence,
+func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) error {
+	var sequence uint64
+	if s.lastSequence != nil {
+		sequence = *s.lastSequence + 1
+	}
+	ipnsEntry, err := ipns.Create(s.privateKey, []byte(value.String()), sequence,
 		time.Now().Add(time.Hour*time.Duration(24*365)),
 		time.Hour*time.Duration(24*365))
 	if err != nil {
@@ -152,11 +248,26 @@ func (s *W3StorePublisher) publishNewRecord(ctx context.Context, value []byte) e
 		return errors.Wrap(err, "failed to encode ipns entry")
 	}
 
-	_, err = s.client.R().SetContext(ctx).SetBody(encoded).Post("https://name.web3.storage/name/" + s.peerCid.String())
+	peerStr, err := mbase.Encode(mbase.Base36, s.peerCid.Bytes())
+	if err != nil {
+		return errors.Wrap(err, "cannot encode peer cid")
+	}
+	resp, err := s.client.R().SetContext(ctx).
+		SetBody(base64.StdEncoding.EncodeToString(encoded)).
+		Post("https://name.web3.storage/name/" + peerStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to publish new record")
 	}
 
+	if resp.StatusCode() != 202 {
+		return errors.Errorf("failed to publish new record: %d - %s",
+			resp.StatusCode(), resp.Body())
+	}
+	if s.lastSequence != nil {
+		*s.lastSequence++
+	} else {
+		s.lastSequence = &sequence
+	}
 	return nil
 }
 
@@ -166,17 +277,26 @@ func getLastRecord(ctx context.Context, client *resty.Client, peerCid string) (*
 		return nil, errors.Wrap(err, "failed to get last cid")
 	}
 
-	type Response struct {
-		value  string
-		record string
+	if resp.StatusCode() != 200 {
+		if strings.Contains(string(resp.Body()), "not found") {
+			return nil, nil
+		}
+		return nil, errors.Errorf("failed to get last cid: %d - %s",
+			resp.StatusCode(), resp.Body())
 	}
+
+	type Response struct {
+		Value  string `json:"value"`
+		Record string `json:"record"`
+	}
+
 	response := new(Response)
 	err = json.Unmarshal(resp.Body(), response)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal response")
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(response.record)
+	decoded, err := base64.StdEncoding.DecodeString(response.Record)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decode record")
 	}
@@ -191,24 +311,33 @@ func getLastRecord(ctx context.Context, client *resty.Client, peerCid string) (*
 }
 
 func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
-	content := &Entry{
-		PreviousCid: *s.lastCid,
-		Message:     data,
-	}
-	nodeRepresentation := bindnode.Wrap(content, nil).Representation()
+	node, err := qp.BuildList(basicnode.Prototype.Any, 2, func(la datamodel.ListAssembler) {
+		qp.ListEntry(la, qp.Bytes(data))
+		if s.lastCid != nil {
+			qp.ListEntry(la, qp.Link(cidlink.Link{Cid: *s.lastCid}))
+		} else {
+			qp.ListEntry(la, qp.Null())
+		}
+	})
 	buffer := new(bytes.Buffer)
-	err := dagcbor.Encode(nodeRepresentation, buffer)
+	err = dagcbor.Encode(node, buffer)
 	if err != nil {
 		return errors.Wrap(err, "failed to encode content")
 	}
 
-	responseStr, err := s.client.R().SetContext(ctx).SetBody(buffer.Bytes()).Post("https://api.web3.storage/car")
+	responseStr, err := s.client.R().SetContext(ctx).SetBody(buffer.Bytes()).
+		Post("https://api.web3.storage/upload")
 	if err != nil {
 		return errors.Wrap(err, "failed to upload content")
 	}
 
+	if responseStr.StatusCode() != 200 {
+		return errors.Errorf("failed to upload content: %d - %s",
+			responseStr.StatusCode(), responseStr.Body())
+	}
+
 	type Response struct {
-		cid string
+		Cid string `json:"cid"`
 	}
 
 	response := new(Response)
@@ -217,10 +346,11 @@ func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, "failed to unmarshal response")
 	}
 
-	*s.lastCid, err = cid.Parse(response.cid)
+	lastCid, err := cid.Parse(response.Cid)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse cid")
 	}
+	s.lastCid = &lastCid
 
-	return s.publishNewRecord(ctx, s.lastCid.Bytes())
+	return s.publishNewName(ctx, lastCid)
 }
