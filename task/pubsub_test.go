@@ -5,6 +5,10 @@ import (
 	"testing"
 	"validation-bot/test"
 
+	"github.com/libp2p/go-libp2p"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,6 +50,58 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 	err = publisher.Connect(ctx, subscriber.AddrInfo())
 	assert.Nil(err)
 	err = publisher.Publish(ctx, []byte("test"))
+	assert.Nil(err)
+	<-done
+}
+
+func TestPubsub(t *testing.T) {
+	assert := assert.New(t)
+	ctx := context.Background()
+	publisherPrivate, _, _ := test.GeneratePeerID(t)
+
+	pubHost, err := libp2p.New(
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"),
+		libp2p.Identity(publisherPrivate))
+	assert.Nil(err)
+
+	pubPs, err := pubsub.NewGossipSub(ctx, pubHost)
+	assert.Nil(err)
+
+	pubTopic, err := pubPs.Join("test_topic")
+	assert.Nil(err)
+
+	subscriberPrivate, _, _ := test.GeneratePeerID(t)
+	subHost, err := libp2p.New(
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"),
+		libp2p.Identity(subscriberPrivate))
+	assert.Nil(err)
+
+	subPs, err := pubsub.NewGossipSub(ctx, subHost)
+	assert.Nil(err)
+
+	subTopic, err := subPs.Join("test_topic")
+	assert.Nil(err)
+
+	subSubscription, err := subTopic.Subscribe()
+	assert.Nil(err)
+
+	subAddrInfo := peer.AddrInfo{
+		ID:    subHost.ID(),
+		Addrs: subHost.Addrs(),
+	}
+
+	done := make(chan bool)
+
+	go func() {
+		msg, err := subSubscription.Next(ctx)
+		assert.Nil(err)
+		assert.Equal("test", string(msg.Data))
+		done <- true
+	}()
+
+	err = pubHost.Connect(network.WithForceDirectDial(ctx, "test"), subAddrInfo)
+	assert.Nil(err)
+	err = pubTopic.Publish(ctx, []byte("test"))
 	assert.Nil(err)
 	<-done
 }
