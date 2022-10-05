@@ -53,7 +53,7 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 			for {
 				var defs []task.Definition
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
-					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' > now()",
+					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < now()",
 						mod.TaskType()).
 					Find(&defs).Error
 				if err != nil {

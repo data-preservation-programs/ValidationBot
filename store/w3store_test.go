@@ -56,8 +56,8 @@ func TestW3StorePublisher_publishNewRecordAndInitialize(t *testing.T) {
 	assert.Nil(err)
 	err = store.initialize(context)
 	assert.Nil(err)
-	assert.Equal(0, store.lastSequence)
-	assert.Equal(testCid, store.lastCid)
+	assert.Equal(uint64(0), *store.lastSequence)
+	assert.Equal(testCid, *store.lastCid)
 }
 
 func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {

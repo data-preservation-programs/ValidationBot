@@ -1,31 +1,51 @@
-package echo_test
+package echo
 
 import (
-	"context"
 	"testing"
-
-	"validation-bot/auditor/echo"
+	"validation-bot/task"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidator_Validate(t *testing.T) {
-	t.Parallel()
+func TestEcho_GetTasks(t *testing.T) {
 	assert := assert.New(t)
-	val := echo.Validator{}
-	task := []byte("{\"type\":\"echo\",\"target\":\"target\",\"input\":\"hello\"}")
-	result, err := val.Validate(context.TODO(), task)
+	echo := Echo{}
+	tsk := task.Definition{
+		Target:          "target",
+		Type:            "echo",
+		IntervalSeconds: 0,
+		Definition:      "definition",
+		DispatchedTimes: 0,
+	}
+	tasks, err := echo.GetTasks([]task.Definition{tsk})
 	assert.Nil(err)
-	resultString := string(result)
-	assert.Equal("{\"echo\":\"hello\"}", resultString)
+	assert.Equal(1, len(tasks))
+	bytes, err := tasks[tsk].Marshal()
+	assert.Nil(err)
+	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
 }
 
-func TestValidator_InvalidInput(t *testing.T) {
-	t.Parallel()
+func TestEcho_GetTask(t *testing.T) {
 	assert := assert.New(t)
-	val := echo.Validator{}
-	task := []byte("invalid")
-	result, err := val.Validate(context.TODO(), task)
-	assert.Nil(result)
-	assert.NotNil(err)
+	echo := Echo{}
+	tsk := task.Definition{
+		Target:          "target",
+		Type:            "echo",
+		IntervalSeconds: 0,
+		Definition:      "definition",
+		DispatchedTimes: 0,
+	}
+	task, err := echo.GetTask(tsk)
+	assert.Nil(err)
+	bytes, err := task.Marshal()
+	assert.Nil(err)
+	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
+}
+
+func TestEcho_Validate(t *testing.T) {
+	assert := assert.New(t)
+	echo := Echo{}
+	bytes, err := echo.Validate(nil, []byte(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`))
+	assert.Nil(err)
+	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","output":"definition"}`, string(bytes))
 }

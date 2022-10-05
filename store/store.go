@@ -34,3 +34,12 @@ func (m *MockSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *ci
 	args := m.Called(ctx, peerID, last)
 	return args.Get(0).(<-chan Entry), args.Error(1)
 }
+
+type MockPublisher struct {
+	mock.Mock
+}
+
+func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
+	args := m.Called(ctx, input)
+	return args.Error(0)
+}

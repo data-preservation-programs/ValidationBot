@@ -92,13 +92,9 @@ func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) e
 		return errors.Wrap(err, "encountered error performing module")
 	}
 
-	return a.publishResult(ctx, result)
-}
-
-func (a Auditor) publishResult(ctx context.Context, result []byte) error {
 	log.Info().Str("result", string(result)).Msg("publishing result")
 
-	err := a.resultPublisher.Publish(ctx, result)
+	err = a.resultPublisher.Publish(ctx, result)
 	if err != nil {
 		return errors.Wrap(err, "failed to publish result")
 	}
