@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"validation-bot/module"
@@ -89,6 +90,7 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, def *task.Definition, inpu
 	}
 
 	err = g.taskPublisher.Publish(ctx, bytes)
+	fmt.Println((string)(bytes))
 	if err != nil {
 		return errors.Wrap(err, "cannot publish task")
 	}

@@ -30,17 +30,24 @@ import (
 type W3StoreSubscriber struct {
 	client        *resty.Client
 	retryInterval time.Duration
+	pollInterval  time.Duration
 }
 
-func NewW3StoreSubscriber(retryInterval time.Duration) W3StoreSubscriber {
+func NewW3StoreSubscriber(retryInterval time.Duration, pollInterval time.Duration) W3StoreSubscriber {
 	client := resty.New()
+	client.SetRetryCount(3).SetRetryWaitTime(10 * time.Second).SetRetryMaxWaitTime(30 * time.Second).
+		SetRetryAfter(nil).
+		AddRetryCondition(func(r *resty.Response, err error) bool {
+			return r.StatusCode() >= 500 || r.StatusCode() == 429
+		})
 	return W3StoreSubscriber{
 		client:        client,
 		retryInterval: retryInterval,
+		pollInterval:  pollInterval,
 	}
 }
 
-func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last cid.Cid) (<-chan Entry, error) {
+func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
 	peerCid := peer.ToCid(peerID)
 	entries := make(chan Entry)
 	go func() {
@@ -63,18 +70,19 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last c
 				continue
 			}
 			// Push all entries from latestCid until last
-			downloaded, err := s.downloadChainedEntriesUntil(ctx, latestCid)
-			reverse(downloaded)
+			downloaded, err := s.downloadChainedEntries(ctx, last, latestCid)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to download chained entries")
 				time.Sleep(s.retryInterval)
 				continue
 			}
 
-			for _, entry := range downloaded {
-				entries <- entry
-				last = entry.Previous
+			for i := len(downloaded) - 1; i >= 0; i-- {
+				entries <- downloaded[i]
+				last = downloaded[i].Previous
 			}
+
+			time.Sleep(s.pollInterval)
 		}
 	}()
 	return entries, nil
@@ -89,6 +97,10 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 			log.Error().Err(err).Msg("failed to get car")
 			time.Sleep(s.retryInterval)
 			continue
+		}
+
+		if got.StatusCode() != 200 {
+			return nil, errors.Errorf("failed to get car %d - %s", got.StatusCode(), string(got.Body()))
 		}
 
 		car, err := carv2.NewReader(bytes.NewReader(got.Body()))
@@ -137,8 +149,6 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 			return nil, errors.Wrap(err, "cannot get entry bytes")
 		}
 
-		previousCid := new(cid.Cid)
-
 		if previousNode.Kind() == datamodel.Kind_Link {
 			previousLink, err := previousNode.AsLink()
 			if err != nil {
@@ -146,15 +156,23 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 				break
 			}
 			c := previousLink.(cidlink.Link).Cid
-			previousCid = &c
-		}
+			if to == c {
+				return nil, errors.New("previous cid is the same as current")
+			}
+			to = c
 
-		entries = append(entries, Entry{
-			Message:  entryBytes,
-			Previous: previousCid,
-		})
-
-		if previousCid == nil || (from != nil && previousCid.Equals(*from)) {
+			entries = append(entries, Entry{
+				Message:  entryBytes,
+				Previous: &to,
+			})
+			if from != nil && to == *from {
+				break
+			}
+		} else {
+			entries = append(entries, Entry{
+				Message:  entryBytes,
+				Previous: nil,
+			})
 			break
 		}
 	}
@@ -174,6 +192,11 @@ type W3StorePublisher struct {
 
 func NewW3StorePublisher(token string, privateKeyStr string) (*W3StorePublisher, error) {
 	client := resty.New()
+	client.SetRetryCount(3).SetRetryWaitTime(10 * time.Second).SetRetryMaxWaitTime(30 * time.Second).
+		SetRetryAfter(nil).
+		AddRetryCondition(func(r *resty.Response, err error) bool {
+			return r.StatusCode() >= 500 || r.StatusCode() == 429
+		})
 	client.SetAuthToken(token)
 
 	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)

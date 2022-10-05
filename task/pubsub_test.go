@@ -3,12 +3,14 @@ package task
 import (
 	"context"
 	"testing"
+	"time"
 	"validation-bot/test"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,7 +103,13 @@ func TestPubsub(t *testing.T) {
 
 	err = pubHost.Connect(network.WithForceDirectDial(ctx, "test"), subAddrInfo)
 	assert.Nil(err)
-	err = pubTopic.Publish(ctx, []byte("test"))
+	time.Sleep(5 * time.Second)
+	err = pubHost.Connect(network.WithForceDirectDial(ctx, "test"), subAddrInfo)
+	err = pubTopic.Publish(ctx, []byte("test")) //, pubsub.WithReadiness(pubsub.MinTopicSize(0)))
+	time.Sleep(5 * time.Second)
+	err = pubHost.Connect(network.WithForceDirectDial(ctx, "test"), subAddrInfo)
+	err = pubTopic.Publish(ctx, []byte("test")) //, pubsub.WithReadiness(pubsub.MinTopicSize(0)))
+	log.Info().Msg("published")
 	assert.Nil(err)
 	<-done
 }

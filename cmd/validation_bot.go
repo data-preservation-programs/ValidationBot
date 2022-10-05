@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/mock"
 	"github.com/ziflex/lecho/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -215,7 +216,10 @@ func main() {
 
 func newObserver() (*observer.Observer, error) {
 	retryInterval := viper.GetInt64("observer.retry_interval_second")
-	resultSubscriber := store.NewW3StoreSubscriber(time.Duration(retryInterval) * time.Second)
+	pollInterval := viper.GetInt64("observer.poll_interval_second")
+	resultSubscriber := store.NewW3StoreSubscriber(
+		time.Duration(retryInterval)*time.Second,
+		time.Duration(pollInterval)*time.Second)
 	connectionString := viper.GetString("observer.database_connection_string")
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 	if err != nil {
@@ -332,4 +336,31 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 		return nil, errors.Wrap(err, "cannot create dispatcher")
 	}
 	return dispatcher, nil
+}
+
+type MockTaskRemover struct {
+	mock.Mock
+}
+
+func (m *MockTaskRemover) Remove(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+type MockTaskCreator struct {
+	mock.Mock
+}
+
+func (m *MockTaskCreator) Create(ctx context.Context, taskDef *task.Definition) error {
+	args := m.Called(ctx, taskDef)
+	return args.Error(0)
+}
+
+type MockTaskLister struct {
+	mock.Mock
+}
+
+func (m *MockTaskCreator) List(ctx context.Context) ([]task.Definition, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]task.Definition), args.Error(1)
 }

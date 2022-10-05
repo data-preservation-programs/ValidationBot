@@ -17,12 +17,12 @@ func (i Input) Marshal() ([]byte, error) {
 	return json.Marshal(i)
 }
 
-type Output struct {
+type ResultContent struct {
 	task.Task
 	Output string `json:"output"`
 }
 
 type EchoResult struct {
 	gorm.Model
-	Output
+	ResultContent
 }

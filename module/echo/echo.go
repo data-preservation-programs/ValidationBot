@@ -31,7 +31,7 @@ func (e Echo) GetTask(definition task.Definition) (module.Marshallable, error) {
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 		},
-		Input: "hello world",
+		Input: definition.Definition,
 	}, nil
 }
 
@@ -53,7 +53,7 @@ func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to unmarshal input")
 	}
 
-	output := Output{
+	output := ResultContent{
 		Task:   in.Task,
 		Output: in.Input,
 	}

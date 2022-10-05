@@ -44,15 +44,6 @@ func TestSetDefault_WithConfigFile(t *testing.T) {
 	assert.True(viper.GetBool("dispatcher.enabled"))
 }
 
-type MockTaskRemover struct {
-	mock.Mock
-}
-
-func (m *MockTaskRemover) Remove(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
 func TestDeleteTaskHandler(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -70,15 +61,6 @@ func TestDeleteTaskHandler(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskRemover.AssertCalled(t, "Remove", mock.Anything, uuid.MustParse(testUuid))
-}
-
-type MockTaskCreator struct {
-	mock.Mock
-}
-
-func (m *MockTaskCreator) Create(ctx context.Context, taskDef *task.Definition) error {
-	args := m.Called(ctx, taskDef)
-	return args.Error(0)
 }
 
 func TestPostTaskHandler(t *testing.T) {
@@ -101,15 +83,6 @@ func TestPostTaskHandler(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskCreator.AssertCalled(t, "Create", mock.Anything, &taskDef)
-}
-
-type MockTaskLister struct {
-	mock.Mock
-}
-
-func (m *MockTaskCreator) List(ctx context.Context) ([]task.Definition, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]task.Definition), args.Error(1)
 }
 
 func TestListTaskHandler(t *testing.T) {

@@ -60,7 +60,7 @@ func TestW3StorePublisher_publishNewRecordAndInitialize(t *testing.T) {
 	assert.Equal(testCid, store.lastCid)
 }
 
-func TestW3StorePublisher_PublishFromEmptyAndSubscribe(t *testing.T) {
+func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	context := context.Background()
@@ -80,13 +80,14 @@ func TestW3StorePublisher_PublishFromEmptyAndSubscribe(t *testing.T) {
 	assert.NotNil(store.lastCid)
 	assert.Equal(uint64(2), *store.lastSequence)
 
-	subscriber := NewW3StoreSubscriber()
+	subscriber := NewW3StoreSubscriber(time.Second, time.Minute)
 	entryChan, err := subscriber.Subscribe(context, store.peerId, nil)
-	select {
-	case entry := <-entryChan:
-		assert.Equal("test1", string(entry.Message))
-		assert.Nil(entry.Previous)
-	case <-time.After(5 * time.Hour):
-		assert.Fail("timeout")
+	for _, expected := range []string{"test1", "test2", "test3"} {
+		select {
+		case entry := <-entryChan:
+			assert.Equal(expected, string(entry.Message))
+		case <-time.After(5 * time.Second):
+			assert.Fail("timeout")
+		}
 	}
 }
