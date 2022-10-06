@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -20,6 +21,7 @@ type Dispatcher struct {
 	taskPublisher task.Publisher
 	modules       map[task.Type]module.Module
 	checkInterval time.Duration
+	log           zerolog.Logger
 }
 
 type Config struct {
@@ -42,6 +44,7 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 		taskPublisher: config.TaskPublisher,
 		modules:       modules,
 		checkInterval: config.CheckInterval,
+		log:           log.With().Str("role", "dispatcher").Logger(),
 	}, nil
 }
 
@@ -50,8 +53,10 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	for _, mod := range g.modules {
 		mod := mod
 		go func() {
+			log := g.log.With().Str("module", mod.TaskType()).Logger()
 			for {
 				var defs []task.Definition
+				log.Info().Msg("polling task definitions")
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
 					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < now()",
 						mod.TaskType()).
@@ -61,13 +66,16 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 					return
 				}
 
+				log.Info().Int("size", len(defs)).Msg("polled task definitions in ready state")
 				tasks, err := mod.GetTasks(defs)
+				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
 				if err != nil {
 					errChannel <- errors.Wrap(err, "cannot get tasks to dispatch")
 					return
 				}
 
 				for def, input := range tasks {
+					log.Info().Str("id", def.ID.String()).Bytes("task", input).Msg("dispatching task")
 					err = g.dispatchOnce(ctx, &def, input)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "cannot dispatch task")
@@ -75,6 +83,7 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 					}
 				}
 
+				log.Info().Dur("sleep", g.checkInterval).Msg("sleeping")
 				time.Sleep(g.checkInterval)
 			}
 		}()
@@ -142,19 +151,4 @@ func (g Dispatcher) Remove(ctx context.Context, id uuid.UUID) error {
 	}
 
 	return nil
-}
-
-func FindTask(db *gorm.DB, id uuid.UUID) (*task.Definition, error) {
-	var taskDef task.Definition
-	result := db.First(&taskDef, id)
-
-	if result.Error != nil && errors.Is(result.Error, gorm.ErrRecordNotFound) {
-		log.Info().Str("id", id.String()).Msg("task definition removed")
-		return nil, nil
-	} else if result.Error != nil {
-		log.Error().Err(result.Error).Str("id", id.String()).Msg("cannot fetch task definition")
-		return nil, result.Error
-	}
-
-	return &taskDef, nil
 }

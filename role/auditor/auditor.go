@@ -12,6 +12,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
 )
@@ -21,6 +22,7 @@ type Auditor struct {
 	trustedPeers    []peer.ID
 	resultPublisher store.ResultPublisher
 	taskSubscriber  task.Subscriber
+	log             zerolog.Logger
 }
 
 type Config struct {
@@ -41,28 +43,31 @@ func NewAuditor(config Config) (*Auditor, error) {
 		trustedPeers:    config.TrustedPeers,
 		resultPublisher: config.ResultPublisher,
 		taskSubscriber:  config.TaskSubscriber,
+		log:             log.With().Str("role", "auditor").Logger(),
 	}
 
 	return &auditor, nil
 }
 
 func (a Auditor) Start(ctx context.Context) <-chan error {
+	log := a.log
 	log.Info().Msg("start listening to subscription")
 	errChannel := make(chan error)
 
 	go func() {
 		for {
+			log.Info().Msg("waiting for task")
 			from, task, err := a.taskSubscriber.Next(ctx)
 			if err != nil {
 				errChannel <- errors.Wrap(err, "failed to receive next message")
 			}
 
 			if len(a.trustedPeers) > 0 && !slices.Contains(a.trustedPeers, *from) {
-				log.Warn().Msg("received message from untrusted peer")
+				log.Info().Str("from", from.String()).Msg("received message from untrusted peer")
 				continue
 			}
 
-			log.Info().Str("from", from.String()).Interface("task", task).Msg("received message")
+			log.Info().Str("from", from.String()).Bytes("task", task).Msg("received message")
 
 			err = a.handleValidationTask(ctx, task)
 			if err != nil {
@@ -75,6 +80,7 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 }
 
 func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) error {
+	log := a.log
 	msg := new(task.Task)
 
 	err := json.Unmarshal(taskMessage, msg)
@@ -87,12 +93,13 @@ func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) e
 		return errors.Errorf("module task type is unsupported: %s", msg.Type)
 	}
 
+	log.Info().Bytes("task", taskMessage).Msg("performing validation")
 	result, err := mod.Validate(ctx, taskMessage)
 	if err != nil {
 		return errors.Wrap(err, "encountered error performing module")
 	}
 
-	log.Info().Str("result", string(result)).Msg("publishing result")
+	log.Info().Bytes("result", result).Msg("publishing result")
 
 	err = a.resultPublisher.Publish(ctx, result)
 	if err != nil {

@@ -49,7 +49,7 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 		done <- true
 	}()
 
-	err = publisher.Connect(ctx, subscriber.AddrInfo())
+	err = publisher.connect(ctx, subscriber.AddrInfo())
 	assert.Nil(err)
 	err = publisher.Publish(ctx, []byte("test"))
 	assert.Nil(err)

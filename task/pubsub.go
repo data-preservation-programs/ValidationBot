@@ -12,6 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/exp/slices"
@@ -28,6 +29,7 @@ type Subscriber interface {
 type Libp2pTaskSubscriber struct {
 	addrInfo     peer.AddrInfo
 	subscription *pubsub.Subscription
+	log          zerolog.Logger
 }
 
 func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
@@ -65,6 +67,8 @@ func NewPubsubConfig(privateKeyStr string, listenAddr string, topicName string) 
 }
 
 func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pTaskSubscriber, error) {
+	log := log.With().Str("role", "task_subscriber").Logger()
+	log.Info().Str("listen_addr", config.ListenAddr).Msg("creating new libp2p host")
 	host, err := libp2p.New(
 		libp2p.ListenAddrStrings(config.ListenAddr),
 		libp2p.Identity(config.PrivateKey))
@@ -72,6 +76,7 @@ func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pT
 		return nil, errors.Wrap(err, "cannot create new libp2p host")
 	}
 
+	log.Info().Str("topic_name", config.TopicName).Msg("subscribing to pubsub topic")
 	ps, err := pubsub.NewGossipSub(ctx, host)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create new gossip sub")
@@ -92,11 +97,16 @@ func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pT
 		Addrs: host.Addrs(),
 	}
 
-	log.Info().Str("addr", addrInfo.String()).Msg("subscriber listening on")
-	return &Libp2pTaskSubscriber{subscription: subscription, addrInfo: addrInfo}, nil
+	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
+	return &Libp2pTaskSubscriber{
+		subscription: subscription,
+		addrInfo:     addrInfo,
+		log:          log,
+	}, nil
 }
 
 func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
+	log := s.log
 	log.Info().Msg("waiting for next message")
 	msg, err := s.subscription.Next(ctx)
 	if err != nil {
@@ -111,9 +121,10 @@ func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error
 type Libp2pTaskPublisher struct {
 	topic  *pubsub.Topic
 	libp2p host.Host
+	log    zerolog.Logger
 }
 
-func (l Libp2pTaskPublisher) Connect(ctx context.Context, addr peer.AddrInfo) error {
+func (l Libp2pTaskPublisher) connect(ctx context.Context, addr peer.AddrInfo) error {
 	// This will wait until the peer has been fully connected to the same topic
 	retry := 0
 	for {
@@ -141,11 +152,13 @@ func (l Libp2pTaskPublisher) Connect(ctx context.Context, addr peer.AddrInfo) er
 }
 
 func (l Libp2pTaskPublisher) Publish(ctx context.Context, task []byte) error {
-	log.Info().Msg("publishing message")
+	log.Info().Bytes("task", task).Msg("publishing message")
 	return l.topic.Publish(ctx, task)
 }
 
 func NewLibp2pTaskPublisher(ctx context.Context, config PubsubConfig) (*Libp2pTaskPublisher, error) {
+	log := log.With().Str("role", "task_publisher").Logger()
+	log.Info().Str("listen_addr", config.ListenAddr).Msg("creating new libp2p host")
 	host, err := libp2p.New(
 		libp2p.ListenAddrStrings(config.ListenAddr),
 		libp2p.Identity(config.PrivateKey))
@@ -158,6 +171,7 @@ func NewLibp2pTaskPublisher(ctx context.Context, config PubsubConfig) (*Libp2pTa
 		return nil, errors.Wrap(err, "cannot create new gossip sub")
 	}
 
+	log.Info().Str("topic_name", config.TopicName).Msg("joining pubsub topic")
 	topic, err := ps.Join(config.TopicName)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot join TopicName")
@@ -168,9 +182,9 @@ func NewLibp2pTaskPublisher(ctx context.Context, config PubsubConfig) (*Libp2pTa
 		Addrs: host.Addrs(),
 	}
 
-	log.Info().Str("addr", addrInfo.String()).Msg("publisher listening on")
+	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
 
-	return &Libp2pTaskPublisher{topic: topic, libp2p: host}, nil
+	return &Libp2pTaskPublisher{topic: topic, libp2p: host, log: log}, nil
 }
 
 type MockPublisher struct {

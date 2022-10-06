@@ -30,7 +30,7 @@ const (
 func TestSetDefault(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	setDefault("")
+	setConfig("")
 	assert.True(viper.GetBool("module.echo.enabled"))
 	assert.False(viper.GetBool("dispatcher.enabled"))
 }
@@ -38,7 +38,7 @@ func TestSetDefault(t *testing.T) {
 func TestSetDefault_WithConfigFile(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	setDefault("../config/config.toml")
+	setConfig("../config/config.toml")
 	assert.True(viper.GetBool("module.echo.enabled"))
 	assert.True(viper.GetBool("dispatcher.enabled"))
 }

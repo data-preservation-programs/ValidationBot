@@ -43,7 +43,8 @@ func (e Echo) ResultType() interface{} {
 }
 
 func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
-	log.Debug().Msg("echo validator called")
+	log := log.With().Str("role", "echo_module").Logger()
+	log.Debug().Bytes("input", input).Msg("validator called")
 
 	var in Input
 
@@ -62,7 +63,6 @@ func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal output")
 	}
 
-	log.Debug().Msg("echo validator finished")
-
+	log.Debug().Bytes("output", out).Msg("validator finished")
 	return out, nil
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	mbase "github.com/multiformats/go-multibase"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -31,6 +32,7 @@ type W3StoreSubscriber struct {
 	client        *resty.Client
 	retryInterval time.Duration
 	pollInterval  time.Duration
+	log           zerolog.Logger
 }
 
 func NewW3StoreSubscriber(retryInterval time.Duration, pollInterval time.Duration) W3StoreSubscriber {
@@ -44,10 +46,12 @@ func NewW3StoreSubscriber(retryInterval time.Duration, pollInterval time.Duratio
 		client:        client,
 		retryInterval: retryInterval,
 		pollInterval:  pollInterval,
+		log:           log.With().Str("role", "w3store_subscriber").Logger(),
 	}
 }
 
 func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
+	log := s.log.With().Str("peer_id", peerID.String()).Logger()
 	peerCid := peer.ToCid(peerID)
 	entries := make(chan Entry)
 	go func() {
@@ -57,10 +61,15 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 				log.Error().Err(err).Msg("cannot encode peer cid")
 				return
 			}
-			latest, err := getLastRecord(ctx, s.client, peerStr)
+			latest, err := getLastRecord(ctx, log, s.client, peerStr)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get last record")
 				time.Sleep(s.retryInterval)
+				continue
+			}
+			if latest == nil {
+				log.Info().Msg("no records found")
+				time.Sleep(s.pollInterval)
 				continue
 			}
 			latestCid, err := cid.Decode(string(latest.Value))
@@ -77,6 +86,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 				continue
 			}
 
+			log.Info().Int("count", len(downloaded)).Msg("downloaded entries")
 			for i := len(downloaded) - 1; i >= 0; i-- {
 				entries <- downloaded[i]
 				last = downloaded[i].Previous
@@ -92,7 +102,9 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 	entries := make([]Entry, 0)
 	for {
 		toStr := to.String()
-		got, err := s.client.R().SetContext(ctx).Get("https://api.web3.storage/car/" + toStr)
+		url := "https://api.web3.storage/car/" + toStr
+		s.log.Info().Str("url", url).Msg("downloading car")
+		got, err := s.client.R().SetContext(ctx).Get(url)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get car")
 			time.Sleep(s.retryInterval)
@@ -188,6 +200,7 @@ type W3StorePublisher struct {
 	lastSequence   *uint64
 	initialized    bool
 	initializedMux sync.Mutex
+	log            zerolog.Logger
 }
 
 func NewW3StorePublisher(token string, privateKeyStr string) (*W3StorePublisher, error) {
@@ -219,6 +232,7 @@ func NewW3StorePublisher(token string, privateKeyStr string) (*W3StorePublisher,
 		peerCid:        peerCid,
 		initialized:    false,
 		initializedMux: sync.Mutex{},
+		log:            log.With().Str("role", "w3store_publisher").Logger(),
 	}
 
 	return w3Store, nil
@@ -235,7 +249,7 @@ func (s *W3StorePublisher) initialize(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot encode peer cid")
 	}
-	entry, err := getLastRecord(ctx, s.client, peerStr)
+	entry, err := getLastRecord(ctx, s.log, s.client, peerStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to get last record")
 	}
@@ -275,9 +289,12 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	if err != nil {
 		return errors.Wrap(err, "cannot encode peer cid")
 	}
+
+	url := "https://name.web3.storage/name/" + peerStr
+	s.log.Info().Str("url", url).Msg("publishing new name")
 	resp, err := s.client.R().SetContext(ctx).
 		SetBody(base64.StdEncoding.EncodeToString(encoded)).
-		Post("https://name.web3.storage/name/" + peerStr)
+		Post(url)
 	if err != nil {
 		return errors.Wrap(err, "failed to publish new record")
 	}
@@ -294,8 +311,10 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	return nil
 }
 
-func getLastRecord(ctx context.Context, client *resty.Client, peerCid string) (*ipns_pb.IpnsEntry, error) {
-	resp, err := client.R().SetContext(ctx).Get("https://name.web3.storage/name/" + peerCid)
+func getLastRecord(ctx context.Context, log zerolog.Logger, client *resty.Client, peerCid string) (*ipns_pb.IpnsEntry, error) {
+	url := "https://name.web3.storage/name/" + peerCid
+	log.Info().Str("url", url).Msg("getting last record")
+	resp, err := client.R().SetContext(ctx).Get(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get last cid")
 	}
@@ -348,8 +367,10 @@ func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, "failed to encode content")
 	}
 
+	url := "https://api.web3.storage/upload"
+	s.log.Info().Str("url", url).Msg("uploading data")
 	responseStr, err := s.client.R().SetContext(ctx).SetBody(buffer.Bytes()).
-		Post("https://api.web3.storage/upload")
+		Post(url)
 	if err != nil {
 		return errors.Wrap(err, "failed to upload content")
 	}
