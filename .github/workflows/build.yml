@@ -31,4 +31,6 @@ jobs:
           postgresql password: 'postgres'
 
       - name: Test
+        env:
+          W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
         run: make test
