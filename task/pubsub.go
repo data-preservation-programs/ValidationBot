@@ -3,14 +3,18 @@ package task
 import (
 	"context"
 	"encoding/base64"
+	"sync"
 	"time"
 
 	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-kad-dht"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
+	"github.com/libp2p/go-libp2p/p2p/discovery/util"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -98,6 +102,12 @@ func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pT
 	}
 
 	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
+
+	err = discoverPeers(ctx, host, config.TopicName)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot discover peers")
+	}
+	
 	return &Libp2pTaskSubscriber{
 		subscription: subscription,
 		addrInfo:     addrInfo,
@@ -183,6 +193,10 @@ func NewLibp2pTaskPublisher(ctx context.Context, config PubsubConfig) (*Libp2pTa
 	}
 
 	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
+	err = discoverPeers(ctx, host, config.TopicName)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot discover peers")
+	}
 
 	return &Libp2pTaskPublisher{topic: topic, libp2p: host, log: log}, nil
 }
@@ -203,4 +217,80 @@ type MockSubscriber struct {
 func (m *MockSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*peer.ID), args.Get(1).([]byte), args.Error(2)
+}
+
+func discoverPeers(ctx context.Context, h host.Host, topicName string) error {
+	log := log.With().Str("role", "dht").Logger()
+	kdht, err := initDHT(ctx, h)
+	if err != nil {
+		return errors.Wrap(err, "cannot init dht")
+	}
+
+	routingDiscovery := routing.NewRoutingDiscovery(kdht)
+	log.Info().Str("topic_name", topicName).Msg("advertising topic")
+	util.Advertise(ctx, routingDiscovery, topicName)
+
+	connected := 0
+	discover := func() {
+		log.Info().Str("topic_name", topicName).Msg("discovering peers")
+		peerChan, err := routingDiscovery.FindPeers(ctx, topicName)
+		if err != nil {
+			log.Error().Err(err).Msg("cannot discover peers")
+			return
+		}
+		for peer := range peerChan {
+			if peer.ID == h.ID() {
+				continue // No self connection
+			}
+			err := h.Connect(ctx, peer)
+			if err != nil {
+				log.Warn().Err(err).Str("peer", peer.String()).Msg("cannot connect to peer")
+			} else {
+				log.Info().Str("peer", peer.String()).Msg("connected to peer")
+				connected += 1
+			}
+		}
+	}
+	discover()
+	log.Info().Int("count", connected).Msg("discovered peers")
+	if connected == 0 {
+		go func() {
+			for connected == 0 {
+				discover()
+			}
+		}()
+	}
+	return nil
+}
+
+func initDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
+	log := log.With().Str("role", "dht").Logger()
+	log.Info().Msg("creating new DHT")
+	kdht, err := dht.New(ctx, h)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create new dht")
+	}
+
+	log.Info().Msg("bootstrapping DHT")
+	err = kdht.Bootstrap(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot bootstrap dht")
+	}
+
+	log.Info().Msg("waiting for DHT to be ready")
+	var wg sync.WaitGroup
+	for _, peerAddr := range dht.DefaultBootstrapPeers {
+		peerInfo, _ := peer.AddrInfoFromP2pAddr(peerAddr)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Info().Str("peer", peerInfo.String()).Msg("connecting to bootstrap peer")
+			if err := h.Connect(ctx, *peerInfo); err != nil {
+				log.Warn().Err(err).Msg("cannot connect to bootstrap peer")
+			}
+		}()
+	}
+
+	wg.Wait()
+	return kdht, nil
 }

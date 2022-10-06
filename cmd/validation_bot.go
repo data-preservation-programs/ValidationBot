@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	log2 "github.com/labstack/gommon/log"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
@@ -93,6 +94,7 @@ func setConfig(configPath string) error {
 	viper.SetDefault("auditor.private_key", "")
 	viper.SetDefault("dispatcher.private_key", "")
 
+	viper.SetDefault("dispatcher.api_address", ":8001")
 	viper.SetDefault("auditor.listen_addr", "/ip4/0.0.0.0/tcp/7999")
 	viper.SetDefault("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/7998")
 
@@ -225,7 +227,9 @@ func run(configPath string) error {
 		return err
 	}
 	api := echo.New()
-	api.Logger = lecho.From(log.Logger)
+	echoLogger := lecho.From(log.Logger, lecho.WithLevel(log2.INFO))
+	api.Logger = echoLogger
+	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
 	ctx := context.Background()
 	var dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel <-chan error
@@ -252,6 +256,14 @@ func run(configPath string) error {
 		api.GET(listRoute, func(c echo.Context) error {
 			return listTasksHandler(c, dispatcher)
 		})
+
+		go func() {
+			err := api.Start(viper.GetString("dispatcher.api_address"))
+			if err != nil {
+				log.Fatal().Err(err).Msg("cannot start dispatcher api")
+				os.Exit(1)
+			}
+		}()
 	}
 
 	if viper.GetBool("auditor.enabled") {
@@ -399,10 +411,17 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 		peers[i] = peerId
 	}
 
+	var modules []module.Module
+	if viper.GetBool("module.echo.enabled") {
+		echoModule := echo_module.Echo{}
+		modules = append(modules, echoModule)
+	}
+
 	auditor, err := auditor.NewAuditor(auditor.Config{
 		ResultPublisher: resultPublisher,
 		TaskSubscriber:  taskSubscriber,
 		TrustedPeers:    peers,
+		Modules:         modules,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create auditor")

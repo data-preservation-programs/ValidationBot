@@ -33,8 +33,10 @@ type Config struct {
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
+	log := log.With().Str("role", "auditor").Logger()
 	modules := make(map[task.Type]module.Module)
 	for _, mod := range config.Modules {
+		log.Info().Str("module", mod.TaskType()).Msg("registering module")
 		modules[mod.TaskType()] = mod
 	}
 
@@ -43,7 +45,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		trustedPeers:    config.TrustedPeers,
 		resultPublisher: config.ResultPublisher,
 		taskSubscriber:  config.TaskSubscriber,
-		log:             log.With().Str("role", "auditor").Logger(),
+		log:             log,
 	}
 
 	return &auditor, nil
