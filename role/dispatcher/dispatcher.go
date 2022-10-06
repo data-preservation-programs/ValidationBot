@@ -83,13 +83,8 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	return nil
 }
 
-func (g Dispatcher) dispatchOnce(ctx context.Context, def *task.Definition, input module.Marshallable) error {
-	bytes, err := input.Marshal()
-	if err != nil {
-		return errors.Wrap(err, "cannot marshal task")
-	}
-
-	err = g.taskPublisher.Publish(ctx, bytes)
+func (g Dispatcher) dispatchOnce(ctx context.Context, def *task.Definition, bytes []byte) error {
+	err := g.taskPublisher.Publish(ctx, bytes)
 	fmt.Println((string)(bytes))
 	if err != nil {
 		return errors.Wrap(err, "cannot publish task")

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"validation-bot/module"
-
 	"validation-bot/task"
 
 	"github.com/pkg/errors"
@@ -14,8 +12,8 @@ import (
 
 type Echo struct{}
 
-func (e Echo) GetTasks(definitions []task.Definition) (map[task.Definition]module.Marshallable, error) {
-	result := make(map[task.Definition]module.Marshallable)
+func (e Echo) GetTasks(definitions []task.Definition) (map[task.Definition][]byte, error) {
+	result := make(map[task.Definition][]byte)
 	for _, definition := range definitions {
 		input, _ := e.GetTask(definition)
 		result[definition] = input
@@ -24,15 +22,16 @@ func (e Echo) GetTasks(definitions []task.Definition) (map[task.Definition]modul
 	return result, nil
 }
 
-func (e Echo) GetTask(definition task.Definition) (module.Marshallable, error) {
-	return Input{
+func (e Echo) GetTask(definition task.Definition) ([]byte, error) {
+	input := Input{
 		Task: task.Task{
 			Type:         task.Echo,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 		},
 		Input: definition.Definition,
-	}, nil
+	}
+	return json.Marshal(input)
 }
 
 func (e Echo) TaskType() task.Type {

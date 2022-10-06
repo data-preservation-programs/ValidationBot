@@ -20,7 +20,7 @@ func TestEcho_GetTasks(t *testing.T) {
 	tasks, err := echo.GetTasks([]task.Definition{tsk})
 	assert.Nil(err)
 	assert.Equal(1, len(tasks))
-	bytes, err := tasks[tsk].Marshal()
+	bytes := tasks[tsk]
 	assert.Nil(err)
 	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
 }
@@ -37,7 +37,7 @@ func TestEcho_GetTask(t *testing.T) {
 	}
 	task, err := echo.GetTask(tsk)
 	assert.Nil(err)
-	bytes, err := task.Marshal()
+	bytes := task
 	assert.Nil(err)
 	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
 }
