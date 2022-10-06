@@ -7,6 +7,7 @@ import (
 	"validation-bot/module"
 	"validation-bot/module/echo"
 	"validation-bot/task"
+	"validation-bot/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,7 +17,7 @@ import (
 
 func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher) {
 	assert := assert.New(t)
-	db, err := gorm.Open(postgres.Open("dbname=test"), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(test.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
 	db.Exec("DELETE FROM definitions")

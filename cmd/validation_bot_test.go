@@ -23,9 +23,8 @@ import (
  * 3. Create database test
  */
 const (
-	testPeerId           = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
-	testConnectionString = "dbname=test"
-	testUuid             = "d54ec3a8-4045-11ed-b878-0242ac120002"
+	testPeerId = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
+	testUuid   = "d54ec3a8-4045-11ed-b878-0242ac120002"
 )
 
 func TestSetDefault(t *testing.T) {
@@ -111,7 +110,7 @@ func TestListTaskHandler(t *testing.T) {
 func TestNewObserver(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	viper.Set("observer.database_connection_string", testConnectionString)
+	viper.Set("observer.database_connection_string", test.PostgresConnectionString)
 	viper.Set("observer.trusted_peers", []string{testPeerId})
 	viper.Set("module.echo.enabled", true)
 	obs, err := newObserver()
@@ -138,7 +137,7 @@ func TestNewDispatcher(t *testing.T) {
 	privateKey := test.MarshalPrivateKey(t, private)
 	viper.Set("dispatcher.private_key", privateKey)
 	viper.Set("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/0")
-	viper.Set("dispatcher.database_connection_string", testConnectionString)
+	viper.Set("dispatcher.database_connection_string", test.PostgresConnectionString)
 	viper.Set("module.echo.enabled", true)
 	dis, err := newDispatcher(context.TODO())
 	assert.NotNil(dis)

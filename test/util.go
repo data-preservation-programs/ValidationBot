@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const PostgresConnectionString = "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
+
 func GeneratePeerID(t *testing.T) (crypto.PrivKey, crypto.PubKey, peer.ID) {
 	assert := assert.New(t)
 	private, public, err := crypto.GenerateEd25519Key(rand.Reader)

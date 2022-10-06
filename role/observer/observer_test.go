@@ -8,6 +8,7 @@ import (
 	"validation-bot/module"
 	"validation-bot/module/echo"
 	"validation-bot/store"
+	"validation-bot/test"
 
 	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -25,7 +26,7 @@ const (
 
 func TestObserverStart(t *testing.T) {
 	assert := assert.New(t)
-	db, err := gorm.Open(postgres.Open("dbname=test"), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(test.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
 
