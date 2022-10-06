@@ -22,5 +22,13 @@ jobs:
       - name: Build
         run: make build
 
+      - name: Setup postgreSQL
+        uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '13'
+          postgresql db: 'test'
+          postgresql user: 'runner'
+          postgresql password: 'postgres'
+
       - name: Test
         run: make test
