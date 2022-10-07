@@ -82,7 +82,7 @@ func generateNewPeer() (string, string, string, error) {
 	return privateStr, publicStr, peerID.String(), nil
 }
 
-//nolint:gomnd,funlen
+//nolint:gomnd,funlen,cyclop
 func setConfig(configPath string) error {
 	viper.SetDefault("log.pretty", true)
 	viper.SetDefault("dispatcher.enabled", true)
