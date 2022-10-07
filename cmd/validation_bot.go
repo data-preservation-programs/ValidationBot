@@ -84,7 +84,7 @@ func generateNewPeer() (string, string, string, error) {
 
 //nolint:gomnd,funlen
 func setConfig(configPath string) error {
-	log.Debug().Msg("setting up config default values")
+	viper.SetDefault("log.pretty", true)
 	viper.SetDefault("dispatcher.enabled", true)
 	viper.SetDefault("auditor.enabled", true)
 	viper.SetDefault("observer.enabled", true)
@@ -165,6 +165,10 @@ func setConfig(configPath string) error {
 		if err != nil {
 			return errors.Wrap(err, "cannot bind env variable")
 		}
+	}
+
+	if viper.GetBool("log.pretty") {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 
 	return nil
@@ -306,8 +310,6 @@ func run(configPath string) error {
 }
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
 	var configPath string
 	app := &cli.App{
 		Name: "validation-bot",
