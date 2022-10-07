@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -35,17 +36,25 @@ type W3StoreSubscriber struct {
 	log           zerolog.Logger
 }
 
-func NewW3StoreSubscriber(retryInterval time.Duration, pollInterval time.Duration) W3StoreSubscriber {
+type W3StoreSubscriberConfig struct {
+	RetryInterval time.Duration
+	PollInterval  time.Duration
+	RetryWait     time.Duration
+	RetryWaitMax  time.Duration
+	RetryCount    int
+}
+
+func NewW3StoreSubscriber(config W3StoreSubscriberConfig) W3StoreSubscriber {
 	client := resty.New()
-	client.SetRetryCount(3).SetRetryWaitTime(10 * time.Second).SetRetryMaxWaitTime(30 * time.Second).
+	client.SetRetryCount(config.RetryCount).SetRetryWaitTime(config.RetryWait).SetRetryMaxWaitTime(config.RetryWaitMax).
 		SetRetryAfter(nil).
 		AddRetryCondition(func(r *resty.Response, err error) bool {
 			return r.StatusCode() >= 500 || r.StatusCode() == 429
 		})
 	return W3StoreSubscriber{
 		client:        client,
-		retryInterval: retryInterval,
-		pollInterval:  pollInterval,
+		retryInterval: config.RetryInterval,
+		pollInterval:  config.PollInterval,
 		log:           log.With().Str("role", "w3store_subscriber").Logger(),
 	}
 }
@@ -111,12 +120,11 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 			continue
 		}
 
-		if got.StatusCode() != 200 {
+		if got.StatusCode() != http.StatusOK {
 			return nil, errors.Errorf("failed to get car %d - %s", got.StatusCode(), string(got.Body()))
 		}
 
 		car, err := carv2.NewReader(bytes.NewReader(got.Body()))
-
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read car")
 		}
@@ -165,6 +173,7 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 			previousLink, err := previousNode.AsLink()
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get previous link")
+
 				break
 			}
 			c := previousLink.(cidlink.Link).Cid
@@ -185,6 +194,7 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 				Message:  entryBytes,
 				Previous: nil,
 			})
+
 			break
 		}
 	}
@@ -203,16 +213,24 @@ type W3StorePublisher struct {
 	log            zerolog.Logger
 }
 
-func NewW3StorePublisher(token string, privateKeyStr string) (*W3StorePublisher, error) {
+type W3StorePublisherConfig struct {
+	Token        string
+	PrivateKey   string
+	RetryWait    time.Duration
+	RetryWaitMax time.Duration
+	RetryCount   int
+}
+
+func NewW3StorePublisher(config W3StorePublisherConfig) (*W3StorePublisher, error) {
 	client := resty.New()
-	client.SetRetryCount(3).SetRetryWaitTime(10 * time.Second).SetRetryMaxWaitTime(30 * time.Second).
+	client.SetRetryCount(config.RetryCount).SetRetryWaitTime(config.RetryWait).SetRetryMaxWaitTime(config.RetryWaitMax).
 		SetRetryAfter(nil).
 		AddRetryCondition(func(r *resty.Response, err error) bool {
 			return r.StatusCode() >= 500 || r.StatusCode() == 429
 		})
-	client.SetAuthToken(token)
+	client.SetAuthToken(config.Token)
 
-	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)
+	privateKeyBytes, err := base64.StdEncoding.DecodeString(config.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot decode private key")
 	}
@@ -273,9 +291,10 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	if s.lastSequence != nil {
 		sequence = *s.lastSequence + 1
 	}
+	year := time.Hour * time.Duration(24*365)
 	ipnsEntry, err := ipns.Create(s.privateKey, []byte(value.String()), sequence,
-		time.Now().Add(time.Hour*time.Duration(24*365)),
-		time.Hour*time.Duration(24*365))
+		time.Now().Add(year),
+		year)
 	if err != nil {
 		return errors.Wrap(err, "failed to create ipns entry")
 	}
@@ -299,7 +318,7 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 		return errors.Wrap(err, "failed to publish new record")
 	}
 
-	if resp.StatusCode() != 202 {
+	if resp.StatusCode() != http.StatusAccepted {
 		return errors.Errorf("failed to publish new record: %d - %s",
 			resp.StatusCode(), resp.Body())
 	}
@@ -319,7 +338,7 @@ func getLastRecord(ctx context.Context, log zerolog.Logger, client *resty.Client
 		return nil, errors.Wrap(err, "failed to get last cid")
 	}
 
-	if resp.StatusCode() != 200 {
+	if resp.StatusCode() != http.StatusOK {
 		if strings.Contains(string(resp.Body()), "not found") {
 			return nil, nil
 		}
@@ -353,6 +372,7 @@ func getLastRecord(ctx context.Context, log zerolog.Logger, client *resty.Client
 }
 
 func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
+	//nolint:gomnd
 	node, err := qp.BuildList(basicnode.Prototype.Any, 2, func(la datamodel.ListAssembler) {
 		qp.ListEntry(la, qp.Bytes(data))
 		if s.lastCid != nil {
@@ -361,6 +381,9 @@ func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
 			qp.ListEntry(la, qp.Null())
 		}
 	})
+	if err != nil {
+		return errors.Wrap(err, "failed to build node")
+	}
 	buffer := new(bytes.Buffer)
 	err = dagcbor.Encode(node, buffer)
 	if err != nil {
@@ -375,7 +398,7 @@ func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
 		return errors.Wrap(err, "failed to upload content")
 	}
 
-	if responseStr.StatusCode() != 200 {
+	if responseStr.StatusCode() != http.StatusOK {
 		return errors.Errorf("failed to upload content: %d - %s",
 			responseStr.StatusCode(), responseStr.Body())
 	}

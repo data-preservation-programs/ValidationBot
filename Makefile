@@ -8,6 +8,12 @@ clean:
 	go clean
 	rm -f validation_bot
 
+fmt:
+	gofumpt -w .
+
+lint:
+	golangci-lint run
+
 test:
 	go test -p 4 -v ./...
 

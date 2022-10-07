@@ -22,7 +22,11 @@ type ResultContent struct {
 	Output string `json:"output"`
 }
 
-type EchoResult struct {
+type Result struct {
 	gorm.Model
 	ResultContent
+}
+
+func (Result) TableName() string {
+	return "echo_results"
 }

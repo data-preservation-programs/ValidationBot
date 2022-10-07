@@ -39,6 +39,7 @@ type MockPublisher struct {
 	mock.Mock
 }
 
+//nolint:all
 func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
 	args := m.Called(ctx, input)
 	return args.Error(0)

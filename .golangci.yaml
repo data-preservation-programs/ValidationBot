@@ -24,17 +24,23 @@ linters:
     - sqlclosecheck
     - structcheck
     - wastedassign
-    - gofumpt
     - gci
     - goimports
+    - wrapcheck
+    - varnamelen
+    - nlreturn
+    - nilnil
+    - wsl
+    - gofumpt
 
 linters-settings:
-  varnamelen:
-    ignore-type-assert-ok: true
-    ignore-chan-recv-ok: true
-    ignore-map-index-ok: true
   paralleltest:
     ignore-missing: true
   exhaustruct:
     exclude:
-      - 'dispatcher\.common\.TaskDef'
+      - 'task\.Definition'
+      - 'echo\.Result'
+      - 'gorm.*'
+      - 'cli.*'
+      - 'zerolog.*'
+      - 'lecho.*'

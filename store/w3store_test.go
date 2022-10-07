@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 	"time"
+
 	"validation-bot/test"
 
 	"github.com/ipfs/go-cid"
@@ -17,7 +18,14 @@ func getStore(t *testing.T) *W3StorePublisher {
 	assert.NotEmpty(token)
 	privateKey, _, _ := test.GeneratePeerID(t)
 	privateKeyStr := test.MarshalPrivateKey(t, privateKey)
-	store, err := NewW3StorePublisher(token, privateKeyStr)
+	config := W3StorePublisherConfig{
+		Token:        token,
+		PrivateKey:   privateKeyStr,
+		RetryWait:    time.Second * 10,
+		RetryWaitMax: time.Minute,
+		RetryCount:   5,
+	}
+	store, err := NewW3StorePublisher(config)
 	assert.Nil(err)
 	assert.NotNil(store)
 	return store

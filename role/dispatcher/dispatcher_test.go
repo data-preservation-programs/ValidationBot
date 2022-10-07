@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/module/echo"
 	"validation-bot/task"
@@ -26,7 +27,7 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
 	dper, err := NewDispatcher(Config{
-		Db: db,
+		DB: db,
 		Modules: []module.Module{
 			echo.Echo{},
 		},

@@ -59,6 +59,9 @@ func NewPubsubConfig(privateKeyStr string, listenAddr string, topicName string) 
 	}
 
 	peerID, err := peer.IDFromPrivateKey(privateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get peer id from private key")
+	}
 
 	pubsubConfig := PubsubConfig{
 		PrivateKey: privateKey,
@@ -107,7 +110,7 @@ func NewLibp2pTaskSubscriber(ctx context.Context, config PubsubConfig) (*Libp2pT
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot discover peers")
 	}
-	
+
 	return &Libp2pTaskSubscriber{
 		subscription: subscription,
 		addrInfo:     addrInfo,
@@ -134,6 +137,7 @@ type Libp2pTaskPublisher struct {
 	log    zerolog.Logger
 }
 
+//nolint:all
 func (l Libp2pTaskPublisher) connect(ctx context.Context, addr peer.AddrInfo) error {
 	// This will wait until the peer has been fully connected to the same topic
 	retry := 0
@@ -214,6 +218,7 @@ type MockSubscriber struct {
 	mock.Mock
 }
 
+//nolint:all
 func (m *MockSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*peer.ID), args.Get(1).([]byte), args.Error(2)
@@ -247,7 +252,7 @@ func discoverPeers(ctx context.Context, h host.Host, topicName string) error {
 				log.Warn().Err(err).Str("peer", peer.String()).Msg("cannot connect to peer")
 			} else {
 				log.Info().Str("peer", peer.String()).Msg("connected to peer")
-				connected += 1
+				connected++
 			}
 		}
 	}

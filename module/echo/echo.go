@@ -39,7 +39,7 @@ func (e Echo) TaskType() task.Type {
 }
 
 func (e Echo) ResultType() interface{} {
-	return &EchoResult{}
+	return &Result{}
 }
 
 func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {

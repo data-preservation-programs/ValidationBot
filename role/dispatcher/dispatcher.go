@@ -2,7 +2,6 @@ package dispatcher
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"validation-bot/module"
@@ -25,14 +24,14 @@ type Dispatcher struct {
 }
 
 type Config struct {
-	Db            *gorm.DB
+	DB            *gorm.DB
 	TaskPublisher task.Publisher
 	Modules       []module.Module
 	CheckInterval time.Duration
 }
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
-	db := config.Db
+	db := config.DB
 
 	modules := make(map[task.Type]module.Module)
 	for _, mod := range config.Modules {
@@ -94,7 +93,6 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 
 func (g Dispatcher) dispatchOnce(ctx context.Context, def *task.Definition, bytes []byte) error {
 	err := g.taskPublisher.Publish(ctx, bytes)
-	fmt.Println((string)(bytes))
 	if err != nil {
 		return errors.Wrap(err, "cannot publish task")
 	}

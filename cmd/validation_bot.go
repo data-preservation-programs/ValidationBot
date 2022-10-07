@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
+
 	"validation-bot/module"
 	echo_module "validation-bot/module/echo"
 	"validation-bot/role/dispatcher"
@@ -53,7 +55,7 @@ type taskRemover interface {
 	Remove(ctx context.Context, id uuid.UUID) error
 }
 
-func generateNewPeer() (privateStr string, publicStr string, peerStr string, err error) {
+func generateNewPeer() (string, string, string, error) {
 	private, public, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return "", "", "", err
@@ -69,24 +71,26 @@ func generateNewPeer() (privateStr string, publicStr string, peerStr string, err
 		return "", "", "", err
 	}
 
-	privateStr = base64.StdEncoding.EncodeToString(privateBytes)
+	privateStr := base64.StdEncoding.EncodeToString(privateBytes)
 
 	publicBytes, err := crypto.MarshalPublicKey(public)
 	if err != nil {
 		return "", "", "", err
 	}
-	publicStr = base64.StdEncoding.EncodeToString(publicBytes)
+	publicStr := base64.StdEncoding.EncodeToString(publicBytes)
 	return privateStr, publicStr, peerID.String(), nil
 }
 
+//nolint:gomnd,funlen
 func setConfig(configPath string) error {
 	log.Debug().Msg("setting up config default values")
 	viper.SetDefault("dispatcher.enabled", true)
 	viper.SetDefault("auditor.enabled", true)
 	viper.SetDefault("observer.enabled", true)
 
-	viper.SetDefault("observer.database_connection_string", "host=localhost port=5432 user=postgres password=postgres dbname=postgres")
-	viper.SetDefault("dispatcher.database_connection_string", "host=localhost port=5432 user=postgres password=postgres dbname=postgres")
+	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
+	viper.SetDefault("observer.database_connection_string", defaultConnectionString)
+	viper.SetDefault("dispatcher.database_connection_string", defaultConnectionString)
 
 	viper.SetDefault("observer.trusted_peers", []string{})
 	viper.SetDefault("auditor.trusted_peers", []string{})
@@ -105,6 +109,12 @@ func setConfig(configPath string) error {
 	viper.SetDefault("dispatcher.check_interval", time.Minute*5)
 	viper.SetDefault("observer.retry_interval", time.Minute*1)
 	viper.SetDefault("observer.poll_interval", time.Minute*5)
+	viper.SetDefault("auditor.w3s_retry_wait", time.Second*10)
+	viper.SetDefault("auditor.w3s_retry_wait_max", time.Minute)
+	viper.SetDefault("auditor.w3s_retry_count", 5)
+	viper.SetDefault("observer.w3s_retry_wait", time.Second*10)
+	viper.SetDefault("observer.w3s_retry_wait_max", time.Minute)
+	viper.SetDefault("observer.w3s_retry_count", 5)
 
 	viper.SetDefault("module.echo.enabled", true)
 
@@ -112,7 +122,7 @@ func setConfig(configPath string) error {
 	var newFile bool
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
-		err = os.WriteFile("./config.toml", []byte{}, 0644)
+		err = os.WriteFile("./config.toml", []byte{}, 0o600)
 		newFile = true
 		if err != nil {
 			return errors.Wrap(err, "cannot write defaults to config file")
@@ -166,17 +176,17 @@ func setConfig(configPath string) error {
 
 func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 	id := c.Param("id")
-	parsedId, err := uuid.Parse(id)
+	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return c.String(400, "invalid id")
+		return c.String(http.StatusBadRequest, "invalid id")
 	}
 
-	err = dispatcher.Remove(c.Request().Context(), parsedId)
+	err = dispatcher.Remove(c.Request().Context(), parsedID)
 	if err != nil {
 		return errors.Wrap(err, "cannot delete task definition")
 	}
 
-	return c.NoContent(200)
+	return c.NoContent(http.StatusOK)
 }
 
 func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
@@ -191,7 +201,7 @@ func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 		return err
 	}
 
-	return c.JSON(200, definition)
+	return c.JSON(http.StatusOK, definition)
 }
 
 func listTasksHandler(c echo.Context, dispatcher taskLister) error {
@@ -200,13 +210,14 @@ func listTasksHandler(c echo.Context, dispatcher taskLister) error {
 		return errors.Wrap(err, "cannot list task definitions")
 	}
 
-	return c.JSON(200, definitions)
+	return c.JSON(http.StatusOK, definitions)
 }
 
 func subscribeToErrors(ctx context.Context,
 	dispatcherErrorChannel <-chan error,
 	auditorErrorChannel <-chan error,
-	observerErrorChannel <-chan error) error {
+	observerErrorChannel <-chan error,
+) error {
 	log.Debug().Msg("subscribing to errors")
 	select {
 	case err := <-dispatcherErrorChannel:
@@ -221,16 +232,38 @@ func subscribeToErrors(ctx context.Context,
 	}
 }
 
-func run(configPath string) error {
-	err := setConfig(configPath)
-	if err != nil {
-		return err
-	}
+func setupAPI(dispatcher *dispatcher.Dispatcher) {
 	api := echo.New()
 	echoLogger := lecho.From(log.Logger, lecho.WithLevel(log2.INFO))
 	api.Logger = echoLogger
 	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
+	api.POST(createRoute, func(c echo.Context) error {
+		return postTaskHandler(c, dispatcher)
+	})
+
+	api.DELETE(deleteRoute, func(c echo.Context) error {
+		return deleteTaskHandler(c, dispatcher)
+	})
+
+	api.GET(listRoute, func(c echo.Context) error {
+		return listTasksHandler(c, dispatcher)
+	})
+
+	go func() {
+		err := api.Start(viper.GetString("dispatcher.api_address"))
+		if err != nil {
+			log.Fatal().Err(err).Msg("cannot start dispatcher api")
+			os.Exit(1)
+		}
+	}()
+}
+
+func run(configPath string) error {
+	err := setConfig(configPath)
+	if err != nil {
+		return err
+	}
 	ctx := context.Background()
 	var dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel <-chan error
 	var anyEnabled bool
@@ -245,25 +278,7 @@ func run(configPath string) error {
 		dispatcherErrorChannel = dispatcher.Start(ctx)
 
 		log.Info().Msg("starting dispatcher api")
-		api.POST(createRoute, func(c echo.Context) error {
-			return postTaskHandler(c, dispatcher)
-		})
-
-		api.DELETE(deleteRoute, func(c echo.Context) error {
-			return deleteTaskHandler(c, dispatcher)
-		})
-
-		api.GET(listRoute, func(c echo.Context) error {
-			return listTasksHandler(c, dispatcher)
-		})
-
-		go func() {
-			err := api.Start(viper.GetString("dispatcher.api_address"))
-			if err != nil {
-				log.Fatal().Err(err).Msg("cannot start dispatcher api")
-				os.Exit(1)
-			}
-		}()
+		setupAPI(dispatcher)
 	}
 
 	if viper.GetBool("auditor.enabled") {
@@ -326,10 +341,13 @@ func main() {
 						return err
 					}
 
-					fmt.Println("New peer generated using ed25519, keys are encoded in base64")
-					fmt.Println("peer id:     ", peerStr)
-					fmt.Println("public key:  ", publicStr)
-					fmt.Println("private key: ", privateStr)
+					//nolint:forbidigo
+					{
+						fmt.Println("New peer generated using ed25519, keys are encoded in base64")
+						fmt.Println("peer id:     ", peerStr)
+						fmt.Println("public key:  ", publicStr)
+						fmt.Println("private key: ", privateStr)
+					}
 					return nil
 				},
 			},
@@ -345,7 +363,17 @@ func main() {
 func newObserver() (*observer.Observer, error) {
 	retryInterval := viper.GetDuration("observer.retry_interval")
 	pollInterval := viper.GetDuration("observer.poll_interval")
-	resultSubscriber := store.NewW3StoreSubscriber(retryInterval, pollInterval)
+	retryWait := viper.GetDuration("observer.w3s_retry_wait")
+	retryWaitMax := viper.GetDuration("observer.w3s_retry_wait_max")
+	retryCount := viper.GetInt("observer.w3s_retry_count")
+	config := store.W3StoreSubscriberConfig{
+		RetryInterval: retryInterval,
+		PollInterval:  pollInterval,
+		RetryWait:     retryWait,
+		RetryWaitMax:  retryWaitMax,
+		RetryCount:    retryCount,
+	}
+	resultSubscriber := store.NewW3StoreSubscriber(config)
 	connectionString := viper.GetString("observer.database_connection_string")
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 	if err != nil {
@@ -355,11 +383,11 @@ func newObserver() (*observer.Observer, error) {
 	trustedPeers := viper.GetStringSlice("observer.trusted_peers")
 	peers := make([]peer.ID, len(trustedPeers))
 	for i, trustedPeer := range trustedPeers {
-		peerId, err := peer.Decode(trustedPeer)
+		peerID, err := peer.Decode(trustedPeer)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot decode peer id")
 		}
-		peers[i] = peerId
+		peers[i] = peerID
 	}
 
 	var modules []module.Module
@@ -394,9 +422,15 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 	if token == "" {
 		return nil, errors.New("auditor.w3s_token is empty")
 	}
-	resultPublisher, err := store.NewW3StorePublisher(
-		token,
-		viper.GetString("auditor.private_key"))
+
+	config := store.W3StorePublisherConfig{
+		Token:        token,
+		PrivateKey:   viper.GetString("auditor.private_key"),
+		RetryWait:    viper.GetDuration("auditor.w3s_retry_wait"),
+		RetryWaitMax: viper.GetDuration("auditor.w3s_retry_wait_max"),
+		RetryCount:   viper.GetInt("auditor.w3s_retry_count"),
+	}
+	resultPublisher, err := store.NewW3StorePublisher(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create result publisher")
 	}
@@ -404,11 +438,11 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
 	peers := make([]peer.ID, len(trustedPeers))
 	for i, trustedPeer := range trustedPeers {
-		peerId, err := peer.Decode(trustedPeer)
+		peerID, err := peer.Decode(trustedPeer)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot decode peer id")
 		}
-		peers[i] = peerId
+		peers[i] = peerID
 	}
 
 	var modules []module.Module
@@ -462,7 +496,7 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	}
 
 	dispatcherConfig := dispatcher.Config{
-		Db:            db,
+		DB:            db,
 		TaskPublisher: taskPublisher,
 		CheckInterval: viper.GetDuration("dispatcher.check_interval"),
 		Modules:       modules,
@@ -497,6 +531,7 @@ type MockTaskLister struct {
 	mock.Mock
 }
 
+//nolint:all
 func (m *MockTaskCreator) List(ctx context.Context) ([]task.Definition, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]task.Definition), args.Error(1)
