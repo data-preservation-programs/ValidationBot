@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"validation-bot/module"
@@ -157,14 +158,9 @@ func setConfig(configPath string) error {
 		}
 	}
 
-	envBindingMap := map[string]string{
-		"auditor.w3s_token":      "W3S_TOKEN",
-		"auditor.private_key":    "AUDITOR_PRIVATE_KEY",
-		"dispatcher.private_key": "DISPATCHER_PRIVATE_KEY",
-	}
-
-	for key, env := range envBindingMap {
-		log.Debug().Str("key", key).Str("env", env).Msg("binding environment variables to config")
+	for _, key := range viper.AllKeys() {
+		env := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
+		log.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
 		err = viper.BindEnv(key, env)
 		if err != nil {
 			return errors.Wrap(err, "cannot bind env variable")
