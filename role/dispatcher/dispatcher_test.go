@@ -118,7 +118,7 @@ func TestDispatcher_CreateOneoffTask(t *testing.T) {
 	}
 	err := dper.Create(context.Background(), &tsk)
 	assert.Nil(err)
-	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definition_id":"`+tsk.ID.String()+`","target":"target","input":"hello world"}`))
+	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":"hello world"}`))
 }
 
 func TestDispatcher_CreateAndList(t *testing.T) {

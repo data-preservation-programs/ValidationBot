@@ -88,7 +88,14 @@ func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 	assert.NotNil(store.lastCid)
 	assert.Equal(uint64(2), *store.lastSequence)
 
-	subscriber := NewW3StoreSubscriber(time.Second, time.Minute)
+	config := W3StoreSubscriberConfig{
+		RetryInterval: time.Second,
+		PollInterval:  time.Minute,
+		RetryWait:     time.Second,
+		RetryWaitMax:  time.Minute,
+		RetryCount:    3,
+	}
+	subscriber := NewW3StoreSubscriber(config)
 	entryChan, err := subscriber.Subscribe(context, store.peerId, nil)
 	for _, expected := range []string{"test1", "test2", "test3"} {
 		select {

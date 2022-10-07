@@ -32,7 +32,7 @@ func TestAuditor_Start(t *testing.T) {
 	assert.Nil(err)
 	assert.NotNil(adt)
 	mockSubscriber.On("Next", mock.Anything).
-		After(time.Duration(time.Second)).Return(&peerId, []byte(`{"type":"echo","definition_id":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","input":"hello world"}`), nil)
+		After(time.Duration(time.Second)).Return(&peerId, []byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","input":"hello world"}`), nil)
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 	errChan := adt.Start(context.Background())
 	select {
@@ -42,5 +42,5 @@ func TestAuditor_Start(t *testing.T) {
 	}
 
 	mockSubscriber.AssertCalled(t, "Next", mock.Anything)
-	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definition_id":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","output":"hello world"}`))
+	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","output":"hello world"}`))
 }

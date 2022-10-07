@@ -413,14 +413,14 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
-	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *pubsubConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create task subscriber")
-	}
-
 	token := viper.GetString("auditor.w3s_token")
 	if token == "" {
 		return nil, errors.New("auditor.w3s_token is empty")
+	}
+
+	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *pubsubConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create task subscriber")
 	}
 
 	config := store.W3StorePublisherConfig{

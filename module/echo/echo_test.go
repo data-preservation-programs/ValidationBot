@@ -23,7 +23,7 @@ func TestEcho_GetTasks(t *testing.T) {
 	assert.Equal(1, len(tasks))
 	bytes := tasks[tsk]
 	assert.Nil(err)
-	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
+	assert.Equal(`{"type":"echo","definitionId":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
 }
 
 func TestEcho_GetTask(t *testing.T) {
@@ -40,7 +40,7 @@ func TestEcho_GetTask(t *testing.T) {
 	assert.Nil(err)
 	bytes := task
 	assert.Nil(err)
-	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
+	assert.Equal(`{"type":"echo","definitionId":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`, string(bytes))
 }
 
 func TestEcho_Validate(t *testing.T) {
@@ -48,5 +48,5 @@ func TestEcho_Validate(t *testing.T) {
 	echo := Echo{}
 	bytes, err := echo.Validate(nil, []byte(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","input":"definition"}`))
 	assert.Nil(err)
-	assert.Equal(`{"type":"echo","definition_id":"00000000-0000-0000-0000-000000000000","target":"target","output":"definition"}`, string(bytes))
+	assert.Equal(`{"type":"echo","definitionId":"00000000-0000-0000-0000-000000000000","target":"target","output":"definition"}`, string(bytes))
 }

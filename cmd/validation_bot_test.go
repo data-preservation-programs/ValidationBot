@@ -33,7 +33,7 @@ func TestSetDefault(t *testing.T) {
 	defer viper.Reset()
 	setConfig("")
 	assert.True(viper.GetBool("module.echo.enabled"))
-	assert.False(viper.GetBool("dispatcher.enabled"))
+	assert.True(viper.GetBool("dispatcher.enabled"))
 }
 
 func TestSetDefault_WithConfigFile(t *testing.T) {
@@ -105,7 +105,7 @@ func TestListTaskHandler(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskCreator.AssertCalled(t, "List", mock.Anything)
-	assert.Equal("[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"interval_seconds\":0,\"definition\":\"definition\",\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n", rec.Body.String())
+	assert.Equal("[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":\"definition\",\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n", rec.Body.String())
 }
 
 func TestNewObserver(t *testing.T) {
@@ -126,6 +126,8 @@ func TestNewAuditor(t *testing.T) {
 	privateKey := test.MarshalPrivateKey(t, private)
 	viper.Set("auditor.private_key", privateKey)
 	viper.Set("auditor.listen_addr", "/ip4/0.0.0.0/tcp/0")
+	viper.Set("auditor.topic_name", uuid.New().String())
+	viper.Set("auditor.w3s_token", "test")
 	aud, err := newAuditor(context.TODO())
 	assert.NotNil(aud)
 	assert.Nil(err)

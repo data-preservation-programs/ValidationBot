@@ -50,7 +50,7 @@ func TestObserverStart(t *testing.T) {
 	go func() {
 		mockChan <- store.Entry{
 			Previous: nil,
-			Message: []byte(fmt.Sprintf("{\"type\":\"echo\",\"definition_id\":\"%s\",\"target\":\"%s\", \"output\": \"%s\"}",
+			Message: []byte(fmt.Sprintf("{\"type\":\"echo\",\"definitionId\":\"%s\",\"target\":\"%s\", \"output\": \"%s\"}",
 				testDefinitionId, testTarget, testOutput)),
 		}
 	}()
