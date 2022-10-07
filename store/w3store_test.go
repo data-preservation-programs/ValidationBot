@@ -96,7 +96,7 @@ func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 		RetryCount:    3,
 	}
 	subscriber := NewW3StoreSubscriber(config)
-	entryChan, err := subscriber.Subscribe(context, store.peerId, nil)
+	entryChan, err := subscriber.Subscribe(context, store.peerID, nil)
 	for _, expected := range []string{"test1", "test2", "test3"} {
 		select {
 		case entry := <-entryChan:

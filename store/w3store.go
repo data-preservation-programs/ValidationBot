@@ -29,6 +29,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const year = 365 * 24 * time.Hour
+
 type W3StoreSubscriber struct {
 	client        *resty.Client
 	retryInterval time.Duration
@@ -107,6 +109,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 	return entries, nil
 }
 
+//nolint:funlen,gocognit,cyclop
 func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid.Cid, to cid.Cid) ([]Entry, error) {
 	entries := make([]Entry, 0)
 	for {
@@ -169,32 +172,33 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 			return nil, errors.Wrap(err, "cannot get entry bytes")
 		}
 
-		if previousNode.Kind() == datamodel.Kind_Link {
-			previousLink, err := previousNode.AsLink()
-			if err != nil {
-				log.Error().Err(err).Msg("failed to get previous link")
-
-				break
-			}
-			c := previousLink.(cidlink.Link).Cid
-			if to == c {
-				return nil, errors.New("previous cid is the same as current")
-			}
-			to = c
-
-			entries = append(entries, Entry{
-				Message:  entryBytes,
-				Previous: &to,
-			})
-			if from != nil && to == *from {
-				break
-			}
-		} else {
+		if previousNode.Kind() != datamodel.Kind_Link {
 			entries = append(entries, Entry{
 				Message:  entryBytes,
 				Previous: nil,
 			})
+			break
+		}
 
+		previousLink, err := previousNode.AsLink()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot get previous link")
+		}
+		link, ok := previousLink.(cidlink.Link)
+		if !ok {
+			return nil, errors.New("cannot convert to cid link")
+		}
+		c := link.Cid
+		if to == c {
+			return nil, errors.New("previous cid is the same as current")
+		}
+		to = c
+
+		entries = append(entries, Entry{
+			Message:  entryBytes,
+			Previous: &to,
+		})
+		if from != nil && to == *from {
 			break
 		}
 	}
@@ -203,7 +207,7 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, from *cid
 
 type W3StorePublisher struct {
 	client         *resty.Client
-	peerId         peer.ID
+	peerID         peer.ID
 	peerCid        cid.Cid
 	privateKey     crypto.PrivKey
 	lastCid        *cid.Cid
@@ -240,14 +244,16 @@ func NewW3StorePublisher(config W3StorePublisherConfig) (*W3StorePublisher, erro
 		return nil, errors.Wrap(err, "cannot unmarshal private key")
 	}
 
-	peerId, _ := peer.IDFromPrivateKey(privateKey)
-	peerCid := peer.ToCid(peerId)
+	peerID, _ := peer.IDFromPrivateKey(privateKey)
+	peerCid := peer.ToCid(peerID)
 
 	w3Store := &W3StorePublisher{
 		client:         client,
-		peerId:         peerId,
-		privateKey:     privateKey,
+		peerID:         peerID,
 		peerCid:        peerCid,
+		privateKey:     privateKey,
+		lastCid:        nil,
+		lastSequence:   nil,
 		initialized:    false,
 		initializedMux: sync.Mutex{},
 		log:            log.With().Str("role", "w3store_publisher").Logger(),
@@ -291,7 +297,7 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	if s.lastSequence != nil {
 		sequence = *s.lastSequence + 1
 	}
-	year := time.Hour * time.Duration(24*365)
+
 	ipnsEntry, err := ipns.Create(s.privateKey, []byte(value.String()), sequence,
 		time.Now().Add(year),
 		year)
@@ -330,7 +336,12 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	return nil
 }
 
-func getLastRecord(ctx context.Context, log zerolog.Logger, client *resty.Client, peerCid string) (*ipns_pb.IpnsEntry, error) {
+func getLastRecord(
+	ctx context.Context,
+	log zerolog.Logger,
+	client *resty.Client,
+	peerCid string,
+) (*ipns_pb.IpnsEntry, error) {
 	url := "https://name.web3.storage/name/" + peerCid
 	log.Info().Str("url", url).Msg("getting last record")
 	resp, err := client.R().SetContext(ctx).Get(url)

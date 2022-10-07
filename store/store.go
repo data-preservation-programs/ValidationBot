@@ -30,6 +30,7 @@ type MockSubscriber struct {
 	mock.Mock
 }
 
+//nolint:all
 func (m *MockSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
 	args := m.Called(ctx, peerID, last)
 	return args.Get(0).(<-chan Entry), args.Error(1)
@@ -39,7 +40,6 @@ type MockPublisher struct {
 	mock.Mock
 }
 
-//nolint:all
 func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
 	args := m.Called(ctx, input)
 	return args.Error(0)
