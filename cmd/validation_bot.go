@@ -99,7 +99,7 @@ func setConfig(configPath string) error {
 	viper.SetDefault("auditor.private_key", "")
 	viper.SetDefault("dispatcher.private_key", "")
 
-	viper.SetDefault("dispatcher.api_address", ":8001")
+	viper.SetDefault("dispatcher.api_address", ":80")
 	viper.SetDefault("auditor.listen_addr", "/ip4/0.0.0.0/tcp/7999")
 	viper.SetDefault("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/7998")
 
