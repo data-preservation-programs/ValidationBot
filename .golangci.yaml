@@ -1,0 +1,46 @@
+run:
+  tests: true
+  skip-dirs:
+    - extern
+  skip-files:
+    - _test\.go
+    - test/util.go
+
+linters:
+  enable-all: true
+  disable:
+    - typecheck
+    - nosnakecase
+    - exhaustivestruct
+    - interfacer
+    - structcheck
+    - golint
+    - ifshort
+    - scopelint
+    - varcheck
+    - maligned
+    - deadcode
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - wastedassign
+    - gci
+    - goimports
+    - wrapcheck
+    - varnamelen
+    - nlreturn
+    - nilnil
+    - wsl
+    - gofumpt
+
+linters-settings:
+  paralleltest:
+    ignore-missing: true
+  exhaustruct:
+    exclude:
+      - 'task\.Definition'
+      - 'echo\.Result'
+      - 'gorm.*'
+      - 'cli.*'
+      - 'zerolog.*'
+      - 'lecho.*'

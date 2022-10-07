@@ -1,0 +1,41 @@
+name: Build and test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Build
+        run: make build
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+
+      - name: Setup postgreSQL
+        uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '13'
+          postgresql db: 'postgres'
+          postgresql user: 'postgres'
+          postgresql password: 'postgres'
+
+      - name: Test
+        env:
+          W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
+        run: make test
