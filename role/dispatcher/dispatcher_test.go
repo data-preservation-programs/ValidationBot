@@ -34,9 +34,11 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 		TaskPublisher: mockPublisher,
 		CheckInterval: 1 * time.Minute,
 	})
-
 	assert.Nil(err)
 	assert.NotNil(dper)
+
+	err = db.AutoMigrate(&task.Definition{})
+	assert.Nil(err)
 
 	return db, dper, mockPublisher
 }
