@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+	"validation-bot/role"
 
 	"validation-bot/module"
 	echo_module "validation-bot/module/echo"
@@ -25,7 +24,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	log2 "github.com/labstack/gommon/log"
-	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -54,32 +52,6 @@ type taskCreator interface {
 
 type taskRemover interface {
 	Remove(ctx context.Context, id uuid.UUID) error
-}
-
-func generateNewPeer() (string, string, string, error) {
-	private, public, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	peerID, err := peer.IDFromPublicKey(public)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	privateBytes, err := crypto.MarshalPrivateKey(private)
-	if err != nil {
-		return "", "", "", err
-	}
-
-	privateStr := base64.StdEncoding.EncodeToString(privateBytes)
-
-	publicBytes, err := crypto.MarshalPublicKey(public)
-	if err != nil {
-		return "", "", "", err
-	}
-	publicStr := base64.StdEncoding.EncodeToString(publicBytes)
-	return privateStr, publicStr, peerID.String(), nil
 }
 
 //nolint:gomnd,funlen,cyclop
@@ -403,10 +375,8 @@ func newObserver() (*observer.Observer, error) {
 }
 
 func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
-	pubsubConfig, err := task.NewPubsubConfig(
-		viper.GetString("auditor.private_key"),
-		viper.GetString("auditor.listen_addr"),
-		viper.GetString("auditor.topic_name"))
+	libp2p, err := role.NewLibp2pHost(viper.GetString("auditor.private_key"), viper.GetString("auditor.listen_addr"))
+
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
@@ -416,7 +386,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 		return nil, errors.New("auditor.w3s_token is empty")
 	}
 
-	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *pubsubConfig)
+	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, viper.GetString("auditor.topic_name"))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create task subscriber")
 	}
@@ -474,15 +444,12 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 		return nil, errors.Wrap(err, "cannot migrate task definitions")
 	}
 
-	pubsubConfig, err := task.NewPubsubConfig(
-		viper.GetString("dispatcher.private_key"),
-		viper.GetString("dispatcher.listen_addr"),
-		viper.GetString("dispatcher.topic_name"))
+	libp2p, err := role.NewLibp2pHost(viper.GetString("dispatcher.private_key"), viper.GetString("dispatcher.listen_addr"))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
-	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, *pubsubConfig)
+	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, *libp2p, viper.GetString("dispatcher.topic_name"))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create task publisher")
 	}

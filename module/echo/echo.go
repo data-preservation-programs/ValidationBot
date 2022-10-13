@@ -7,7 +7,6 @@ import (
 	"validation-bot/task"
 
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 )
 
 type Echo struct{}
@@ -39,13 +38,10 @@ func (e Echo) TaskType() task.Type {
 }
 
 func (e Echo) ResultType() interface{} {
-	return &Result{}
+	return &ResultModel{}
 }
 
 func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
-	log := log.With().Str("role", "echo_module").Logger()
-	log.Debug().Bytes("input", input).Msg("validator called")
-
 	var in Input
 
 	err := json.Unmarshal(input, &in)
@@ -53,7 +49,7 @@ func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to unmarshal input")
 	}
 
-	output := ResultContent{
+	output := Result{
 		Task:   in.Task,
 		Output: in.Input,
 	}
@@ -63,6 +59,5 @@ func (e Echo) Validate(ctx context.Context, input []byte) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to marshal output")
 	}
 
-	log.Debug().Bytes("output", out).Msg("validator finished")
 	return out, nil
 }

@@ -1,8 +1,6 @@
 package echo
 
 import (
-	"encoding/json"
-
 	"validation-bot/task"
 
 	"gorm.io/gorm"
@@ -13,20 +11,16 @@ type Input struct {
 	Input string `json:"input"`
 }
 
-func (i Input) Marshal() ([]byte, error) {
-	return json.Marshal(i)
-}
-
-type ResultContent struct {
+type Result struct {
 	task.Task
 	Output string `json:"output"`
 }
 
-type Result struct {
+type ResultModel struct {
 	gorm.Model
-	ResultContent
+	Result
 }
 
-func (Result) TableName() string {
+func (ResultModel) TableName() string {
 	return "echo_results"
 }

@@ -9,7 +9,8 @@ import (
 type Type = string
 
 const (
-	Echo Type = "echo"
+	Echo     Type = "echo"
+	QueryAsk Type = "query_ask"
 )
 
 type Task struct {
