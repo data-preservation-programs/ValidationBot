@@ -28,7 +28,7 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 
 	dper, err := NewDispatcher(Config{
 		DB: db,
-		Modules: []module.Module{
+		Modules: []module.DispatcherModule{
 			echo.Echo{},
 		},
 		TaskPublisher: mockPublisher,

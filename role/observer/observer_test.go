@@ -34,7 +34,7 @@ func TestObserverStart(t *testing.T) {
 	subscriber := new(store.MockSubscriber)
 	obs, err := NewObserver(db, subscriber, []peer.ID{
 		peer.ID(testPeerId),
-	}, []module.Module{
+	}, []module.ObserverModule{
 		&echo.Echo{},
 	})
 	assert.Nil(err)

@@ -128,7 +128,7 @@ func TestNewAuditor(t *testing.T) {
 	viper.Set("auditor.listen_addr", "/ip4/0.0.0.0/tcp/0")
 	viper.Set("auditor.topic_name", uuid.New().String())
 	viper.Set("auditor.w3s_token", "test")
-	aud, err := newAuditor(context.TODO())
+	aud, _, err := newAuditor(context.TODO())
 	assert.NotNil(aud)
 	assert.Nil(err)
 }
