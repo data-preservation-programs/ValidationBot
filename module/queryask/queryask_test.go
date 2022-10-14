@@ -211,7 +211,7 @@ func TestQueryAsk_QueryMiner_InvalidProviderId(t *testing.T) {
 	ctx := context.Background()
 	result, err := queryAsk.QueryMiner(ctx, "xxxxxx")
 	assert.Nil(err)
-	assert.Equal(result.Status, InvalidProviderId)
+	assert.Equal(result.Status, InvalidProviderID)
 	assert.Equal(result.ErrorMessage, "unknown address network")
 }
 
@@ -222,7 +222,7 @@ func TestQueryAsk_QueryMiner_NotMinerAddress(t *testing.T) {
 	ctx := context.Background()
 	result, err := queryAsk.QueryMiner(ctx, "f010000")
 	assert.Nil(err)
-	assert.Equal(result.Status, InvalidProviderId)
+	assert.Equal(result.Status, InvalidProviderID)
 	assert.Equal(result.ErrorMessage, "failed to load miner actor state: actor code is not miner: paymentchannel")
 }
 
@@ -238,7 +238,7 @@ func TestQueryAsk_QueryMiner_NoPeerId(t *testing.T) {
 	ctx := context.Background()
 	result, err := queryAsk.QueryMiner(ctx, "f01000")
 	assert.Nil(err)
-	assert.Equal(result.Status, NoPeerId)
+	assert.Equal(result.Status, NoPeerID)
 	assert.Equal(result.ErrorMessage, "")
 }
 

@@ -32,6 +32,7 @@ linters:
     - nilnil
     - wsl
     - gofumpt
+    - nolintlint
 
 linters-settings:
   paralleltest:
@@ -39,8 +40,9 @@ linters-settings:
   exhaustruct:
     exclude:
       - 'task\.Definition'
-      - 'echo\.Result'
       - 'gorm.*'
       - 'cli.*'
       - 'zerolog.*'
       - 'lecho.*'
+      - '.*\.ResultContent'
+      - '.*\.ResultModel'

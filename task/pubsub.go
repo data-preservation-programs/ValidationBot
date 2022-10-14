@@ -194,6 +194,7 @@ func (m *MockSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
 	return args.Get(0).(*peer.ID), args.Get(1).([]byte), args.Error(2)
 }
 
+//nolint:ireturn
 func getTopicDiscovery(ctx context.Context, h host.Host) (discovery.Discovery, error) {
 	kdht, err := initDHT(ctx, h)
 	if err != nil {
@@ -202,7 +203,9 @@ func getTopicDiscovery(ctx context.Context, h host.Host) (discovery.Discovery, e
 
 	baseDisc := routing.NewRoutingDiscovery(kdht)
 	minBackoff, maxBackoff := time.Second, time.Hour
+	//nolint:gosec
 	rng := rand.New(rand.NewSource(rand.Int63()))
+	//nolint:gomnd
 	discovery, err := backoff.NewBackoffDiscovery(
 		baseDisc,
 		backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 2, time.Second, rng),

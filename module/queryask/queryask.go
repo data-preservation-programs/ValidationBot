@@ -29,8 +29,8 @@ type QueryStatus string
 
 const (
 	Success             QueryStatus = "success"
-	InvalidProviderId   QueryStatus = "invalid_provider_id"
-	NoPeerId            QueryStatus = "no_peer_id"
+	InvalidProviderID   QueryStatus = "invalid_provider_id"
+	NoPeerID            QueryStatus = "no_peer_id"
 	InvalidMultiAddress QueryStatus = "invalid_multi_address"
 	CannotConnect       QueryStatus = "cannot_connect"
 	NoMultiAddress      QueryStatus = "no_multi_address"
@@ -38,14 +38,14 @@ const (
 )
 
 type ResultContent struct {
-	PeerId        string      `json:"peer_id,omitempty"`
-	MultiAddrs    []string    `json:"multi_addrs,omitempty"`
+	PeerID        string      `json:"peerId,omitempty"`
+	MultiAddrs    []string    `json:"multiAddrs,omitempty"`
 	Status        QueryStatus `json:"status"`
-	ErrorMessage  string      `json:"error_message,omitempty"`
+	ErrorMessage  string      `json:"errorMessage,omitempty"`
 	Price         string      `json:"price,omitempty"`
-	VerifiedPrice string      `json:"verified_price,omitempty"`
-	MinPieceSize  uint64      `json:"min_piece_size,omitempty"`
-	MaxPieceSize  uint64      `json:"max_piece_size,omitempty"`
+	VerifiedPrice string      `json:"verifiedPrice,omitempty"`
+	MinPieceSize  uint64      `json:"minPieceSize,omitempty"`
+	MaxPieceSize  uint64      `json:"maxPieceSize,omitempty"`
 }
 
 type Result struct {
@@ -64,15 +64,15 @@ func (ResultModel) TableName() string {
 
 type QueryAsk struct {
 	log      zerolog.Logger
-	lotusApi v0api.Gateway
+	lotusAPI v0api.Gateway
 	libp2p   *host.Host
 }
 
-func NewQueryAskModule(libp2p *host.Host, lotusApi v0api.Gateway) QueryAsk {
+func NewQueryAskModule(libp2p *host.Host, lotusAPI v0api.Gateway) QueryAsk {
 	return QueryAsk{
 		log:      log.With().Str("role", "query_ask_module").Logger(),
 		libp2p:   libp2p,
-		lotusApi: lotusApi,
+		lotusAPI: lotusAPI,
 	}
 }
 
@@ -122,20 +122,21 @@ func (q QueryAsk) Validate(ctx context.Context, input []byte) ([]byte, error) {
 	return json.Marshal(result)
 }
 
+//nolint:nilerr,funlen,cyclop
 func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultContent, error) {
 	providerAddr, err := address.NewFromString(provider)
 	if err != nil {
 		return &ResultContent{
-			Status:       InvalidProviderId,
+			Status:       InvalidProviderID,
 			ErrorMessage: err.Error(),
 		}, nil
 	}
-	minerInfo, err := q.lotusApi.StateMinerInfo(ctx, providerAddr, types.EmptyTSK)
+	minerInfo, err := q.lotusAPI.StateMinerInfo(ctx, providerAddr, types.EmptyTSK)
 	if err != nil {
 		tp := reflect.TypeOf(err)
 		if tp.String() == "*jsonrpc.respError" {
 			return &ResultContent{
-				Status:       InvalidProviderId,
+				Status:       InvalidProviderID,
 				ErrorMessage: err.Error(),
 			}, nil
 		}
@@ -144,13 +145,13 @@ func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultConte
 
 	if minerInfo.PeerId == nil {
 		return &ResultContent{
-			Status: NoPeerId,
+			Status: NoPeerID,
 		}, nil
 	}
 
-	var maddrs []multiaddr.Multiaddr
-	var maddrStrs []string
-	for _, mma := range minerInfo.Multiaddrs {
+	maddrs := make([]multiaddr.Multiaddr, len(minerInfo.Multiaddrs))
+	maddrStrs := make([]string, len(minerInfo.Multiaddrs))
+	for i, mma := range minerInfo.Multiaddrs {
 		ma, err := multiaddr.NewMultiaddrBytes(mma)
 		if err != nil {
 			return &ResultContent{
@@ -158,8 +159,8 @@ func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultConte
 				ErrorMessage: err.Error(),
 			}, nil
 		}
-		maddrs = append(maddrs, ma)
-		maddrStrs = append(maddrStrs, ma.String())
+		maddrs[i] = ma
+		maddrStrs[i] = ma.String()
 	}
 
 	if len(maddrs) == 0 {
@@ -198,6 +199,7 @@ func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultConte
 	askRequest := &network.AskRequest{Miner: providerAddr}
 	var resp network.AskResponse
 	deadline, ok := ctx.Deadline()
+	//nolint:errcheck
 	if ok {
 		stream.SetDeadline(deadline)
 		defer stream.SetDeadline(time.Time{})
@@ -220,7 +222,7 @@ func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultConte
 	}
 
 	return &ResultContent{
-		PeerId:        minerInfo.PeerId.String(),
+		PeerID:        minerInfo.PeerId.String(),
 		MultiAddrs:    maddrStrs,
 		Status:        Success,
 		ErrorMessage:  "",
