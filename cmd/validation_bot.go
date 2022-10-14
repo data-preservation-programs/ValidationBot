@@ -386,6 +386,7 @@ func newObserver() (*observer.Observer, error) {
 
 type Closer func()
 
+//nolint:funlen,cyclop
 func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	libp2p, err := role.NewLibp2pHost(viper.GetString("auditor.private_key"), viper.GetString("auditor.listen_addr"))
 
@@ -437,14 +438,14 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 				"Authorization": []string{"Bearer " + viper.GetString("lotus.token")},
 			}
 		}
-		lotusApi, clientCloser, err := client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
+		lotusAPI, clientCloser, err := client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot create lotus api")
 		}
 		closer = func() {
 			clientCloser()
 		}
-		queryAskModule := queryask.NewQueryAskModule(libp2p, lotusApi)
+		queryAskModule := queryask.NewQueryAskModule(libp2p, lotusAPI)
 		modules = append(modules, queryAskModule)
 	}
 
