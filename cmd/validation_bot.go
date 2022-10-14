@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"validation-bot/module/queryask"
 	"validation-bot/role"
 
 	"validation-bot/module"
@@ -20,6 +21,7 @@ import (
 
 	"validation-bot/task"
 
+	"github.com/filecoin-project/lotus/api/client"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -90,6 +92,9 @@ func setConfig(configPath string) error {
 	viper.SetDefault("observer.w3s_retry_count", 5)
 
 	viper.SetDefault("module.echo.enabled", true)
+	viper.SetDefault("module.queryask.enabled", true)
+	viper.SetDefault("lotus.api_url", "https://api.node.glif.io/")
+	viper.SetDefault("lotus.token", "")
 
 	viper.SetConfigFile(configPath)
 	var newFile bool
@@ -110,11 +115,11 @@ func setConfig(configPath string) error {
 
 	if newFile {
 		log.Debug().Msg("generating new peers for dispatcher and auditor")
-		auditorKey, _, auditorPeer, err := generateNewPeer()
+		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate auditor key")
 		}
-		dispatcherKey, _, dispatcherPeer, err := generateNewPeer()
+		dispatcherKey, _, dispatcherPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate dispatcher key")
 		}
@@ -256,7 +261,8 @@ func run(configPath string) error {
 	if viper.GetBool("auditor.enabled") {
 		anyEnabled = true
 		log.Info().Msg("starting auditor")
-		auditor, err := newAuditor(ctx)
+		auditor, closer, err := newAuditor(ctx)
+		defer closer()
 		if err != nil {
 			return errors.Wrap(err, "cannot create auditor")
 		}
@@ -306,7 +312,7 @@ func main() {
 				Name:  "generate-peer",
 				Usage: "generate a new peer id with private key",
 				Action: func(c *cli.Context) error {
-					privateStr, publicStr, peerStr, err := generateNewPeer()
+					privateStr, publicStr, peerStr, err := role.GenerateNewPeer()
 					if err != nil {
 						return err
 					}
@@ -360,10 +366,14 @@ func newObserver() (*observer.Observer, error) {
 		peers[i] = peerID
 	}
 
-	var modules []module.Module
+	var modules []module.ObserverModule
 	if viper.GetBool("module.echo.enabled") {
 		echoModule := echo_module.Echo{}
 		modules = append(modules, echoModule)
+	}
+	if viper.GetBool("module.queryask.enabled") {
+		queryAskModule := queryask.QueryAsk{}
+		modules = append(modules, queryAskModule)
 	}
 
 	observer, err := observer.NewObserver(db, resultSubscriber, peers, modules)
@@ -374,21 +384,23 @@ func newObserver() (*observer.Observer, error) {
 	return observer, nil
 }
 
-func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
+type Closer func()
+
+func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	libp2p, err := role.NewLibp2pHost(viper.GetString("auditor.private_key"), viper.GetString("auditor.listen_addr"))
 
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create pubsub config")
+		return nil, nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
 	token := viper.GetString("auditor.w3s_token")
 	if token == "" {
-		return nil, errors.New("auditor.w3s_token is empty")
+		return nil, nil, errors.New("auditor.w3s_token is empty")
 	}
 
 	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, viper.GetString("auditor.topic_name"))
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create task subscriber")
+		return nil, nil, errors.Wrap(err, "cannot create task subscriber")
 	}
 
 	config := store.W3StorePublisherConfig{
@@ -400,7 +412,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 	}
 	resultPublisher, err := store.NewW3StorePublisher(config)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create result publisher")
+		return nil, nil, errors.Wrap(err, "cannot create result publisher")
 	}
 
 	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
@@ -408,15 +420,32 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 	for i, trustedPeer := range trustedPeers {
 		peerID, err := peer.Decode(trustedPeer)
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot decode peer id")
+			return nil, nil, errors.Wrap(err, "cannot decode peer id")
 		}
 		peers[i] = peerID
 	}
 
-	var modules []module.Module
+	var modules []module.AuditorModule
+	var closer Closer
 	if viper.GetBool("module.echo.enabled") {
 		echoModule := echo_module.Echo{}
 		modules = append(modules, echoModule)
+
+		var header http.Header
+		if viper.GetString("lotus.token") != "" {
+			header = http.Header{
+				"Authorization": []string{"Bearer " + viper.GetString("lotus.token")},
+			}
+		}
+		lotusApi, clientCloser, err := client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "cannot create lotus api")
+		}
+		closer = func() {
+			clientCloser()
+		}
+		queryAskModule := queryask.NewQueryAskModule(libp2p, lotusApi)
+		modules = append(modules, queryAskModule)
 	}
 
 	auditor, err := auditor.NewAuditor(auditor.Config{
@@ -426,10 +455,10 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, error) {
 		Modules:         modules,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create auditor")
+		return nil, nil, errors.Wrap(err, "cannot create auditor")
 	}
 
-	return auditor, nil
+	return auditor, closer, nil
 }
 
 func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
@@ -454,10 +483,14 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 		return nil, errors.Wrap(err, "cannot create task publisher")
 	}
 
-	var modules []module.Module
+	var modules []module.DispatcherModule
 	if viper.GetBool("module.echo.enabled") {
 		echoModule := echo_module.Echo{}
 		modules = append(modules, echoModule)
+	}
+	if viper.GetBool("module.queryask.enabled") {
+		queryAskModule := queryask.QueryAsk{}
+		modules = append(modules, queryAskModule)
 	}
 
 	dispatcherConfig := dispatcher.Config{

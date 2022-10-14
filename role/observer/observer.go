@@ -23,18 +23,18 @@ type Observer struct {
 	trustedPeers     []peer.ID
 	lastCids         []*cid.Cid
 	resultSubscriber store.ResultSubscriber
-	modules          map[string]module.Module
+	modules          map[string]module.ObserverModule
 	log              zerolog.Logger
 }
 
 func NewObserver(db *gorm.DB,
 	resultSubscriber store.ResultSubscriber,
 	peers []peer.ID,
-	modules []module.Module,
+	modules []module.ObserverModule,
 ) (*Observer, error) {
 	cids := make([]*cid.Cid, len(peers))
 
-	mods := make(map[string]module.Module)
+	mods := make(map[string]module.ObserverModule)
 	for _, mod := range modules {
 		mods[mod.TaskType()] = mod
 		err := db.AutoMigrate(mod.ResultType())

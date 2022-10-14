@@ -3,6 +3,7 @@ package queryask
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"time"
 	"validation-bot/task"
 
@@ -28,20 +29,23 @@ type QueryStatus string
 
 const (
 	Success             QueryStatus = "success"
-	InvalidProviderId               = "invalid_provider_id"
-	NoPeerId                        = "no_peer_id"
-	InvalidMultiAddress             = "invalid_multi_address"
-	NoMultiAddress                  = "no_multi_address"
-	NotReachable                    = "not_reachable"
-	StreamFailure                   = "stream_failure"
+	InvalidProviderId   QueryStatus = "invalid_provider_id"
+	NoPeerId            QueryStatus = "no_peer_id"
+	InvalidMultiAddress QueryStatus = "invalid_multi_address"
+	CannotConnect       QueryStatus = "cannot_connect"
+	NoMultiAddress      QueryStatus = "no_multi_address"
+	StreamFailure       QueryStatus = "stream_failure"
 )
 
 type ResultContent struct {
-	peerId       string
-	multiAddrs   []string
-	status       QueryStatus
-	errorMessage string
-	response     interface{}
+	PeerId        string      `json:"peer_id,omitempty"`
+	MultiAddrs    []string    `json:"multi_addrs,omitempty"`
+	Status        QueryStatus `json:"status"`
+	ErrorMessage  string      `json:"error_message,omitempty"`
+	Price         string      `json:"price,omitempty"`
+	VerifiedPrice string      `json:"verified_price,omitempty"`
+	MinPieceSize  uint64      `json:"min_piece_size,omitempty"`
+	MaxPieceSize  uint64      `json:"max_piece_size,omitempty"`
 }
 
 type Result struct {
@@ -61,10 +65,10 @@ func (ResultModel) TableName() string {
 type QueryAsk struct {
 	log      zerolog.Logger
 	lotusApi v0api.Gateway
-	libp2p   host.Host
+	libp2p   *host.Host
 }
 
-func NewQueryAskModule(libp2p host.Host, lotusApi v0api.Gateway) QueryAsk {
+func NewQueryAskModule(libp2p *host.Host, lotusApi v0api.Gateway) QueryAsk {
 	return QueryAsk{
 		log:      log.With().Str("role", "query_ask_module").Logger(),
 		libp2p:   libp2p,
@@ -93,7 +97,7 @@ func (q QueryAsk) GetTasks(definitions []task.Definition) (map[task.Definition][
 func (q QueryAsk) GetTask(definition task.Definition) ([]byte, error) {
 	input := Input{
 		Task: task.Task{
-			Type:         task.Echo,
+			Type:         definition.Type,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 		},
@@ -110,30 +114,38 @@ func (q QueryAsk) Validate(ctx context.Context, input []byte) ([]byte, error) {
 	}
 
 	provider := in.Target
-	result := q.QueryMiner(ctx, provider)
+	result, err := q.QueryMiner(ctx, provider)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query miner")
+	}
 
 	return json.Marshal(result)
 }
 
-func (q QueryAsk) QueryMiner(ctx context.Context, provider string) ResultContent {
+func (q QueryAsk) QueryMiner(ctx context.Context, provider string) (*ResultContent, error) {
 	providerAddr, err := address.NewFromString(provider)
 	if err != nil {
-		return ResultContent{
-			status: InvalidProviderId,
-		}
+		return &ResultContent{
+			Status:       InvalidProviderId,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 	minerInfo, err := q.lotusApi.StateMinerInfo(ctx, providerAddr, types.EmptyTSK)
 	if err != nil {
-		return ResultContent{
-			status:       InvalidProviderId,
-			errorMessage: err.Error(),
+		tp := reflect.TypeOf(err)
+		if tp.String() == "*jsonrpc.respError" {
+			return &ResultContent{
+				Status:       InvalidProviderId,
+				ErrorMessage: err.Error(),
+			}, nil
 		}
+		return nil, err
 	}
+
 	if minerInfo.PeerId == nil {
-		return ResultContent{
-			status:       NoPeerId,
-			errorMessage: err.Error(),
-		}
+		return &ResultContent{
+			Status: NoPeerId,
+		}, nil
 	}
 
 	var maddrs []multiaddr.Multiaddr
@@ -141,77 +153,80 @@ func (q QueryAsk) QueryMiner(ctx context.Context, provider string) ResultContent
 	for _, mma := range minerInfo.Multiaddrs {
 		ma, err := multiaddr.NewMultiaddrBytes(mma)
 		if err != nil {
-			return ResultContent{
-				status:       InvalidProviderId,
-				errorMessage: err.Error(),
-			}
+			return &ResultContent{
+				Status:       InvalidMultiAddress,
+				ErrorMessage: err.Error(),
+			}, nil
 		}
 		maddrs = append(maddrs, ma)
 		maddrStrs = append(maddrStrs, ma.String())
 	}
 
 	if len(maddrs) == 0 {
-		return ResultContent{
-			status: NoMultiAddress,
-		}
+		return &ResultContent{
+			Status: NoMultiAddress,
+		}, nil
 	}
 
 	addrInfo := peer.AddrInfo{
 		ID:    *minerInfo.PeerId,
 		Addrs: maddrs,
 	}
-	err = q.libp2p.Connect(ctx, addrInfo)
+	err = (*q.libp2p).Connect(ctx, addrInfo)
 
 	if err != nil {
-		return ResultContent{
-			status:       InvalidMultiAddress,
-			errorMessage: err.Error(),
-		}
+		return &ResultContent{
+			Status:       CannotConnect,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 
-	stream, err := q.libp2p.NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
+	stream, err := (*q.libp2p).NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
 	if err != nil {
-		return ResultContent{
-			status:       StreamFailure,
-			errorMessage: err.Error(),
-		}
+		return &ResultContent{
+			Status:       StreamFailure,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 
-	q.libp2p.ConnManager().Protect(stream.Conn().RemotePeer(), "GetAsk")
+	(*q.libp2p).ConnManager().Protect(stream.Conn().RemotePeer(), "GetAsk")
 	defer func() {
-		q.libp2p.ConnManager().Unprotect(stream.Conn().RemotePeer(), "GetAsk")
+		(*q.libp2p).ConnManager().Unprotect(stream.Conn().RemotePeer(), "GetAsk")
 		stream.Close()
 	}()
 
 	askRequest := &network.AskRequest{Miner: providerAddr}
 	var resp network.AskResponse
-	dline, ok := ctx.Deadline()
+	deadline, ok := ctx.Deadline()
 	if ok {
-		stream.SetDeadline(dline)
+		stream.SetDeadline(deadline)
 		defer stream.SetDeadline(time.Time{})
 	}
 
 	err = cborutil.WriteCborRPC(stream, askRequest)
 	if err != nil {
-		return ResultContent{
-			status:       StreamFailure,
-			errorMessage: err.Error(),
-		}
+		return &ResultContent{
+			Status:       StreamFailure,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 
 	err = cborutil.ReadCborRPC(stream, &resp)
 	if err != nil {
-		return ResultContent{
-			status:       StreamFailure,
-			errorMessage: err.Error(),
-		}
+		return &ResultContent{
+			Status:       StreamFailure,
+			ErrorMessage: err.Error(),
+		}, nil
 	}
 
-	return ResultContent{
-		peerId:       minerInfo.PeerId.String(),
-		multiAddrs:   maddrStrs,
-		status:       Success,
-		errorMessage: "",
-		response:     resp.Ask,
-	}
+	return &ResultContent{
+		PeerId:        minerInfo.PeerId.String(),
+		MultiAddrs:    maddrStrs,
+		Status:        Success,
+		ErrorMessage:  "",
+		Price:         resp.Ask.Ask.Price.String(),
+		VerifiedPrice: resp.Ask.Ask.VerifiedPrice.String(),
+		MinPieceSize:  uint64(resp.Ask.Ask.MinPieceSize),
+		MaxPieceSize:  uint64(resp.Ask.Ask.MaxPieceSize),
+	}, nil
 }

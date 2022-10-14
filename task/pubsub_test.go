@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+	"validation-bot/role"
 	"validation-bot/test"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 	ctx := context.Background()
 	publisherPrivate, _, _ := test.GeneratePeerID(t)
 	publisherPrivateKey := test.MarshalPrivateKey(t, publisherPrivate)
-	pubHost, err := NewLibp2pHost(publisherPrivateKey, "/ip4/0.0.0.0/tcp/8201")
+	pubHost, err := role.NewLibp2pHost(publisherPrivateKey, "/ip4/0.0.0.0/tcp/8201")
 	assert.Nil(err)
 	assert.NotNil(pubHost)
 	publisher, err := NewLibp2pTaskPublisher(ctx, *pubHost, topicName)
@@ -28,7 +29,7 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 	go func() {
 		subscriberPrivate, _, _ := test.GeneratePeerID(t)
 		subscriberPrivateKey := test.MarshalPrivateKey(t, subscriberPrivate)
-		subHost, err := NewLibp2pHost(subscriberPrivateKey, "/ip4/0.0.0.0/tcp/8202")
+		subHost, err := role.NewLibp2pHost(subscriberPrivateKey, "/ip4/0.0.0.0/tcp/8202")
 		assert.Nil(err)
 		subscriber, err := NewLibp2pTaskSubscriber(ctx, *subHost, topicName)
 		assert.Nil(err)
