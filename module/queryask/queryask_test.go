@@ -292,7 +292,7 @@ func TestQueryAsk_QueryMiner_Success(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(result.Status, Success)
 	assert.Equal(result.ErrorMessage, "")
-	assert.Equal(abi.PaddedPieceSize(0x800000000), result.MaxPieceSize)
+	assert.Equal(uint64(0x800000000), result.MaxPieceSize)
 }
 
 func TestQueryAsk_Validate_Failed(t *testing.T) {
@@ -312,5 +312,5 @@ func TestQueryAsk_Validate_Success(t *testing.T) {
 	ctx := context.Background()
 	result, err := queryAsk.Validate(ctx, []byte(`{"target":"f01873432"}`))
 	assert.Nil(err)
-	assert.Equal(`{"peer_id":"12D3KooWDWtfzYYeThH5WjXRurf723BeqP9EJ55mKSXhSFx899Pk","multi_addrs":["/ip4/38.70.220.54/tcp/10201"],"status":"success","price":"20000000000","verified_price":"0","min_piece_size":8589934592,"max_piece_size":34359738368}`, string(result))
+	assert.Equal(`{"peerId":"12D3KooWDWtfzYYeThH5WjXRurf723BeqP9EJ55mKSXhSFx899Pk","multiAddrs":["/ip4/38.70.220.54/tcp/10201"],"status":"success","price":"20000000000","verifiedPrice":"0","minPieceSize":8589934592,"maxPieceSize":34359738368}`, string(result))
 }

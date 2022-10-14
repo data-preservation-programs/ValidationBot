@@ -95,6 +95,7 @@ func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 		RetryWaitMax:  time.Minute,
 		RetryCount:    3,
 	}
+	time.Sleep(time.Second * 5)
 	subscriber := NewW3StoreSubscriber(config)
 	entryChan, err := subscriber.Subscribe(context, store.peerID, nil)
 	for _, expected := range []string{"test1", "test2", "test3"} {
