@@ -18,7 +18,7 @@ import (
 type Dispatcher struct {
 	db            *gorm.DB
 	taskPublisher task.Publisher
-	modules       map[task.Type]module.Module
+	modules       map[task.Type]module.DispatcherModule
 	checkInterval time.Duration
 	log           zerolog.Logger
 }
@@ -26,14 +26,14 @@ type Dispatcher struct {
 type Config struct {
 	DB            *gorm.DB
 	TaskPublisher task.Publisher
-	Modules       []module.Module
+	Modules       []module.DispatcherModule
 	CheckInterval time.Duration
 }
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
 	db := config.DB
 
-	modules := make(map[task.Type]module.Module)
+	modules := make(map[task.Type]module.DispatcherModule)
 	for _, mod := range config.Modules {
 		modules[mod.TaskType()] = mod
 	}

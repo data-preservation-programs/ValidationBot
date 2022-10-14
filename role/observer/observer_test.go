@@ -34,7 +34,7 @@ func TestObserverStart(t *testing.T) {
 	subscriber := new(store.MockSubscriber)
 	obs, err := NewObserver(db, subscriber, []peer.ID{
 		peer.ID(testPeerId),
-	}, []module.Module{
+	}, []module.ObserverModule{
 		&echo.Echo{},
 	})
 	assert.Nil(err)
@@ -62,8 +62,8 @@ func TestObserverStart(t *testing.T) {
 	case <-time.After(2 * time.Second):
 	}
 
-	var found []echo.Result
-	db.Model(&echo.Result{}).Where("output = ?", testOutput).Find(&found)
+	var found []echo.ResultModel
+	db.Model(&echo.ResultModel{}).Where("output = ?", testOutput).Find(&found)
 	assert.Equal(1, len(found))
-	assert.Equal(testOutput, found[0].ResultContent.Output)
+	assert.Equal(testOutput, found[0].Result.Output)
 }

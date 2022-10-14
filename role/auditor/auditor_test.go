@@ -27,7 +27,7 @@ func TestAuditor_Start(t *testing.T) {
 		TrustedPeers:    []peer.ID{peerId},
 		ResultPublisher: mockPublisher,
 		TaskSubscriber:  mockSubscriber,
-		Modules:         []module.Module{echo.Echo{}},
+		Modules:         []module.AuditorModule{echo.Echo{}},
 	})
 	assert.Nil(err)
 	assert.NotNil(adt)

@@ -18,7 +18,7 @@ import (
 )
 
 type Auditor struct {
-	modules         map[task.Type]module.Module
+	modules         map[task.Type]module.AuditorModule
 	trustedPeers    []peer.ID
 	resultPublisher store.ResultPublisher
 	taskSubscriber  task.Subscriber
@@ -29,12 +29,12 @@ type Config struct {
 	TrustedPeers    []peer.ID
 	ResultPublisher store.ResultPublisher
 	TaskSubscriber  task.Subscriber
-	Modules         []module.Module
+	Modules         []module.AuditorModule
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
 	log := log.With().Str("role", "auditor").Logger()
-	modules := make(map[task.Type]module.Module)
+	modules := make(map[task.Type]module.AuditorModule)
 	for _, mod := range config.Modules {
 		log.Info().Str("module", mod.TaskType()).Msg("registering module")
 		modules[mod.TaskType()] = mod
