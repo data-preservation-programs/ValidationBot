@@ -67,13 +67,12 @@ func TestPostTaskHandler(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	defer viper.Reset()
-	taskDef := task.Definition{
-		Definition: "definition",
-	}
+	taskDef := task.Definition{}
+	taskDef.Definition.Set(`{"test": "test"}`)
 	mockTaskCreator := new(MockTaskCreator)
 	mockTaskCreator.On("Create", mock.Anything, mock.Anything).Return(nil)
 	e := echo.New()
-	buf := bytes.NewBuffer([]byte("{\"definition\":\"definition\"}"))
+	buf := bytes.NewBuffer([]byte(`{"definition":{"test": "test"}}`))
 	req := httptest.NewRequest(http.MethodPost, createRoute, buf)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
@@ -90,10 +89,10 @@ func TestListTaskHandler(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
 	mockTaskCreator := new(MockTaskCreator)
+	taskDef := task.Definition{}
+	taskDef.Definition.Set(`{"test": "test"}`)
 	taskDefs := []task.Definition{
-		{
-			Definition: "definition",
-		},
+		taskDef,
 	}
 	mockTaskCreator.On("List", mock.Anything).Return(taskDefs, nil)
 	e := echo.New()
@@ -105,7 +104,7 @@ func TestListTaskHandler(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskCreator.AssertCalled(t, "List", mock.Anything)
-	assert.Equal("[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":\"definition\",\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n", rec.Body.String())
+	assert.Equal("[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"test\":\"test\"},\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n", rec.Body.String())
 }
 
 func TestNewObserver(t *testing.T) {
@@ -113,7 +112,6 @@ func TestNewObserver(t *testing.T) {
 	defer viper.Reset()
 	viper.Set("observer.database_connection_string", test.PostgresConnectionString)
 	viper.Set("observer.trusted_peers", []string{testPeerId})
-	viper.Set("module.echo.enabled", true)
 	obs, err := newObserver()
 	assert.NotNil(obs)
 	assert.Nil(err)

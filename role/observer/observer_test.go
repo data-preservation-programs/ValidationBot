@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"validation-bot/module"
-	"validation-bot/module/echo"
 	"validation-bot/store"
 	"validation-bot/test"
 
@@ -20,13 +19,15 @@ import (
 )
 
 const (
-	testPeerId       = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
-	testDefinitionId = "92cb6e41-1019-4751-b822-ba3b92532a2b"
-	testTarget       = "test_target"
+	testPeerId = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
+	testTarget = "test_target"
 )
 
 func TestObserverStart(t *testing.T) {
 	assert := assert.New(t)
+	testDefinitionUUID, err := uuid.NewUUID()
+	assert.Nil(err)
+	testDefinitionId := testDefinitionUUID.String()
 	db, err := gorm.Open(postgres.Open(test.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
@@ -34,8 +35,6 @@ func TestObserverStart(t *testing.T) {
 	subscriber := new(store.MockSubscriber)
 	obs, err := NewObserver(db, subscriber, []peer.ID{
 		peer.ID(testPeerId),
-	}, []module.ObserverModule{
-		&echo.Echo{},
 	})
 	assert.Nil(err)
 	assert.NotNil(obs)
@@ -50,7 +49,7 @@ func TestObserverStart(t *testing.T) {
 	go func() {
 		mockChan <- store.Entry{
 			Previous: nil,
-			Message: []byte(fmt.Sprintf("{\"type\":\"echo\",\"definitionId\":\"%s\",\"target\":\"%s\", \"output\": \"%s\"}",
+			Message: []byte(fmt.Sprintf(`{"type":"echo","definitionId":"%s","target":"%s", "result": {"message": "%s"}}`,
 				testDefinitionId, testTarget, testOutput)),
 		}
 	}()
@@ -62,8 +61,8 @@ func TestObserverStart(t *testing.T) {
 	case <-time.After(2 * time.Second):
 	}
 
-	var found []echo.ResultModel
-	db.Model(&echo.ResultModel{}).Where("output = ?", testOutput).Find(&found)
+	var found []module.ValidationResult
+	db.Model(&module.ValidationResultModel{}).Where("definition_id = ?", testDefinitionId).Find(&found)
 	assert.Equal(1, len(found))
-	assert.Equal(testOutput, found[0].Result.Output)
+	assert.Equal(fmt.Sprintf(`{"message": "%s"}`, testOutput), string(found[0].Result.Bytes))
 }

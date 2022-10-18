@@ -6,8 +6,6 @@ import (
 
 	"validation-bot/module"
 
-	"validation-bot/task"
-
 	"validation-bot/store"
 
 	"github.com/ipfs/go-cid"
@@ -23,24 +21,18 @@ type Observer struct {
 	trustedPeers     []peer.ID
 	lastCids         []*cid.Cid
 	resultSubscriber store.ResultSubscriber
-	modules          map[string]module.ObserverModule
 	log              zerolog.Logger
 }
 
 func NewObserver(db *gorm.DB,
 	resultSubscriber store.ResultSubscriber,
 	peers []peer.ID,
-	modules []module.ObserverModule,
 ) (*Observer, error) {
 	cids := make([]*cid.Cid, len(peers))
 
-	mods := make(map[string]module.ObserverModule)
-	for _, mod := range modules {
-		mods[mod.TaskType()] = mod
-		err := db.AutoMigrate(mod.ResultType())
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to migrate type from %s", mod.TaskType())
-		}
+	err := db.AutoMigrate(&module.ValidationResultModel{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to migrate types")
 	}
 
 	return &Observer{
@@ -48,7 +40,6 @@ func NewObserver(db *gorm.DB,
 		trustedPeers:     peers,
 		lastCids:         cids,
 		resultSubscriber: resultSubscriber,
-		modules:          mods,
 		log:              log.With().Str("role", "observer").Logger(),
 	}, nil
 }
@@ -86,24 +77,17 @@ func (o Observer) Start(ctx context.Context) <-chan error {
 }
 
 func (o Observer) storeResult(ctx context.Context, data []byte) error {
-	entryTask := new(task.Task)
-	err := json.Unmarshal(data, entryTask)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal data to get the type")
-	}
-
-	mod, ok := o.modules[entryTask.Type]
-	if !ok {
-		return errors.Errorf("unknown task type %s", entryTask.Type)
-	}
-
-	result := mod.ResultType()
-	err = json.Unmarshal(data, result)
+	result := &module.ValidationResult{}
+	err := json.Unmarshal(data, result)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal to concrete type")
 	}
 
-	err = o.db.WithContext(ctx).Create(result).Error
+	toStore := module.ValidationResultModel{
+		Task:   result.Task,
+		Result: result.Result,
+	}
+	err = o.db.WithContext(ctx).Create(&toStore).Error
 	if err != nil {
 		return errors.Wrap(err, "failed to store concrete result")
 	}

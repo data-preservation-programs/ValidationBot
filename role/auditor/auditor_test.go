@@ -42,5 +42,5 @@ func TestAuditor_Start(t *testing.T) {
 	}
 
 	mockSubscriber.AssertCalled(t, "Next", mock.Anything)
-	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","output":"hello world"}`))
+	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","result":"hello world"}`))
 }

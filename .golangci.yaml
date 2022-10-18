@@ -37,6 +37,11 @@ linters:
 linters-settings:
   paralleltest:
     ignore-missing: true
+  funlen:
+    lines: 180
+    statements: 120
+  cyclop:
+    max-complexity: 20
   exhaustruct:
     exclude:
       - 'task\.Definition'
@@ -46,3 +51,6 @@ linters-settings:
       - 'lecho.*'
       - '.*\.ResultContent'
       - '.*\.ResultModel'
+      - 'module\.MinerInfoResult'
+      - 'module\.ValidationResultModel'
+      - 'module\.ValidationResult'

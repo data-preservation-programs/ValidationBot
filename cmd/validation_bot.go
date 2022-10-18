@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"validation-bot/module/queryask"
+	"validation-bot/module/thousandeyes"
 	"validation-bot/role"
 
 	"validation-bot/module"
@@ -21,7 +23,9 @@ import (
 
 	"validation-bot/task"
 
+	"github.com/filecoin-project/go-jsonrpc"
 	"github.com/filecoin-project/lotus/api/client"
+	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -366,17 +370,7 @@ func newObserver() (*observer.Observer, error) {
 		peers[i] = peerID
 	}
 
-	var modules []module.ObserverModule
-	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Echo{}
-		modules = append(modules, echoModule)
-	}
-	if viper.GetBool("module.queryask.enabled") {
-		queryAskModule := queryask.QueryAsk{}
-		modules = append(modules, queryAskModule)
-	}
-
-	observer, err := observer.NewObserver(db, resultSubscriber, peers, modules)
+	observer, err := observer.NewObserver(db, resultSubscriber, peers)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create observer")
 	}
@@ -427,26 +421,63 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	}
 
 	var modules []module.AuditorModule
+	var lotusAPI v0api.Gateway
 	var closer Closer
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Echo{}
+		echoModule := echo_module.Echo{
+			SimpleDispatcher: module.SimpleDispatcher{},
+		}
 		modules = append(modules, echoModule)
+	}
 
+	if viper.GetBool("module.lotus.enabled") || viper.GetBool("module.thousandeyes.enabled") {
 		var header http.Header
 		if viper.GetString("lotus.token") != "" {
 			header = http.Header{
 				"Authorization": []string{"Bearer " + viper.GetString("lotus.token")},
 			}
 		}
-		lotusAPI, clientCloser, err := client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
+		var clientCloser jsonrpc.ClientCloser
+		lotusAPI, clientCloser, err = client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot create lotus api")
 		}
 		closer = func() {
 			clientCloser()
 		}
-		queryAskModule := queryask.NewQueryAskModule(libp2p, lotusAPI)
+	}
+
+	if viper.GetBool("module.queryask.enabled") {
+		queryAskModule := queryask.NewAuditor(libp2p, lotusAPI)
 		modules = append(modules, queryAskModule)
+	}
+
+	if viper.GetBool("module.thousandeyes.enabled") {
+		agents := viper.GetStringSlice("module.thousandeyes.agents")
+		agentIDs := make([]thousandeyes.AgentID, len(agents))
+		for i, agent := range agents {
+			agentID, err := strconv.Atoi(agent)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "cannot parse thousandeyes agent id")
+			}
+			//nolint:gosec
+			agentIDs[i] = thousandeyes.AgentID{AgentID: int32(agentID)}
+		}
+		switch {
+		case viper.IsSet("module.thousandeyes.token"):
+			temodule := thousandeyes.NewAuditorModuleWithAuthToken(lotusAPI,
+				viper.GetString("module.thousandeyes.token"),
+				agentIDs)
+			modules = append(modules, temodule)
+		case viper.IsSet("module.thousandeyes.username") && viper.IsSet("module.thousandeyes.password"):
+			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(lotusAPI,
+				viper.GetString("module.thousandeyes.username"),
+				viper.GetString("module.thousandeyes.password"),
+				agentIDs)
+			modules = append(modules, temodule)
+		default:
+			return nil, nil, errors.New("thousandeyes module enabled but no authentication provided")
+		}
 	}
 
 	auditor, err := auditor.NewAuditor(auditor.Config{
@@ -486,11 +517,21 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 
 	var modules []module.DispatcherModule
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Echo{}
+		echoModule := echo_module.Echo{
+			SimpleDispatcher: module.SimpleDispatcher{},
+		}
 		modules = append(modules, echoModule)
 	}
 	if viper.GetBool("module.queryask.enabled") {
-		queryAskModule := queryask.QueryAsk{}
+		queryAskModule := queryask.Dispatcher{
+			SimpleDispatcher: module.SimpleDispatcher{},
+		}
+		modules = append(modules, queryAskModule)
+	}
+	if viper.GetBool("module.thousandeyes.enabled") {
+		queryAskModule := thousandeyes.Dispatcher{
+			SimpleDispatcher: module.SimpleDispatcher{},
+		}
 		modules = append(modules, queryAskModule)
 	}
 
