@@ -50,16 +50,17 @@ func TestDispatcher_Remove(t *testing.T) {
 		Target:          "target",
 		Type:            "echo",
 		IntervalSeconds: 1,
-		Definition:      "2",
 		DispatchedTimes: 3,
 	}
+	err := tsk.Definition.Set("2")
+	assert.Nil(err)
 	db.Create(&tsk)
 
 	found := task.Definition{}
 	response := db.Find(&found, tsk.ID)
 	assert.Equal(int64(1), response.RowsAffected)
 	assert.Equal("target", found.Target)
-	err := dper.Remove(context.Background(), found.ID)
+	err = dper.Remove(context.Background(), found.ID)
 	assert.Nil(err)
 
 	found2 := task.Definition{}
@@ -70,33 +71,39 @@ func TestDispatcher_Remove(t *testing.T) {
 func TestDispatcher_Start_DispatchMultipleTimes(t *testing.T) {
 	assert := assert.New(t)
 	db, dper, mockPublisher := createDispatcher(t)
-	db.Create(&task.Definition{
+	tsk := &task.Definition{
 		Target:          "target",
 		Type:            "echo",
-		IntervalSeconds: 2,
-		Definition:      "hello world",
+		IntervalSeconds: 1,
 		DispatchedTimes: 0,
-	})
-	dper.checkInterval = time.Millisecond * 1050
+	}
+	err := tsk.Definition.Set(`{"message": "hello world"}`)
+	assert.Nil(err)
+	db.Create(tsk)
+	dper.checkInterval = time.Millisecond * 200
 	errChan := dper.Start(context.Background())
 	select {
 	case err := <-errChan:
 		assert.Fail("should not return error", err)
 	case <-time.After(5 * time.Second):
 	}
-	mockPublisher.AssertNumberOfCalls(t, "Publish", 2)
+	mockPublisher.AssertNumberOfCalls(t, "Publish", 4)
+	db.First(tsk, tsk.ID)
+	assert.Equal(uint32(4), tsk.DispatchedTimes)
 }
 
 func TestDispatcher_Start_DonothingForOneoffTask(t *testing.T) {
 	assert := assert.New(t)
 	db, dper, mockPublisher := createDispatcher(t)
-	db.Create(&task.Definition{
+	tsk := &task.Definition{
 		Target:          "target",
 		Type:            "echo",
 		IntervalSeconds: 0,
-		Definition:      "hello world",
 		DispatchedTimes: 0,
-	})
+	}
+	err := tsk.Definition.Set("hello world")
+	assert.Nil(err)
+	db.Create(tsk)
 	errChan := dper.Start(context.Background())
 	select {
 	case err := <-errChan:
@@ -115,12 +122,13 @@ func TestDispatcher_CreateOneoffTask(t *testing.T) {
 		Target:          "target",
 		Type:            "echo",
 		IntervalSeconds: 0,
-		Definition:      "hello world",
 		DispatchedTimes: 0,
 	}
-	err := dper.Create(context.Background(), &tsk)
+	err := tsk.Definition.Set(`{"message": "hello world"}`)
 	assert.Nil(err)
-	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":"hello world"}`))
+	err = dper.Create(context.Background(), &tsk)
+	assert.Nil(err)
+	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":{"message":"hello world"}}`))
 }
 
 func TestDispatcher_CreateAndList(t *testing.T) {
@@ -131,10 +139,11 @@ func TestDispatcher_CreateAndList(t *testing.T) {
 		Target:          "target",
 		Type:            "echo",
 		IntervalSeconds: 1,
-		Definition:      "2",
 		DispatchedTimes: 3,
 	}
-	err := dper.Create(context.Background(), &tsk)
+	err := tsk.Definition.Set("2")
+	assert.Nil(err)
+	err = dper.Create(context.Background(), &tsk)
 	assert.Nil(err)
 
 	found := task.Definition{}

@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"validation-bot/module"
@@ -57,8 +58,8 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 				var defs []task.Definition
 				log.Info().Msg("polling task definitions")
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
-					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < now()",
-						mod.TaskType()).
+					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < ?",
+						mod.TaskType(), time.Now()).
 					Find(&defs).Error
 				if err != nil {
 					errChannel <- errors.Wrap(err, "cannot fetch task definitions")
@@ -73,9 +74,9 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 					return
 				}
 
-				for def, input := range tasks {
-					log.Info().Str("id", def.ID.String()).Bytes("task", input).Msg("dispatching task")
-					err = g.dispatchOnce(ctx, &def, input)
+				for id, input := range tasks {
+					log.Info().Str("id", id.String()).Interface("task", input).Msg("dispatching task")
+					err = g.dispatchOnce(ctx, id, input)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "cannot dispatch task")
 						return
@@ -91,14 +92,21 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	return nil
 }
 
-func (g Dispatcher) dispatchOnce(ctx context.Context, def *task.Definition, bytes []byte) error {
-	err := g.taskPublisher.Publish(ctx, bytes)
+func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, input module.ValidationInput) error {
+	bytes, err := json.Marshal(input)
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal task input")
+	}
+
+	err = g.taskPublisher.Publish(ctx, bytes)
 	if err != nil {
 		return errors.Wrap(err, "cannot publish task")
 	}
 
-	err = g.db.WithContext(ctx).Model(def).Where("id = ?", def.ID).
-		Update("dispatched_times", def.DispatchedTimes+1).Error
+	err = g.db.WithContext(ctx).Exec(
+		"UPDATE definitions SET dispatched_times = dispatched_times + 1, updated_at = ? WHERE id = ?",
+		time.Now(),
+		definitionID).Error
 	if err != nil {
 		return errors.Wrap(err, "cannot increment dispatched_times")
 	}
@@ -133,7 +141,7 @@ func (g Dispatcher) Create(ctx context.Context, taskDef *task.Definition) error 
 			return errors.Wrap(err, "cannot get task to dispatch")
 		}
 
-		err = g.dispatchOnce(ctx, taskDef, input)
+		err = g.dispatchOnce(ctx, taskDef.ID, input)
 		if err != nil {
 			return errors.Wrap(err, "cannot dispatch task")
 		}

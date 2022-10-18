@@ -3,7 +3,9 @@ package queryask
 import (
 	"context"
 	"testing"
+	"validation-bot/module"
 	"validation-bot/role"
+	"validation-bot/task"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -15,12 +17,13 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgtype"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func getModule(t *testing.T, mockGateway *MockGateway) QueryAsk {
+func getModule(t *testing.T, mockGateway *MockGateway) Auditor {
 	assert := assert.New(t)
 	priv, _, _, err := role.GenerateNewPeer()
 	assert.Nil(err)
@@ -28,14 +31,14 @@ func getModule(t *testing.T, mockGateway *MockGateway) QueryAsk {
 	assert.Nil(err)
 	assert.NotNil(libp2p)
 	ctx := context.Background()
-	var queryAsk QueryAsk
+	var queryAsk Auditor
 	if mockGateway == nil {
 		lotusApi, closer, err := client.NewGatewayRPCV0(ctx, "https://api.node.glif.io/", nil)
 		defer closer()
 		assert.Nil(err)
-		queryAsk = NewQueryAskModule(libp2p, lotusApi)
+		queryAsk = NewAuditor(libp2p, lotusApi)
 	} else {
-		queryAsk = NewQueryAskModule(libp2p, mockGateway)
+		queryAsk = NewAuditor(libp2p, mockGateway)
 	}
 	return queryAsk
 }
@@ -300,9 +303,15 @@ func TestQueryAsk_Validate_Failed(t *testing.T) {
 	queryAsk := getModule(t, nil)
 	assert.NotNil(queryAsk)
 	ctx := context.Background()
-	result, err := queryAsk.Validate(ctx, []byte(`{"target":"f01000"}`))
+	result, err := queryAsk.Validate(ctx, module.ValidationInput{
+		Task: task.Task{
+			Target: "f01000",
+		},
+		Input: pgtype.JSONB{},
+	})
 	assert.Nil(err)
-	assert.Equal(`{"status":"no_multi_address"}`, string(result))
+	assert.Equal("f01000", result.Task.Target)
+	assert.Equal(`{"status":"no_multi_address"}`, string(result.Result.Bytes))
 }
 
 func TestQueryAsk_Validate_Success(t *testing.T) {
@@ -310,7 +319,13 @@ func TestQueryAsk_Validate_Success(t *testing.T) {
 	queryAsk := getModule(t, nil)
 	assert.NotNil(queryAsk)
 	ctx := context.Background()
-	result, err := queryAsk.Validate(ctx, []byte(`{"target":"f01873432"}`))
+	result, err := queryAsk.Validate(ctx, module.ValidationInput{
+		Task: task.Task{
+			Target: "f01873432",
+		},
+		Input: pgtype.JSONB{},
+	})
 	assert.Nil(err)
-	assert.Equal(`{"peerId":"12D3KooWDWtfzYYeThH5WjXRurf723BeqP9EJ55mKSXhSFx899Pk","multiAddrs":["/ip4/38.70.220.54/tcp/10201"],"status":"success","price":"20000000000","verifiedPrice":"0","minPieceSize":8589934592,"maxPieceSize":34359738368}`, string(result))
+	assert.Equal("f01873432", result.Task.Target)
+	assert.Equal(`{"peerId":"12D3KooWDWtfzYYeThH5WjXRurf723BeqP9EJ55mKSXhSFx899Pk","multiAddrs":["/ip4/38.70.220.54/tcp/10201"],"status":"success","price":"20000000000","verifiedPrice":"0","minPieceSize":8589934592,"maxPieceSize":34359738368}`, string(result.Result.Bytes))
 }

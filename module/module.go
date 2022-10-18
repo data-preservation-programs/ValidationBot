@@ -2,40 +2,76 @@ package module
 
 import (
 	"context"
-
 	"validation-bot/task"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgtype"
+	"gorm.io/gorm"
 )
 
-type Module interface {
-	AuditorModule
-	AuditorModule
-	ObserverModule
-}
-
 type AuditorModule interface {
-	// TaskType is a field that can be used to identify the test type
+	// Validate accepts the task input and returns the validation Result
+	Validate(ctx context.Context, input ValidationInput) (*ValidationResult, error)
+
 	TaskType() task.Type
-
-	// Validate accepts the task input and returns the validation result
-	Validate(ctx context.Context, input []byte) ([]byte, error)
-}
-
-type ObserverModule interface {
-	// TaskType is a field that can be used to identify the test type
-	TaskType() task.Type
-
-	// ResultType is the type of the result that can be used to create database tables
-	ResultType() interface{}
 }
 
 type DispatcherModule interface {
-	// TaskType is a field that can be used to identify the test type
-	TaskType() task.Type
-
 	// GetTasks returns task inputs that should be executed according to certain restriction
 	// such as priority or number of concurrent task for each target.
-	GetTasks([]task.Definition) (map[task.Definition][]byte, error)
+	GetTasks([]task.Definition) (map[uuid.UUID]ValidationInput, error)
 
 	// GetTask generates the task input from task definition
-	GetTask(task.Definition) ([]byte, error)
+	GetTask(task.Definition) (ValidationInput, error)
+
+	TaskType() task.Type
+}
+
+type SimpleDispatcher struct{}
+type ValidationInput struct {
+	task.Task
+	Input pgtype.JSONB `json:"input"`
+}
+
+type ValidationResult struct {
+	task.Task
+	Result pgtype.JSONB `json:"result" gorm:"type:jsonb;default:'{}'"`
+}
+
+type ValidationResultModel struct {
+	task.Task
+	Result pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
+	gorm.Model
+}
+
+func (ValidationResultModel) TableName() string {
+	return "validation_results"
+}
+
+func (s SimpleDispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]ValidationInput, error) {
+	result := make(map[uuid.UUID]ValidationInput)
+	for _, definition := range definitions {
+		input, _ := s.GetTask(definition)
+		result[definition.ID] = input
+	}
+
+	return result, nil
+}
+
+func (s SimpleDispatcher) GetTask(definition task.Definition) (ValidationInput, error) {
+	input := ValidationInput{
+		Task: task.Task{
+			Type:         definition.Type,
+			DefinitionID: definition.ID,
+			Target:       definition.Target,
+		},
+		Input: definition.Definition,
+	}
+	return input, nil
+}
+
+func NewJSONB(input interface{}) (pgtype.JSONB, error) {
+	var jsonb pgtype.JSONB
+	err := jsonb.Set(input)
+	return jsonb, err
 }

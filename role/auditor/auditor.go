@@ -83,27 +83,31 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) error {
 	log := a.log
-	msg := new(task.Task)
+	input := new(module.ValidationInput)
 
-	err := json.Unmarshal(taskMessage, msg)
+	err := json.Unmarshal(taskMessage, input)
 	if err != nil {
-		return errors.Wrap(err, "unable to unmarshal the message to generic task")
+		return errors.Wrap(err, "unable to unmarshal the message")
 	}
 
-	mod, ok := a.modules[msg.Type]
+	mod, ok := a.modules[input.Type]
 	if !ok {
-		return errors.Errorf("module task type is unsupported: %s", msg.Type)
+		return errors.Errorf("module task type is unsupported: %s", input.Type)
 	}
 
 	log.Info().Bytes("task", taskMessage).Msg("performing validation")
-	result, err := mod.Validate(ctx, taskMessage)
+	result, err := mod.Validate(ctx, *input)
 	if err != nil {
 		return errors.Wrap(err, "encountered error performing module")
 	}
 
-	log.Info().Bytes("result", result).Msg("publishing result")
+	log.Info().Bytes("result", result.Result.Bytes).Msg("publishing result")
+	resultBytes, err := json.Marshal(result)
+	if err != nil {
+		return errors.Wrap(err, "unable to marshal result")
+	}
 
-	err = a.resultPublisher.Publish(ctx, result)
+	err = a.resultPublisher.Publish(ctx, resultBytes)
 	if err != nil {
 		return errors.Wrap(err, "failed to publish result")
 	}
