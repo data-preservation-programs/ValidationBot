@@ -29,6 +29,7 @@ require (
 	golang.org/x/exp v0.0.0-20220916125017-b168a2c6b86b
 	gorm.io/driver/postgres v1.3.10
 	gorm.io/gorm v1.23.10
+	github.com/application-research/filclient v0.2.0
 )
 
 require (
