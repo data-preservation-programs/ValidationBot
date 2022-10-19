@@ -45,6 +45,7 @@ run:
 clean:
 	go clean
 	rm -f validation_bot
+	rm -rf $(CLEAN) $(BINS)
 
 fmt:
 	gofumpt -w .
