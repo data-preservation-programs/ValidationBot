@@ -11,6 +11,22 @@ import (
 	"github.com/pkg/errors"
 )
 
+func NewLibp2pHostWithRandomIdentityAndPort() (*host.Host, error) {
+	private, _, err := crypto.GenerateEd25519Key(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	host, err := libp2p.New(
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"),
+		libp2p.Identity(private))
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create new libp2p host")
+	}
+
+	return &host, nil
+}
+
 func NewLibp2pHost(privateKeyStr string, listenAddr string) (*host.Host, error) {
 	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)
 	if err != nil {

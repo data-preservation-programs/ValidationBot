@@ -1,13 +1,5 @@
 package thousandeyes
 
-import (
-	"validation-bot/task"
-)
-
-type Input struct {
-	task.Task
-}
-
 type MultiAddrStr string
 
 type ResultContent struct {

@@ -10,7 +10,7 @@ import (
 
 func TestEcho_Validate(t *testing.T) {
 	assert := assert.New(t)
-	echo := Echo{}
+	echo := Auditor{}
 	definition, err := module.NewJSONB(`{"hello":"world"}`)
 	assert.Nil(err)
 	input := module.ValidationInput{

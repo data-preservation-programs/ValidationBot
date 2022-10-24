@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/filecoin-project/go-address"
-	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -28,7 +28,7 @@ type MinerInfoResult struct {
 }
 
 //nolint:nilerr
-func GetMinerInfo(ctx context.Context, lotusAPI v0api.Gateway, provider string) (*MinerInfoResult, error) {
+func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*MinerInfoResult, error) {
 	providerAddr, err := address.NewFromString(provider)
 	if err != nil {
 		return &MinerInfoResult{

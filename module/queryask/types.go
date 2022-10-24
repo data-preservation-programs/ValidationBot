@@ -1,13 +1,5 @@
 package queryask
 
-import (
-	"validation-bot/task"
-)
-
-type Input struct {
-	task.Task
-}
-
 type QueryStatus string
 
 const (
