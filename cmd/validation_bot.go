@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"validation-bot/module/queryask"
+	"validation-bot/module/retrieval"
 	"validation-bot/module/thousandeyes"
 	"validation-bot/role"
 
@@ -24,8 +25,8 @@ import (
 	"validation-bot/task"
 
 	"github.com/filecoin-project/go-jsonrpc"
+	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/client"
-	"github.com/filecoin-project/lotus/api/v0api"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -97,6 +98,10 @@ func setConfig(configPath string) error {
 
 	viper.SetDefault("module.echo.enabled", true)
 	viper.SetDefault("module.queryask.enabled", true)
+	viper.SetDefault("module.thousandeyes.enabled", false)
+	viper.SetDefault("module.retrieval.enabled", true)
+	viper.SetDefault("module.retrieval.tmp_dir", os.TempDir())
+	viper.SetDefault("module.retrieval.timeout", 10*time.Minute)
 	viper.SetDefault("lotus.api_url", "https://api.node.glif.io/")
 	viper.SetDefault("lotus.token", "")
 
@@ -421,16 +426,16 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	}
 
 	var modules []module.AuditorModule
-	var lotusAPI v0api.Gateway
+	var lotusAPI api.Gateway
 	var closer Closer
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Echo{
+		echoModule := echo_module.Auditor{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules = append(modules, echoModule)
 	}
 
-	if viper.GetBool("module.lotus.enabled") || viper.GetBool("module.thousandeyes.enabled") {
+	if viper.GetBool("module.retrieval.enabled") || viper.GetBool("module.thousandeyes.enabled") {
 		var header http.Header
 		if viper.GetString("lotus.token") != "" {
 			header = http.Header{
@@ -438,7 +443,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 			}
 		}
 		var clientCloser jsonrpc.ClientCloser
-		lotusAPI, clientCloser, err = client.NewGatewayRPCV0(ctx, viper.GetString("lotus.api_url"), header)
+		lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, viper.GetString("lotus.api_url"), header)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot create lotus api")
 		}
@@ -480,6 +485,13 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		}
 	}
 
+	if viper.GetBool("module.retrieval.enabled") {
+		tmpDir := viper.GetString("module.retrieval.tmp_dir")
+		timeout := viper.GetDuration("module.retrieval.timeout")
+		retrievalModule := retrieval.NewAuditor(lotusAPI, tmpDir, timeout)
+		modules = append(modules, retrievalModule)
+	}
+
 	auditor, err := auditor.NewAuditor(auditor.Config{
 		ResultPublisher: resultPublisher,
 		TaskSubscriber:  taskSubscriber,
@@ -517,7 +529,7 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 
 	var modules []module.DispatcherModule
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Echo{
+		echoModule := echo_module.Auditor{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules = append(modules, echoModule)
@@ -533,6 +545,10 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules = append(modules, queryAskModule)
+	}
+	if viper.GetBool("module.retrieval.enabled") {
+		retrievalModule := retrieval.Dispatcher{}
+		modules = append(modules, retrievalModule)
 	}
 
 	dispatcherConfig := dispatcher.Config{

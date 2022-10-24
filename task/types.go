@@ -13,6 +13,7 @@ const (
 	Echo         Type = "echo"
 	QueryAsk     Type = "query_ask"
 	ThousandEyes Type = "thousand_eyes"
+	Retrieval    Type = "retrieval"
 )
 
 type Task struct {

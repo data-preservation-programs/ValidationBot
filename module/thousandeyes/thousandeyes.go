@@ -5,9 +5,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"validation-bot/module"
-	"validation-bot/task"
 
-	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/filecoin-project/lotus/api"
 	"github.com/go-resty/resty/v2"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
@@ -20,19 +19,11 @@ type Dispatcher struct {
 	module.SimpleDispatcher
 }
 
-func (Dispatcher) TaskType() task.Type {
-	return task.QueryAsk
-}
-
 type AuditorModule struct {
 	log      zerolog.Logger
-	lotusAPI v0api.Gateway
+	lotusAPI api.Gateway
 	client   *resty.Client
 	agents   []AgentID
-}
-
-func (AuditorModule) TaskType() task.Type {
-	return task.ThousandEyes
 }
 
 func getHostAndIP(addr multiaddr.Multiaddr) (string, int, error) {
@@ -193,7 +184,7 @@ func (a AuditorModule) retrieveTestResult(ctx context.Context, testID int) ([]Me
 	return testResponse.Net.Metrics, nil
 }
 
-func NewAuditorModuleWithAuthToken(lotusAPI v0api.Gateway, token string, agents []AgentID) AuditorModule {
+func NewAuditorModuleWithAuthToken(lotusAPI api.Gateway, token string, agents []AgentID) AuditorModule {
 	client := resty.New()
 	client.SetAuthToken(token)
 	return AuditorModule{
@@ -204,7 +195,7 @@ func NewAuditorModuleWithAuthToken(lotusAPI v0api.Gateway, token string, agents 
 	}
 }
 
-func NewAuditorModuleWithBasicAuth(lotusAPI v0api.Gateway, username, password string, agents []AgentID) AuditorModule {
+func NewAuditorModuleWithBasicAuth(lotusAPI api.Gateway, username, password string, agents []AgentID) AuditorModule {
 	client := resty.New()
 	client.SetBasicAuth(username, password)
 	return AuditorModule{

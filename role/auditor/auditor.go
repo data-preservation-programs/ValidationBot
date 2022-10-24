@@ -29,19 +29,14 @@ type Config struct {
 	TrustedPeers    []peer.ID
 	ResultPublisher store.ResultPublisher
 	TaskSubscriber  task.Subscriber
-	Modules         []module.AuditorModule
+	Modules         map[task.Type]module.AuditorModule
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
 	log := log.With().Str("role", "auditor").Logger()
-	modules := make(map[task.Type]module.AuditorModule)
-	for _, mod := range config.Modules {
-		log.Info().Str("module", mod.TaskType()).Msg("registering module")
-		modules[mod.TaskType()] = mod
-	}
 
 	auditor := Auditor{
-		modules:         modules,
+		modules:         config.Modules,
 		trustedPeers:    config.TrustedPeers,
 		resultPublisher: config.ResultPublisher,
 		taskSubscriber:  config.TaskSubscriber,

@@ -27,22 +27,17 @@ type Dispatcher struct {
 type Config struct {
 	DB            *gorm.DB
 	TaskPublisher task.Publisher
-	Modules       []module.DispatcherModule
+	Modules       map[task.Type]module.DispatcherModule
 	CheckInterval time.Duration
 }
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
 	db := config.DB
 
-	modules := make(map[task.Type]module.DispatcherModule)
-	for _, mod := range config.Modules {
-		modules[mod.TaskType()] = mod
-	}
-
 	return &Dispatcher{
 		db:            db,
 		taskPublisher: config.TaskPublisher,
-		modules:       modules,
+		modules:       config.Modules,
 		checkInterval: config.CheckInterval,
 		log:           log.With().Str("role", "dispatcher").Logger(),
 	}, nil
@@ -50,16 +45,16 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 
 func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	errChannel := make(chan error)
-	for _, mod := range g.modules {
+	for modName, mod := range g.modules {
 		mod := mod
 		go func() {
-			log := g.log.With().Str("module", mod.TaskType()).Logger()
+			log := g.log.With().Str("module", modName).Logger()
 			for {
 				var defs []task.Definition
 				log.Info().Msg("polling task definitions")
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
 					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < ?",
-						mod.TaskType(), time.Now()).
+						modName, time.Now()).
 					Find(&defs).Error
 				if err != nil {
 					errChannel <- errors.Wrap(err, "cannot fetch task definitions")

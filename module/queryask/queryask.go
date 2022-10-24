@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 	"validation-bot/module"
-	"validation-bot/task"
 
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
-	"github.com/filecoin-project/lotus/api/v0api"
+	"github.com/filecoin-project/lotus/api"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
@@ -20,17 +19,13 @@ type Dispatcher struct {
 	module.SimpleDispatcher
 }
 
-func (Dispatcher) TaskType() task.Type {
-	return task.QueryAsk
-}
-
 type Auditor struct {
 	log      zerolog.Logger
-	lotusAPI v0api.Gateway
+	lotusAPI api.Gateway
 	libp2p   *host.Host
 }
 
-func NewAuditor(libp2p *host.Host, lotusAPI v0api.Gateway) Auditor {
+func NewAuditor(libp2p *host.Host, lotusAPI api.Gateway) Auditor {
 	return Auditor{
 		log:      log.With().Str("role", "query_ask_auditor").Logger(),
 		libp2p:   libp2p,
@@ -54,10 +49,6 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 		Task:   input.Task,
 		Result: jsonb,
 	}, nil
-}
-
-func (Auditor) TaskType() task.Type {
-	return task.QueryAsk
 }
 
 //nolint:nilerr,funlen,cyclop
@@ -104,9 +95,13 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	askRequest := &network.AskRequest{Miner: minerInfoResult.MinerAddress}
 	var resp network.AskResponse
 	deadline, ok := ctx.Deadline()
-	//nolint:errcheck
 	if ok {
-		stream.SetDeadline(deadline)
+		err = stream.SetDeadline(deadline)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to set deadline")
+		}
+
+		//nolint:errcheck
 		defer stream.SetDeadline(time.Time{})
 	}
 
