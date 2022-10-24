@@ -125,7 +125,12 @@ func (g Dispatcher) Create(ctx context.Context, taskDef *task.Definition) error 
 		return errors.Errorf("unknown task type %s", taskDef.Type)
 	}
 
-	err := g.db.WithContext(ctx).Create(&taskDef).Error
+	err := mod.Validate(*taskDef)
+	if err != nil {
+		return errors.Wrap(err, "the task definition is invalid")
+	}
+
+	err = g.db.WithContext(ctx).Create(&taskDef).Error
 	if err != nil {
 		return errors.Wrap(err, "cannot create task definition")
 	}

@@ -30,17 +30,17 @@ type Subscriber interface {
 }
 
 type Libp2pTaskSubscriber struct {
-	addrInfo     peer.AddrInfo
-	subscription *pubsub.Subscription
-	log          zerolog.Logger
-	libp2p       host.Host
+	addrInfo peer.AddrInfo
+	msgChan  chan *pubsub.Message
+	log      zerolog.Logger
+	libp2p   host.Host
 }
 
 func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
 	return s.addrInfo
 }
 
-func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName string) (*Libp2pTaskSubscriber, error) {
+func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames []string) (*Libp2pTaskSubscriber, error) {
 	log := log.With().Str("role", "task_subscriber").Logger()
 
 	discovery, err := getTopicDiscovery(ctx, libp2p)
@@ -53,50 +53,64 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName st
 		return nil, errors.Wrap(err, "cannot create new gossip sub")
 	}
 
-	topic, err := ps.Join(topicName)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot join TopicName")
-	}
-
-	subscription, err := topic.Subscribe()
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot subscribe to TopicName")
-	}
-
 	addrInfo := peer.AddrInfo{
 		ID:    libp2p.ID(),
 		Addrs: libp2p.Addrs(),
 	}
 
 	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
+	msgChan := make(chan *pubsub.Message)
 
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-			peers := topic.ListPeers()
-			log.Info().Int("peers", len(peers)).Msg("connected to peers in the topic")
+	for _, topicName := range topicNames {
+		topicName := topicName
+		topic, err := ps.Join(topicName)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot join TopicName")
 		}
-	}()
+
+		subscription, err := topic.Subscribe()
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot subscribe to TopicName")
+		}
+
+		go func() {
+			for {
+				time.Sleep(time.Minute)
+				peers := topic.ListPeers()
+				log.Info().Int("peers", len(peers)).Str("topic", topicName).
+					Msg("connected to peers in the topic")
+			}
+		}()
+
+		go func() {
+			for {
+				msg, err := subscription.Next(ctx)
+				if err != nil {
+					log.Error().Str("topic", topicName).Err(err).Msg("cannot get next message")
+					time.Sleep(time.Minute)
+					continue
+				}
+				msgChan <- msg
+			}
+		}()
+	}
 
 	return &Libp2pTaskSubscriber{
-		libp2p:       libp2p,
-		subscription: subscription,
-		addrInfo:     addrInfo,
-		log:          log,
+		libp2p:   libp2p,
+		msgChan:  msgChan,
+		addrInfo: addrInfo,
+		log:      log,
 	}, nil
 }
 
 func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
-	log := s.log
-	log.Info().Msg("waiting for next message")
-	msg, err := s.subscription.Next(ctx)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "cannot get next message")
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case msg := <-s.msgChan:
+		log.Info().Str("from", msg.GetFrom().String()).Str("data", string(msg.Data)).Msg("received message")
+		return &msg.ReceivedFrom, msg.Data, nil
 	}
-
-	log.Info().Str("from", msg.GetFrom().String()).Str("data", string(msg.Data)).Msg("received message")
-
-	return &msg.ReceivedFrom, msg.Data, nil
 }
 
 type Libp2pTaskPublisher struct {

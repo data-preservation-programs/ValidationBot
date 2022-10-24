@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"validation-bot/module"
+	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/go-resty/resty/v2"
@@ -17,6 +18,10 @@ import (
 
 type Dispatcher struct {
 	module.SimpleDispatcher
+}
+
+func (d Dispatcher) Validate(definition task.Definition) error {
+	return nil
 }
 
 type AuditorModule struct {

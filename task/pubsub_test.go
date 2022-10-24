@@ -31,7 +31,7 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 		subscriberPrivateKey := test.MarshalPrivateKey(t, subscriberPrivate)
 		subHost, err := role.NewLibp2pHost(subscriberPrivateKey, "/ip4/0.0.0.0/tcp/8204")
 		assert.Nil(err)
-		subscriber, err := NewLibp2pTaskSubscriber(ctx, *subHost, topicName)
+		subscriber, err := NewLibp2pTaskSubscriber(ctx, *subHost, []string{topicName})
 		assert.Nil(err)
 		_, data, err := subscriber.Next(ctx)
 		assert.Nil(err)

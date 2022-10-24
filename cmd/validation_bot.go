@@ -82,7 +82,7 @@ func setConfig(configPath string) error {
 	viper.SetDefault("auditor.listen_addr", "/ip4/0.0.0.0/tcp/7999")
 	viper.SetDefault("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/7998")
 
-	viper.SetDefault("auditor.topic_name", "/filecoin/validation_bot/dev")
+	viper.SetDefault("auditor.topic_name", []string{"/filecoin/validation_bot/dev"})
 	viper.SetDefault("dispatcher.topic_name", "/filecoin/validation_bot/dev")
 
 	viper.SetDefault("auditor.w3s_token", "")
@@ -398,7 +398,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		return nil, nil, errors.New("auditor.w3s_token is empty")
 	}
 
-	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, viper.GetString("auditor.topic_name"))
+	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, viper.GetStringSlice("auditor.topic_name"))
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create task subscriber")
 	}
@@ -425,14 +425,12 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		peers[i] = peerID
 	}
 
-	var modules []module.AuditorModule
+	modules := map[string]module.AuditorModule{}
 	var lotusAPI api.Gateway
-	var closer Closer
+	var closer Closer = func() {}
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Auditor{
-			SimpleDispatcher: module.SimpleDispatcher{},
-		}
-		modules = append(modules, echoModule)
+		echoModule := echo_module.Auditor{}
+		modules[task.Echo] = &echoModule
 	}
 
 	if viper.GetBool("module.retrieval.enabled") || viper.GetBool("module.thousandeyes.enabled") {
@@ -454,7 +452,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 
 	if viper.GetBool("module.queryask.enabled") {
 		queryAskModule := queryask.NewAuditor(libp2p, lotusAPI)
-		modules = append(modules, queryAskModule)
+		modules[task.QueryAsk] = &queryAskModule
 	}
 
 	if viper.GetBool("module.thousandeyes.enabled") {
@@ -473,13 +471,13 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 			temodule := thousandeyes.NewAuditorModuleWithAuthToken(lotusAPI,
 				viper.GetString("module.thousandeyes.token"),
 				agentIDs)
-			modules = append(modules, temodule)
+			modules[task.ThousandEyes] = &temodule
 		case viper.IsSet("module.thousandeyes.username") && viper.IsSet("module.thousandeyes.password"):
 			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(lotusAPI,
 				viper.GetString("module.thousandeyes.username"),
 				viper.GetString("module.thousandeyes.password"),
 				agentIDs)
-			modules = append(modules, temodule)
+			modules[task.ThousandEyes] = &temodule
 		default:
 			return nil, nil, errors.New("thousandeyes module enabled but no authentication provided")
 		}
@@ -488,8 +486,12 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	if viper.GetBool("module.retrieval.enabled") {
 		tmpDir := viper.GetString("module.retrieval.tmp_dir")
 		timeout := viper.GetDuration("module.retrieval.timeout")
-		retrievalModule := retrieval.NewAuditor(lotusAPI, tmpDir, timeout)
-		modules = append(modules, retrievalModule)
+		graphsync := retrieval.GraphSyncRetrieverBuilderImpl{
+			LotusAPI: lotusAPI,
+			BaseDir:  tmpDir,
+		}
+		retrievalModule := retrieval.NewAuditor(&graphsync, timeout)
+		modules[task.Retrieval] = &retrievalModule
 	}
 
 	auditor, err := auditor.NewAuditor(auditor.Config{
@@ -527,28 +529,28 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 		return nil, errors.Wrap(err, "cannot create task publisher")
 	}
 
-	var modules []module.DispatcherModule
+	modules := map[string]module.DispatcherModule{}
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Auditor{
+		echoModule := echo_module.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
-		modules = append(modules, echoModule)
+		modules[task.Echo] = &echoModule
 	}
 	if viper.GetBool("module.queryask.enabled") {
 		queryAskModule := queryask.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
-		modules = append(modules, queryAskModule)
+		modules[task.QueryAsk] = &queryAskModule
 	}
 	if viper.GetBool("module.thousandeyes.enabled") {
-		queryAskModule := thousandeyes.Dispatcher{
+		teModule := thousandeyes.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
-		modules = append(modules, queryAskModule)
+		modules[task.ThousandEyes] = &teModule
 	}
 	if viper.GetBool("module.retrieval.enabled") {
 		retrievalModule := retrieval.Dispatcher{}
-		modules = append(modules, retrievalModule)
+		modules[task.Retrieval] = &retrievalModule
 	}
 
 	dispatcherConfig := dispatcher.Config{
