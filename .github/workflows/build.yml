@@ -50,4 +50,4 @@ jobs:
       - name: Test
         env:
           W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
-        run: gotestsum --format short
+        run: $(go env GOPATH)/bin/gotestsum --format short
