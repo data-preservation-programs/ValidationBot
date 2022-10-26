@@ -1,10 +1,9 @@
 FROM public.ecr.aws/docker/library/golang:1.18.7
-
+RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make
 WORKDIR /app
-COPY go.* ./
-RUN go mod download
 COPY . ./
-RUN go build -v -o validation_bot cmd/validation_bot.go
+RUN make deps
+RUN make build
 
 EXPOSE 80
 EXPOSE 7999
