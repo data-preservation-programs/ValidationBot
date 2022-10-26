@@ -1,4 +1,4 @@
-FROM golang:1.18
+FROM public.ecr.aws/docker/library/golang:1.18.7
 
 WORKDIR /app
 COPY go.* ./
