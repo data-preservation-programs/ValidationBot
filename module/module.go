@@ -2,10 +2,12 @@ package module
 
 import (
 	"context"
+
 	"validation-bot/task"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -26,11 +28,13 @@ type DispatcherModule interface {
 	GetTask(task.Definition) (ValidationInput, error)
 }
 
-type SimpleDispatcher struct{}
-type ValidationInput struct {
-	task.Task
-	Input pgtype.JSONB `json:"input"`
-}
+type (
+	SimpleDispatcher struct{}
+	ValidationInput  struct {
+		task.Task
+		Input pgtype.JSONB `json:"input"`
+	}
+)
 
 type ValidationResult struct {
 	task.Task
@@ -39,7 +43,10 @@ type ValidationResult struct {
 
 type ValidationResultModel struct {
 	task.Task
-	Result pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
+	Result      pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
+	Cid         string
+	PreviousCid *string
+	PeerID      string
 	gorm.Model
 }
 
@@ -49,6 +56,7 @@ func (ValidationResultModel) TableName() string {
 
 func (s SimpleDispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]ValidationInput, error) {
 	result := make(map[uuid.UUID]ValidationInput)
+
 	for _, definition := range definitions {
 		input, _ := s.GetTask(definition)
 		result[definition.ID] = input
@@ -72,5 +80,5 @@ func (s SimpleDispatcher) GetTask(definition task.Definition) (ValidationInput, 
 func NewJSONB(input interface{}) (pgtype.JSONB, error) {
 	var jsonb pgtype.JSONB
 	err := jsonb.Set(input)
-	return jsonb, err
+	return jsonb, errors.Wrap(err, "failed to set jsonb")
 }

@@ -15,6 +15,7 @@ type ResultPublisher interface {
 type Entry struct {
 	Message  []byte
 	Previous *cid.Cid
+	CID      cid.Cid
 }
 
 type ResultSubscriber interface {

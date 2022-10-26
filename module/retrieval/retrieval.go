@@ -2,8 +2,10 @@ package retrieval
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -11,12 +13,30 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 )
 
 type Dispatcher struct {
-	MinInterval time.Duration
-	LastRun     map[string]time.Time
+	minInterval time.Duration
+	lastRun     map[string]time.Time
+}
+
+func NewDispatcher(minInterval time.Duration) Dispatcher {
+	return Dispatcher{
+		minInterval: minInterval,
+		lastRun:     make(map[string]time.Time),
+	}
+}
+
+func genRandNumber(max int) int {
+	bg := big.NewInt(int64(max))
+
+	n, err := rand.Int(rand.Reader, bg)
+	if err != nil {
+		panic(err)
+	}
+
+	return int(n.Int64())
 }
 
 func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]module.ValidationInput, error) {
@@ -27,20 +47,21 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 	}
 
 	// Choose a random definition for each provider
-	s := rand.NewSource(time.Now().Unix())
-	r := rand.New(s)
 	inputs := make(map[uuid.UUID]module.ValidationInput)
+
 	for _, defs := range definitionsByProvider {
-		lastRun, ok := d.LastRun[defs[0].Target]
-		if !ok || time.Since(lastRun) > d.MinInterval {
-			index := r.Intn(len(defs))
+		lastRun, ok := d.lastRun[defs[0].Target]
+		if !ok || time.Since(lastRun) > d.minInterval {
+			index := genRandNumber(len(defs))
 			def := defs[index]
+
 			input, err := d.GetTask(def)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to get task")
 			}
+
 			inputs[input.Task.DefinitionID] = input
-			d.LastRun[def.Target] = time.Now()
+			d.lastRun[def.Target] = time.Now()
 		}
 	}
 
@@ -49,36 +70,38 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput, error) {
 	def := new(TaskDefinition)
+
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
 		return module.ValidationInput{}, errors.Wrap(err, "failed to unmarshal definition")
 	}
 
-	s := rand.NewSource(time.Now().Unix())
-	r := rand.New(s)
 	var dataCid string
 	var pieceCid string
-	if len(def.DataCids) > 0 {
-		index := r.Intn(len(def.DataCids))
+
+	switch {
+	case len(def.DataCids) > 0:
+		index := genRandNumber(len(def.DataCids))
 		dataCid = def.DataCids[index]
-	} else if len(def.PieceCids) > 0 {
-		index := r.Intn(len(def.PieceCids))
+	case len(def.PieceCids) > 0:
+		index := genRandNumber(len(def.PieceCids))
 		pieceCid = def.PieceCids[index]
-	} else {
+	default:
 		return module.ValidationInput{}, errors.New("no data or piece cids specified")
 	}
 
-	in := Input{
+	input := Input{
 		ProtocolPreference: def.ProtocolPreference,
 		DataCid:            dataCid,
 		PieceCid:           pieceCid,
 	}
 
-	jsonb, err := module.NewJSONB(in)
+	jsonb, err := module.NewJSONB(input)
 	if err != nil {
-		return module.ValidationInput{}, errors.Wrap(err, "failed to marshal input")
+		return module.ValidationInput{}, errors.Wrap(err, "failed to marshal validationInput")
 	}
-	input := module.ValidationInput{
+
+	validationInput := module.ValidationInput{
 		Task: task.Task{
 			Type:         definition.Type,
 			DefinitionID: definition.ID,
@@ -86,11 +109,13 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 		},
 		Input: jsonb,
 	}
-	return input, nil
+
+	return validationInput, nil
 }
 
 func (Dispatcher) Validate(definition task.Definition) error {
 	def := new(TaskDefinition)
+
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal definition")
@@ -115,60 +140,75 @@ type Auditor struct {
 
 func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration) Auditor {
 	return Auditor{
-		log:       log.With().Str("role", "retrieval_auditor").Logger(),
+		log:       log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
 		timeout:   timeout,
 		graphsync: graphsync,
 	}
 }
 
-func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
-	provider := input.Target
-	in := new(Input)
-	err := input.Input.AssignTo(in)
+func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
+	*module.ValidationResult,
+	error,
+) {
+	q.log.Info().Str("target", validationInput.Target).Msg("starting retrieval validation")
+	provider := validationInput.Target
+	input := new(Input)
+
+	err := validationInput.Input.AssignTo(input)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal input")
+		return nil, errors.Wrap(err, "failed to unmarshal validationInput")
 	}
 
-	results := make([]ResultContent, 0, len(in.ProtocolPreference))
+	results := make([]ResultContent, 0, len(input.ProtocolPreference))
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
 	auditorErrors := make([]string, 0)
-	for _, protocol := range in.ProtocolPreference {
+
+	for _, protocol := range input.ProtocolPreference {
 		q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
 
 		switch protocol {
 		case GraphSync:
-			if in.DataCid == "" {
-				auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol: "+err.Error())
+			if input.DataCid == "" {
+				auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol")
 				continue
 			}
-			dataCid, err := cid.Decode(in.DataCid)
+
+			dataCid, err := cid.Decode(input.DataCid)
 			if err != nil {
 				auditorErrors = append(auditorErrors, "failed to decode data cid for GraphSync protocol: "+err.Error())
 				continue
 			}
+
 			retriever, cleanup, err := q.graphsync.Build()
 			if err != nil {
 				auditorErrors = append(auditorErrors, "failed to build GraphSync retriever: "+err.Error())
 				continue
 			}
+
 			result, err := retriever.Retrieve(ctx, provider, dataCid, q.timeout)
 			if err != nil {
 				auditorErrors = append(auditorErrors, "failed to retrieve data with GraphSync protocol: "+err.Error())
+
 				cleanup()
 				continue
 			}
+
 			cleanup()
+
 			result.Protocol = GraphSync
 			results = append(results, *result)
 			totalBytes += result.BytesDownloaded
+
 			if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
 				minTTFB = result.TimeToFirstByte
 			}
+
 			if result.AverageSpeedPerSec > maxAvgSpeed {
 				maxAvgSpeed = result.AverageSpeedPerSec
 			}
+
 			if result.Status == Success {
 				q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 				break
@@ -185,13 +225,14 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 		MinTimeToFirstByte:    minTTFB,
 		Results:               results,
 	}
+
 	jsonb, err := module.NewJSONB(result)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal result")
 	}
 
 	return &module.ValidationResult{
-		Task:   input.Task,
+		Task:   validationInput.Task,
 		Result: jsonb,
 	}, nil
 }

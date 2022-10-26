@@ -59,9 +59,7 @@ func TestGraphSync_Retrieve_NotAvailable(t *testing.T) {
 }
 
 func TestGraphSync_Retrieve_Timeout(t *testing.T) {
-	if os.Getenv("SKIP_INTEGRATION") != "" {
-		t.Skip("This is a real retrieval test, so it's skipped by default")
-	}
+	t.Skip("This is a real retrieval helper, so it's skipped by default")
 	assert := assert.New(t)
 	ctx := context.Background()
 	retriever, cleanup := getRetriever(t)

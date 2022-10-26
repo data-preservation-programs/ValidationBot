@@ -1,4 +1,4 @@
-name: Build and test
+name: Build and helper
 
 on:
   push:
@@ -13,11 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
+
+      - name: Install FFI dependencies
+        run: sudo apt-get update && sudo apt-get install -y libhwloc-dev ocl-icd-opencl-dev
+
+      - name: Deps
+        run: make deps
 
       - name: Build
         run: make build
@@ -26,6 +34,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+          args: --timeout=5m
 
       - name: Setup postgreSQL
         uses: harmon758/postgresql-action@v1
@@ -35,7 +44,10 @@ jobs:
           postgresql user: 'postgres'
           postgresql password: 'postgres'
 
+      - name: Setup gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
       - name: Test
         env:
           W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
-        run: make test
+        run: $(go env GOPATH)/bin/gotestsum --format short

@@ -2,6 +2,7 @@ package echo
 
 import (
 	"testing"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -10,7 +11,7 @@ import (
 
 func TestEcho_Validate(t *testing.T) {
 	assert := assert.New(t)
-	echo := Auditor{}
+	echo := NewEchoAuditor()
 	definition, err := module.NewJSONB(`{"hello":"world"}`)
 	assert.Nil(err)
 	input := module.ValidationInput{

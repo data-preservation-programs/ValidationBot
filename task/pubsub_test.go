@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"validation-bot/helper"
 	"validation-bot/role"
-	"validation-bot/test"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,8 +17,8 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 
 	assert := assert.New(t)
 	ctx := context.Background()
-	publisherPrivate, _, _ := test.GeneratePeerID(t)
-	publisherPrivateKey := test.MarshalPrivateKey(t, publisherPrivate)
+	publisherPrivate, _, _ := helper.GeneratePeerID(t)
+	publisherPrivateKey := helper.MarshalPrivateKey(t, publisherPrivate)
 	pubHost, err := role.NewLibp2pHost(publisherPrivateKey, "/ip4/0.0.0.0/tcp/8203")
 	assert.Nil(err)
 	assert.NotNil(pubHost)
@@ -27,8 +28,8 @@ func TestPubsubPublisherSubscriber(t *testing.T) {
 	done := make(chan bool)
 
 	go func() {
-		subscriberPrivate, _, _ := test.GeneratePeerID(t)
-		subscriberPrivateKey := test.MarshalPrivateKey(t, subscriberPrivate)
+		subscriberPrivate, _, _ := helper.GeneratePeerID(t)
+		subscriberPrivateKey := helper.MarshalPrivateKey(t, subscriberPrivate)
 		subHost, err := role.NewLibp2pHost(subscriberPrivateKey, "/ip4/0.0.0.0/tcp/8204")
 		assert.Nil(err)
 		subscriber, err := NewLibp2pTaskSubscriber(ctx, *subHost, []string{topicName})

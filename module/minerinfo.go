@@ -9,6 +9,7 @@ import (
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -36,6 +37,7 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+
 	minerInfo, err := lotusAPI.StateMinerInfo(ctx, providerAddr, types.EmptyTSK)
 	if err != nil {
 		tp := reflect.TypeOf(err)
@@ -45,7 +47,7 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 				ErrorMessage: err.Error(),
 			}, nil
 		}
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to get miner info for %s", provider)
 	}
 
 	if minerInfo.PeerId == nil {
@@ -56,16 +58,18 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 
 	maddrs := make([]multiaddr.Multiaddr, len(minerInfo.Multiaddrs))
 	maddrStrs := make([]string, len(minerInfo.Multiaddrs))
+
 	for i, mma := range minerInfo.Multiaddrs {
-		ma, err := multiaddr.NewMultiaddrBytes(mma)
+		multiaddrBytes, err := multiaddr.NewMultiaddrBytes(mma)
 		if err != nil {
 			return &MinerInfoResult{
 				ErrorCode:    InvalidMultiAddress,
 				ErrorMessage: err.Error(),
 			}, nil
 		}
-		maddrs[i] = ma
-		maddrStrs[i] = ma.String()
+
+		maddrs[i] = multiaddrBytes
+		maddrStrs[i] = multiaddrBytes.String()
 	}
 
 	if len(maddrs) == 0 {

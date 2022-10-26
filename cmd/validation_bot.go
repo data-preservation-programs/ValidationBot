@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"validation-bot/module/queryask"
 	"validation-bot/module/retrieval"
 	"validation-bot/module/thousandeyes"
@@ -63,12 +64,15 @@ type taskRemover interface {
 
 //nolint:gomnd,funlen,cyclop
 func setConfig(configPath string) error {
+	logger := log.With().Str("role", "main").Caller().Logger()
+	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
+
 	viper.SetDefault("log.pretty", true)
+	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("dispatcher.enabled", true)
 	viper.SetDefault("auditor.enabled", true)
 	viper.SetDefault("observer.enabled", true)
 
-	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
 	viper.SetDefault("observer.database_connection_string", defaultConnectionString)
 	viper.SetDefault("dispatcher.database_connection_string", defaultConnectionString)
 
@@ -88,7 +92,7 @@ func setConfig(configPath string) error {
 	viper.SetDefault("auditor.w3s_token", "")
 	viper.SetDefault("dispatcher.check_interval", time.Minute*5)
 	viper.SetDefault("observer.retry_interval", time.Minute*1)
-	viper.SetDefault("observer.poll_interval", time.Minute*5)
+	viper.SetDefault("observer.poll_interval", time.Minute*1)
 	viper.SetDefault("auditor.w3s_retry_wait", time.Second*10)
 	viper.SetDefault("auditor.w3s_retry_wait_max", time.Minute)
 	viper.SetDefault("auditor.w3s_retry_count", 5)
@@ -102,32 +106,39 @@ func setConfig(configPath string) error {
 	viper.SetDefault("module.retrieval.enabled", true)
 	viper.SetDefault("module.retrieval.tmp_dir", os.TempDir())
 	viper.SetDefault("module.retrieval.timeout", 10*time.Minute)
+	viper.SetDefault("module.retrieval.min_interval", 1*time.Hour)
 	viper.SetDefault("lotus.api_url", "https://api.node.glif.io/")
 	viper.SetDefault("lotus.token", "")
 
 	viper.SetConfigFile(configPath)
 	var newFile bool
+
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
+		logger.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
+
 		err = os.WriteFile("./config.toml", []byte{}, 0o600)
-		newFile = true
 		if err != nil {
 			return errors.Wrap(err, "cannot write defaults to config file")
 		}
+
+		newFile = true
 	}
 
-	log.Debug().Str("config_path", configPath).Msg("reading config file")
+	logger.Debug().Str("config_path", configPath).Msg("reading config file")
+
 	err := viper.ReadInConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot read config file")
 	}
 
 	if newFile {
-		log.Debug().Msg("generating new peers for dispatcher and auditor")
+		logger.Debug().Msg("generating new peers for dispatcher and auditor")
+
 		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate auditor key")
 		}
+
 		dispatcherKey, _, dispatcherPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate dispatcher key")
@@ -137,7 +148,8 @@ func setConfig(configPath string) error {
 		viper.Set("dispatcher.private_key", dispatcherKey)
 		viper.Set("auditor.trusted_peers", []string{dispatcherPeer})
 		viper.Set("observer.trusted_peers", []string{auditorPeer})
-		log.Info().Str("config_path", configPath).Msg("writing defaults to config file")
+		logger.Info().Str("config_path", configPath).Msg("writing defaults to config file")
+
 		err = viper.WriteConfig()
 		if err != nil {
 			return errors.Wrap(err, "cannot write defaults to created config file")
@@ -146,7 +158,8 @@ func setConfig(configPath string) error {
 
 	for _, key := range viper.AllKeys() {
 		env := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
-		log.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
+		logger.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
+
 		err = viper.BindEnv(key, env)
 		if err != nil {
 			return errors.Wrap(err, "cannot bind env variable")
@@ -157,19 +170,26 @@ func setConfig(configPath string) error {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 
+	level, err := zerolog.ParseLevel(viper.GetString("log.level"))
+	if err != nil {
+		return errors.Wrap(err, "cannot parse log level")
+	}
+
+	zerolog.SetGlobalLevel(level)
 	return nil
 }
 
 func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 	id := c.Param("id")
+
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid id")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	err = dispatcher.Remove(c.Request().Context(), parsedID)
 	if err != nil {
-		return errors.Wrap(err, "cannot delete task definition")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -177,14 +197,15 @@ func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 
 func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 	var definition task.Definition
+
 	err := c.Bind(&definition)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	err = dispatcher.Create(c.Request().Context(), &definition)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, definition)
@@ -193,24 +214,29 @@ func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 func listTasksHandler(c echo.Context, dispatcher taskLister) error {
 	definitions, err := dispatcher.List(c.Request().Context())
 	if err != nil {
-		return errors.Wrap(err, "cannot list task definitions")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, definitions)
 }
 
-func subscribeToErrors(ctx context.Context,
+func subscribeToErrors(
+	ctx context.Context,
 	dispatcherErrorChannel <-chan error,
 	auditorErrorChannel <-chan error,
 	observerErrorChannel <-chan error,
 ) error {
+	log := log.With().Str("role", "main").Caller().Logger()
 	log.Debug().Msg("subscribing to errors")
 	select {
 	case err := <-dispatcherErrorChannel:
+		log.Error().Err(err).Msg("dispatcher error")
 		return errors.Wrap(err, "dispatcher error")
 	case err := <-auditorErrorChannel:
+		log.Error().Err(err).Msg("auditor error")
 		return errors.Wrap(err, "auditor error")
 	case err := <-observerErrorChannel:
+		log.Error().Err(err).Msg("observer error")
 		return errors.Wrap(err, "observer error")
 	case <-ctx.Done():
 		log.Info().Msg("shutting down")
@@ -220,21 +246,32 @@ func subscribeToErrors(ctx context.Context,
 
 func setupAPI(dispatcher *dispatcher.Dispatcher) {
 	api := echo.New()
-	echoLogger := lecho.From(log.Logger, lecho.WithLevel(log2.INFO))
+	echoLogger := lecho.From(
+		log.Logger,
+		lecho.WithLevel(log2.INFO),
+		lecho.WithField("role", "http_api"),
+		lecho.WithTimestamp(),
+	)
 	api.Logger = echoLogger
 	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
-	api.POST(createRoute, func(c echo.Context) error {
-		return postTaskHandler(c, dispatcher)
-	})
+	api.POST(
+		createRoute, func(c echo.Context) error {
+			return postTaskHandler(c, dispatcher)
+		},
+	)
 
-	api.DELETE(deleteRoute, func(c echo.Context) error {
-		return deleteTaskHandler(c, dispatcher)
-	})
+	api.DELETE(
+		deleteRoute, func(c echo.Context) error {
+			return deleteTaskHandler(c, dispatcher)
+		},
+	)
 
-	api.GET(listRoute, func(c echo.Context) error {
-		return listTasksHandler(c, dispatcher)
-	})
+	api.GET(
+		listRoute, func(c echo.Context) error {
+			return listTasksHandler(c, dispatcher)
+		},
+	)
 
 	go func() {
 		err := api.Start(viper.GetString("dispatcher.api_address"))
@@ -246,16 +283,22 @@ func setupAPI(dispatcher *dispatcher.Dispatcher) {
 }
 
 func run(configPath string) error {
+	log := log.With().Str("role", "main").Caller().Logger()
+
 	err := setConfig(configPath)
 	if err != nil {
 		return err
 	}
+
 	ctx := context.Background()
 	var dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel <-chan error
 	var anyEnabled bool
+
 	if viper.GetBool("dispatcher.enabled") {
-		anyEnabled = true
 		log.Info().Msg("starting dispatcher")
+
+		anyEnabled = true
+
 		dispatcher, err := newDispatcher(ctx)
 		if err != nil {
 			return errors.Wrap(err, "cannot create dispatcher")
@@ -268,19 +311,25 @@ func run(configPath string) error {
 	}
 
 	if viper.GetBool("auditor.enabled") {
-		anyEnabled = true
 		log.Info().Msg("starting auditor")
+
+		anyEnabled = true
+
 		auditor, closer, err := newAuditor(ctx)
-		defer closer()
 		if err != nil {
 			return errors.Wrap(err, "cannot create auditor")
 		}
 
+		defer closer()
+
 		auditorErrorChannel = auditor.Start(ctx)
 	}
+
 	if viper.GetBool("observer.enabled") {
-		anyEnabled = true
 		log.Info().Msg("starting observer")
+
+		anyEnabled = true
+
 		observer, err := newObserver()
 		if err != nil {
 			return errors.Wrap(err, "cannot create observer")
@@ -298,6 +347,7 @@ func run(configPath string) error {
 
 func main() {
 	var configPath string
+	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
 		Name: "validation-bot",
 		Commands: []*cli.Command{
@@ -323,7 +373,7 @@ func main() {
 				Action: func(c *cli.Context) error {
 					privateStr, publicStr, peerStr, err := role.GenerateNewPeer()
 					if err != nil {
-						return err
+						return errors.Wrap(err, "cannot generate new peer")
 					}
 
 					//nolint:forbidigo
@@ -360,18 +410,24 @@ func newObserver() (*observer.Observer, error) {
 	}
 	resultSubscriber := store.NewW3StoreSubscriber(config)
 	connectionString := viper.GetString("observer.database_connection_string")
-	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	dblogger := role.GormLogger{
+		Log: log.With().CallerWithSkipFrameCount(1).Str("role", "sql").Logger(),
+	}
+
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}
 
 	trustedPeers := viper.GetStringSlice("observer.trusted_peers")
 	peers := make([]peer.ID, len(trustedPeers))
+
 	for i, trustedPeer := range trustedPeers {
 		peerID, err := peer.Decode(trustedPeer)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot decode peer id")
 		}
+
 		peers[i] = peerID
 	}
 
@@ -388,7 +444,6 @@ type Closer func()
 //nolint:funlen,cyclop
 func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	libp2p, err := role.NewLibp2pHost(viper.GetString("auditor.private_key"), viper.GetString("auditor.listen_addr"))
-
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create pubsub config")
 	}
@@ -410,26 +465,30 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		RetryWaitMax: viper.GetDuration("auditor.w3s_retry_wait_max"),
 		RetryCount:   viper.GetInt("auditor.w3s_retry_count"),
 	}
-	resultPublisher, err := store.NewW3StorePublisher(config)
+
+	resultPublisher, err := store.NewW3StorePublisher(ctx, config)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create result publisher")
 	}
 
 	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
 	peers := make([]peer.ID, len(trustedPeers))
+
 	for i, trustedPeer := range trustedPeers {
 		peerID, err := peer.Decode(trustedPeer)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot decode peer id")
 		}
+
 		peers[i] = peerID
 	}
 
 	modules := map[string]module.AuditorModule{}
 	var lotusAPI api.Gateway
 	var closer Closer = func() {}
+
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Auditor{}
+		echoModule := echo_module.NewEchoAuditor()
 		modules[task.Echo] = &echoModule
 	}
 
@@ -440,11 +499,14 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 				"Authorization": []string{"Bearer " + viper.GetString("lotus.token")},
 			}
 		}
+
 		var clientCloser jsonrpc.ClientCloser
+
 		lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, viper.GetString("lotus.api_url"), header)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot create lotus api")
 		}
+
 		closer = func() {
 			clientCloser()
 		}
@@ -458,6 +520,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	if viper.GetBool("module.thousandeyes.enabled") {
 		agents := viper.GetStringSlice("module.thousandeyes.agents")
 		agentIDs := make([]thousandeyes.AgentID, len(agents))
+
 		for i, agent := range agents {
 			agentID, err := strconv.Atoi(agent)
 			if err != nil {
@@ -466,17 +529,22 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 			//nolint:gosec
 			agentIDs[i] = thousandeyes.AgentID{AgentID: int32(agentID)}
 		}
+
 		switch {
 		case viper.IsSet("module.thousandeyes.token"):
-			temodule := thousandeyes.NewAuditorModuleWithAuthToken(lotusAPI,
+			temodule := thousandeyes.NewAuditorModuleWithAuthToken(
+				lotusAPI,
 				viper.GetString("module.thousandeyes.token"),
-				agentIDs)
+				agentIDs,
+			)
 			modules[task.ThousandEyes] = &temodule
 		case viper.IsSet("module.thousandeyes.username") && viper.IsSet("module.thousandeyes.password"):
-			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(lotusAPI,
+			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(
+				lotusAPI,
 				viper.GetString("module.thousandeyes.username"),
 				viper.GetString("module.thousandeyes.password"),
-				agentIDs)
+				agentIDs,
+			)
 			modules[task.ThousandEyes] = &temodule
 		default:
 			return nil, nil, errors.New("thousandeyes module enabled but no authentication provided")
@@ -494,12 +562,14 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		modules[task.Retrieval] = &retrievalModule
 	}
 
-	auditor, err := auditor.NewAuditor(auditor.Config{
-		ResultPublisher: resultPublisher,
-		TaskSubscriber:  taskSubscriber,
-		TrustedPeers:    peers,
-		Modules:         modules,
-	})
+	auditor, err := auditor.NewAuditor(
+		auditor.Config{
+			ResultPublisher: resultPublisher,
+			TaskSubscriber:  taskSubscriber,
+			TrustedPeers:    peers,
+			Modules:         modules,
+		},
+	)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create auditor")
 	}
@@ -509,7 +579,11 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 
 func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	connectionString := viper.GetString("dispatcher.database_connection_string")
-	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	dblogger := role.GormLogger{
+		Log: log.With().Str("role", "sql").Logger(),
+	}
+
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}
@@ -519,7 +593,10 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 		return nil, errors.Wrap(err, "cannot migrate task definitions")
 	}
 
-	libp2p, err := role.NewLibp2pHost(viper.GetString("dispatcher.private_key"), viper.GetString("dispatcher.listen_addr"))
+	libp2p, err := role.NewLibp2pHost(
+		viper.GetString("dispatcher.private_key"),
+		viper.GetString("dispatcher.listen_addr"),
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
@@ -530,26 +607,30 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	}
 
 	modules := map[string]module.DispatcherModule{}
+
 	if viper.GetBool("module.echo.enabled") {
 		echoModule := echo_module.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.Echo] = &echoModule
 	}
+
 	if viper.GetBool("module.queryask.enabled") {
 		queryAskModule := queryask.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.QueryAsk] = &queryAskModule
 	}
+
 	if viper.GetBool("module.thousandeyes.enabled") {
 		teModule := thousandeyes.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.ThousandEyes] = &teModule
 	}
+
 	if viper.GetBool("module.retrieval.enabled") {
-		retrievalModule := retrieval.Dispatcher{}
+		retrievalModule := retrieval.NewDispatcher(viper.GetDuration("module.retrieval.min_interval"))
 		modules[task.Retrieval] = &retrievalModule
 	}
 
