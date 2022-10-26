@@ -53,7 +53,7 @@ type Metric struct {
 }
 
 type InvokeInstantTestResponse struct {
-	Test []InstantTest `json:"test"`
+	Test []InstantTest `json:"helper"`
 }
 
 type RetrieveTestResultResponse struct {

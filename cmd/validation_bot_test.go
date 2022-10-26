@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"validation-bot/helper"
 	"validation-bot/task"
-	"validation-bot/test"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -21,7 +21,7 @@ import (
  * Prerequisites:
  * 1. Install postgresql
  * 2. Create user same as the current user
- * 3. Create database test
+ * 3. Create database helper
  */
 const (
 	testPeerId = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
@@ -45,7 +45,6 @@ func TestSetDefault_WithConfigFile(t *testing.T) {
 }
 
 func TestDeleteTaskHandler(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	defer viper.Reset()
 	mockTaskRemover := new(MockTaskRemover)
@@ -64,15 +63,14 @@ func TestDeleteTaskHandler(t *testing.T) {
 }
 
 func TestPostTaskHandler(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	defer viper.Reset()
 	taskDef := task.Definition{}
-	taskDef.Definition.Set(`{"test": "test"}`)
+	taskDef.Definition.Set(`{"helper": "helper"}`)
 	mockTaskCreator := new(MockTaskCreator)
 	mockTaskCreator.On("Create", mock.Anything, mock.Anything).Return(nil)
 	e := echo.New()
-	buf := bytes.NewBuffer([]byte(`{"definition":{"test": "test"}}`))
+	buf := bytes.NewBuffer([]byte(`{"definition":{"helper": "helper"}}`))
 	req := httptest.NewRequest(http.MethodPost, createRoute, buf)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
@@ -85,12 +83,11 @@ func TestPostTaskHandler(t *testing.T) {
 }
 
 func TestListTaskHandler(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	defer viper.Reset()
 	mockTaskCreator := new(MockTaskCreator)
 	taskDef := task.Definition{}
-	taskDef.Definition.Set(`{"test": "test"}`)
+	taskDef.Definition.Set(`{"helper": "helper"}`)
 	taskDefs := []task.Definition{
 		taskDef,
 	}
@@ -104,13 +101,16 @@ func TestListTaskHandler(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskCreator.AssertCalled(t, "List", mock.Anything)
-	assert.Equal("[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"test\":\"test\"},\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n", rec.Body.String())
+	assert.Equal(
+		"[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"helper\":\"helper\"},\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n",
+		rec.Body.String(),
+	)
 }
 
 func TestNewObserver(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	viper.Set("observer.database_connection_string", test.PostgresConnectionString)
+	viper.Set("observer.database_connection_string", helper.PostgresConnectionString)
 	viper.Set("observer.trusted_peers", []string{testPeerId})
 	obs, err := newObserver()
 	assert.NotNil(obs)
@@ -120,12 +120,12 @@ func TestNewObserver(t *testing.T) {
 func TestNewAuditor(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	private, _, _ := test.GeneratePeerID(t)
-	privateKey := test.MarshalPrivateKey(t, private)
+	private, _, _ := helper.GeneratePeerID(t)
+	privateKey := helper.MarshalPrivateKey(t, private)
 	viper.Set("auditor.private_key", privateKey)
 	viper.Set("auditor.listen_addr", "/ip4/0.0.0.0/tcp/0")
 	viper.Set("auditor.topic_name", uuid.New().String())
-	viper.Set("auditor.w3s_token", "test")
+	viper.Set("auditor.w3s_token", "helper")
 	aud, _, err := newAuditor(context.TODO())
 	assert.NotNil(aud)
 	assert.Nil(err)
@@ -134,11 +134,11 @@ func TestNewAuditor(t *testing.T) {
 func TestNewDispatcher(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	private, _, _ := test.GeneratePeerID(t)
-	privateKey := test.MarshalPrivateKey(t, private)
+	private, _, _ := helper.GeneratePeerID(t)
+	privateKey := helper.MarshalPrivateKey(t, private)
 	viper.Set("dispatcher.private_key", privateKey)
 	viper.Set("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/0")
-	viper.Set("dispatcher.database_connection_string", test.PostgresConnectionString)
+	viper.Set("dispatcher.database_connection_string", helper.PostgresConnectionString)
 	viper.Set("module.echo.enabled", true)
 	dis, err := newDispatcher(context.TODO())
 	assert.NotNil(dis)

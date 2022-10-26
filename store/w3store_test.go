@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"validation-bot/test"
+	"validation-bot/helper"
 
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/assert"
@@ -16,8 +16,8 @@ func getStore(t *testing.T) *W3StorePublisher {
 	assert := assert.New(t)
 	token := os.Getenv("W3S_TOKEN_TEST")
 	assert.NotEmpty(token)
-	privateKey, _, _ := test.GeneratePeerID(t)
-	privateKeyStr := test.MarshalPrivateKey(t, privateKey)
+	privateKey, _, _ := helper.GeneratePeerID(t)
+	privateKeyStr := helper.MarshalPrivateKey(t, privateKey)
 	config := W3StorePublisherConfig{
 		Token:        token,
 		PrivateKey:   privateKeyStr,
@@ -76,7 +76,11 @@ func TestW3StoreSubscriber_downloadChainedEntries(t *testing.T) {
 		RetryCount:    3,
 	}
 	subscriber := NewW3StoreSubscriber(config)
-	entries, err := subscriber.downloadChainedEntries(ctx, nil, cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"))
+	entries, err := subscriber.downloadChainedEntries(
+		ctx,
+		nil,
+		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+	)
 	assert.Nil(err)
 	assert.Equal(3, len(entries))
 	assert.Equal(string(entries[0].Message), "test3")
@@ -99,7 +103,11 @@ func TestW3StoreSubscriber_downloadChainedEntries_FromNotNil(t *testing.T) {
 	}
 	subscriber := NewW3StoreSubscriber(config)
 	from := cid.MustParse("bafkreiawxfcprqxgv5rebdri465gw3bk6gcqy5iwlfstckr37sn57kh3bi")
-	entries, err := subscriber.downloadChainedEntries(ctx, &from, cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"))
+	entries, err := subscriber.downloadChainedEntries(
+		ctx,
+		&from,
+		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+	)
 	assert.Nil(err)
 	assert.Equal(1, len(entries))
 	assert.Equal(string(entries[0].Message), "test3")
@@ -117,7 +125,11 @@ func TestW3StoreSubscriber_downloadChainedEntries_FromLatest(t *testing.T) {
 	}
 	subscriber := NewW3StoreSubscriber(config)
 	from := cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq")
-	entries, err := subscriber.downloadChainedEntries(ctx, &from, cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"))
+	entries, err := subscriber.downloadChainedEntries(
+		ctx,
+		&from,
+		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+	)
 	assert.Nil(err)
 	assert.Equal(0, len(entries))
 }

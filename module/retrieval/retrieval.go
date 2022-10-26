@@ -171,7 +171,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		switch protocol {
 		case GraphSync:
 			if input.DataCid == "" {
-				auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol: "+err.Error())
+				auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol")
 				continue
 			}
 

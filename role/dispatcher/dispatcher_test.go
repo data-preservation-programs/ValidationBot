@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"validation-bot/helper"
 	"validation-bot/module"
 	"validation-bot/module/echo"
 	"validation-bot/task"
-	"validation-bot/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,7 +18,7 @@ import (
 
 func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher) {
 	assert := assert.New(t)
-	db, err := gorm.Open(postgres.Open(test.PostgresConnectionString), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(helper.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
 	db.Exec("DELETE FROM definitions")
@@ -26,14 +26,16 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 	mockPublisher := &task.MockPublisher{}
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
-	dper, err := NewDispatcher(Config{
-		DB: db,
-		Modules: map[string]module.DispatcherModule{
-			task.Echo: echo.Dispatcher{},
+	dper, err := NewDispatcher(
+		Config{
+			DB: db,
+			Modules: map[string]module.DispatcherModule{
+				task.Echo: echo.Dispatcher{},
+			},
+			TaskPublisher: mockPublisher,
+			CheckInterval: 1 * time.Minute,
 		},
-		TaskPublisher: mockPublisher,
-		CheckInterval: 1 * time.Minute,
-	})
+	)
 	assert.Nil(err)
 	assert.NotNil(dper)
 
@@ -87,9 +89,9 @@ func TestDispatcher_Start_DispatchMultipleTimes(t *testing.T) {
 		assert.FailNow("should not return error", err)
 	case <-time.After(5 * time.Second):
 	}
-	mockPublisher.AssertNumberOfCalls(t, "Publish", 4)
+	mockPublisher.AssertNumberOfCalls(t, "Publish", 5)
 	db.First(tsk, tsk.ID)
-	assert.Equal(uint32(4), tsk.DispatchedTimes)
+	assert.Equal(uint32(5), tsk.DispatchedTimes)
 }
 
 func TestDispatcher_Start_DonothingForOneoffTask(t *testing.T) {
@@ -128,7 +130,12 @@ func TestDispatcher_CreateOneoffTask(t *testing.T) {
 	assert.Nil(err)
 	err = dper.Create(context.Background(), &tsk)
 	assert.Nil(err)
-	mockPublisher.AssertCalled(t, "Publish", mock.Anything, []byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":{"message":"hello world"}}`))
+	mockPublisher.AssertCalled(
+		t,
+		"Publish",
+		mock.Anything,
+		[]byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":{"message":"hello world"}}`),
+	)
 }
 
 func TestDispatcher_CreateAndList(t *testing.T) {

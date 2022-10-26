@@ -1,4 +1,4 @@
-name: Build and test
+name: Build and helper
 
 on:
   push:
@@ -44,7 +44,12 @@ jobs:
           postgresql user: 'postgres'
           postgresql password: 'postgres'
 
+      - name: Setup gotestsum
+        uses: autero1/action-gotestsum@v0.1.0
+        with:
+          gotestsum_version: 0.4.1
+
       - name: Test
         env:
           W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
-        run: make test
+        run: gotestsum --format short

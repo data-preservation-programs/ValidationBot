@@ -16,7 +16,6 @@ import (
 )
 
 func TestRetrieval_genRandNumber(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	a := genRandNumber(10)
 	assert.GreaterOrEqual(a, 0)
@@ -24,7 +23,6 @@ func TestRetrieval_genRandNumber(t *testing.T) {
 }
 
 func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -52,7 +50,6 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 }
 
 func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -80,7 +77,6 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 }
 
 func TestRetrieval_GetTask_NoCidsProvided(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -101,7 +97,6 @@ func TestRetrieval_GetTask_NoCidsProvided(t *testing.T) {
 }
 
 func TestRetrieval_GetTasks(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -136,7 +131,6 @@ func TestRetrieval_GetTasks(t *testing.T) {
 }
 
 func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{Protocol("invalid")},
@@ -157,7 +151,6 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 }
 
 func TestRetrieval_Dispatcher_Validate_NoCidProvided(t *testing.T) {
-	t.Parallel()
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},

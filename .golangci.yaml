@@ -4,7 +4,7 @@ run:
     - extern
   skip-files:
     - _test\.go
-    - test/util.go
+    - helper/util.go
 
 issues:
   exclude-rules:

@@ -142,7 +142,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 	for _, ch := range resultChannels {
 		result := <-ch
 		if result.err != nil {
-			a.log.Error().Err(result.err).Msg("failed to retrieve test result")
+			a.log.Error().Err(result.err).Msg("failed to retrieve helper result")
 		} else {
 			results = append(results, result)
 		}
@@ -171,7 +171,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 }
 
 func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, port int) (int, error) {
-	a.log.Debug().Str("server", server).Int("port", port).Msg("invoking network test")
+	a.log.Debug().Str("server", server).Int("port", port).Msg("invoking network helper")
 
 	response, err := a.client.R().SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
@@ -185,38 +185,38 @@ func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, por
 			},
 		).Post("https://api.thousandeyes.com/v6/instant/agent-to-server")
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to invoke network test")
+		return 0, errors.Wrap(err, "failed to invoke network helper")
 	}
 
 	var invokeResponse InvokeInstantTestResponse
 
 	err = json.Unmarshal(response.Body(), &invokeResponse)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to unmarshal invoke network test response")
+		return 0, errors.Wrap(err, "failed to unmarshal invoke network helper response")
 	}
 
 	if len(invokeResponse.Test) == 1 {
 		return invokeResponse.Test[0].TestID, nil
 	}
 
-	return 0, errors.New("response from instant test does not contain exactly one test id")
+	return 0, errors.New("response from instant helper does not contain exactly one helper id")
 }
 
 func (a AuditorModule) retrieveTestResult(ctx context.Context, testID int) ([]Metric, error) {
-	a.log.Debug().Int("testID", testID).Msg("retrieving test result")
+	a.log.Debug().Int("testID", testID).Msg("retrieving helper result")
 
 	response, err := a.client.R().SetContext(ctx).
 		SetQueryParam("format", "json").
 		Get("https://api.thousandeyes.com/v6/net/metrics" + strconv.Itoa(testID))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve test result")
+		return nil, errors.Wrap(err, "failed to retrieve helper result")
 	}
 
 	var testResponse RetrieveTestResultResponse
 
 	err = json.Unmarshal(response.Body(), &testResponse)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal test result")
+		return nil, errors.Wrap(err, "failed to unmarshal helper result")
 	}
 
 	return testResponse.Net.Metrics, nil
