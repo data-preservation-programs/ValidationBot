@@ -45,9 +45,7 @@ jobs:
           postgresql password: 'postgres'
 
       - name: Setup gotestsum
-        uses: autero1/action-gotestsum@v0.1.0
-        with:
-          gotestsum_version: 0.4.1
+        run: go get gotest.tools/gotestsum
 
       - name: Test
         env:
