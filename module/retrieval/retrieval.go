@@ -11,7 +11,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 )
 
 type Dispatcher struct {
@@ -115,13 +115,14 @@ type Auditor struct {
 
 func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration) Auditor {
 	return Auditor{
-		log:       log.With().Str("role", "retrieval_auditor").Logger(),
+		log:       log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
 		timeout:   timeout,
 		graphsync: graphsync,
 	}
 }
 
 func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
+	q.log.Info().Str("target", input.Target).Msg("starting retrieval validation")
 	provider := input.Target
 	in := new(Input)
 	err := input.Input.AssignTo(in)

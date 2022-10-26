@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 	"time"
+	"validation-bot/module/echo"
 
 	"validation-bot/module"
-	"validation-bot/module/echo"
 	"validation-bot/store"
 
 	"validation-bot/task"
@@ -27,7 +27,7 @@ func TestAuditor_Start(t *testing.T) {
 		TrustedPeers:    []peer.ID{peerId},
 		ResultPublisher: mockPublisher,
 		TaskSubscriber:  mockSubscriber,
-		Modules:         map[task.Type]module.AuditorModule{task.Echo: echo.Auditor{}},
+		Modules:         map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
 	})
 	assert.Nil(err)
 	assert.NotNil(adt)
@@ -37,7 +37,7 @@ func TestAuditor_Start(t *testing.T) {
 	errChan := adt.Start(context.Background())
 	select {
 	case err := <-errChan:
-		assert.Fail("unexpected error", err)
+		assert.FailNow("unexpected error", err)
 	case <-time.After(time.Duration(2 * time.Second)):
 	}
 

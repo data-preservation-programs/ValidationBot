@@ -39,7 +39,10 @@ type ValidationResult struct {
 
 type ValidationResultModel struct {
 	task.Task
-	Result pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
+	Result      pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
+	Cid         string
+	PreviousCid *string
+	PeerID      string
 	gorm.Model
 }
 

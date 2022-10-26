@@ -84,7 +84,7 @@ func TestDispatcher_Start_DispatchMultipleTimes(t *testing.T) {
 	errChan := dper.Start(context.Background())
 	select {
 	case err := <-errChan:
-		assert.Fail("should not return error", err)
+		assert.FailNow("should not return error", err)
 	case <-time.After(5 * time.Second):
 	}
 	mockPublisher.AssertNumberOfCalls(t, "Publish", 4)
@@ -107,7 +107,7 @@ func TestDispatcher_Start_DonothingForOneoffTask(t *testing.T) {
 	errChan := dper.Start(context.Background())
 	select {
 	case err := <-errChan:
-		assert.Fail("should not return error", err)
+		assert.FailNow("should not return error", err)
 	case <-time.After(1 * time.Second):
 	}
 

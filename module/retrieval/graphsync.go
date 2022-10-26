@@ -25,7 +25,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	log "github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/exp/slices"
 )
@@ -80,7 +80,7 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 		return nil, nil, errors.Wrap(err, "failed to create temp folder")
 	}
 	retriever := GraphSyncRetrieverImpl{
-		log:      log.With().Str("module", "retrieval_graphsync").Logger(),
+		log:      log2.With().Str("module", "retrieval_graphsync").Caller().Logger(),
 		lotusAPI: g.LotusAPI,
 		libp2p:   libp2p,
 		tmpDir:   tmpdir,
@@ -117,6 +117,7 @@ type ResultContent struct {
 }
 
 func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {
+	r.log.Debug().Str("status", string(status)).Str("errorMessage", errorMessage).Msg("calculate stats for new result")
 	var bytesDownloaded uint64
 	var startTime time.Time
 	var firstByteTime time.Time
@@ -159,7 +160,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 }
 
 func (r *retrievalStats) OnRetrievalEvent(event rep.RetrievalEvent) {
-	r.log.Info().Str("event_type", "retrieval_event").Str("code", string(event.Code())).Msg(string(event.Phase()))
+	r.log.Debug().Str("event_type", "retrieval_event").Str("code", string(event.Code())).Msg(string(event.Phase()))
 	r.events = append(r.events, TimeEventPair{
 		Timestamp: time.Now(),
 		Code:      string(event.Code()),
@@ -174,7 +175,7 @@ func (r *retrievalStats) OnDataTransferEvent(event datatransfer.Event, channelSt
 	if event.Code == datatransfer.DataReceived && channelState.Received() == 0 {
 		return
 	}
-	r.log.Info().
+	r.log.Debug().
 		Str("event_type", "data_transfer").
 		Str("code", datatransfer.Events[event.Code]).
 		Uint64("Received", channelState.Received()).
@@ -259,6 +260,7 @@ func (g GraphSyncRetrieverImpl) newFilClient(baseDir string) (*filclient.FilClie
 }
 
 func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string, dataCid cid.Cid, timeout time.Duration) (*ResultContent, error) {
+	g.log.Debug().Str("provider", provider).Msg("retrieving miner info")
 	minerInfoResult, err := module.GetMinerInfo(parent, g.lotusAPI, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get miner info")
@@ -287,6 +289,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 	filClient.SubscribeToRetrievalEvents(stats)
 	filClient.SubscribeToDataTransferEvents(stats.OnDataTransferEvent)
 	go func() {
+		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("sending retrieval query")
 		query, err := filClient.RetrievalQuery(ctx, minerInfoResult.MinerAddress, dataCid)
 		if err != nil {
 			stats.done <- ResultContent{
@@ -318,6 +321,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 			return
 		}
 
+		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("start retrieving content")
 		_, err = filClient.RetrieveContent(ctx, minerInfoResult.MinerAddress, proposal)
 		if err != nil {
 			stats.done <- ResultContent{

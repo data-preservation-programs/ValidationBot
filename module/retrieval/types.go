@@ -20,8 +20,8 @@ const (
 
 type TaskDefinition struct {
 	ProtocolPreference []Protocol `json:"protocolPreference"`
-	DataCids           []string   `json:"dataCid"`
-	PieceCids          []string   `json:"pieceCid"`
+	DataCids           []string   `json:"dataCids"`
+	PieceCids          []string   `json:"pieceCids"`
 }
 
 type Input struct {

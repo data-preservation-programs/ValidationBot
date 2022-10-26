@@ -12,7 +12,7 @@ import (
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
 )
 
@@ -66,8 +66,10 @@ func getHostAndIP(addr multiaddr.Multiaddr) (string, int, error) {
 }
 
 func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
+	a.log.Info().Str("target", input.Target).Msg("start validation with thousand eyes")
 	provider := input.Target
 
+	a.log.Debug().Str("provider", provider).Msg("retrieving miner info")
 	minerInfoResult, err := module.GetMinerInfo(ctx, a.lotusAPI, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get miner info")
@@ -148,6 +150,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 }
 
 func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, port int) (int, error) {
+	a.log.Debug().Str("server", server).Int("port", port).Msg("invoking network test")
 	response, err := a.client.R().SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
 		SetQueryParam("format", "json").
@@ -174,6 +177,7 @@ func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, por
 }
 
 func (a AuditorModule) retrieveTestResult(ctx context.Context, testID int) ([]Metric, error) {
+	a.log.Debug().Int("testID", testID).Msg("retrieving test result")
 	response, err := a.client.R().SetContext(ctx).
 		SetQueryParam("format", "json").
 		Get("https://api.thousandeyes.com/v6/net/metrics" + strconv.Itoa(testID))
@@ -193,7 +197,7 @@ func NewAuditorModuleWithAuthToken(lotusAPI api.Gateway, token string, agents []
 	client := resty.New()
 	client.SetAuthToken(token)
 	return AuditorModule{
-		log:      log.With().Str("module", "thousand_eyes_auditor").Logger(),
+		log:      log2.With().Str("module", "thousand_eyes_auditor").Caller().Logger(),
 		lotusAPI: lotusAPI,
 		client:   client,
 		agents:   agents,
@@ -204,7 +208,7 @@ func NewAuditorModuleWithBasicAuth(lotusAPI api.Gateway, username, password stri
 	client := resty.New()
 	client.SetBasicAuth(username, password)
 	return AuditorModule{
-		log:      log.With().Str("module", "thousand_eyes_auditor").Logger(),
+		log:      log2.With().Str("module", "thousand_eyes_auditor").Caller().Logger(),
 		lotusAPI: lotusAPI,
 		client:   client,
 		agents:   agents,

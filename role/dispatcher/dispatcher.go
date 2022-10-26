@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -39,21 +39,21 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 		taskPublisher: config.TaskPublisher,
 		modules:       config.Modules,
 		checkInterval: config.CheckInterval,
-		log:           log.With().Str("role", "dispatcher").Logger(),
+		log:           log2.With().Str("role", "dispatcher").Caller().Logger(),
 	}, nil
 }
 
 func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	errChannel := make(chan error)
 	for modName, mod := range g.modules {
-		mod := mod
+		modName, mod := modName, mod
 		go func() {
-			log := g.log.With().Str("module", modName).Logger()
+			log := g.log.With().Str("moduleName", modName).Logger()
 			for {
 				var defs []task.Definition
-				log.Info().Msg("polling task definitions")
+				log.Debug().Msg("polling task definitions")
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
-					Where("type = ? AND interval_seconds > 0 AND updated_at + interval_seconds * interval '1 second' < ?",
+					Where("type = ? AND interval_seconds > 0 AND (dispatched_times = 0 OR updated_at + interval_seconds * interval '1 second' < ?)",
 						modName, time.Now()).
 					Find(&defs).Error
 				if err != nil {
@@ -78,7 +78,7 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 					}
 				}
 
-				log.Info().Dur("sleep", g.checkInterval).Msg("sleeping")
+				log.Debug().Dur("sleep", g.checkInterval).Msg("sleeping")
 				time.Sleep(g.checkInterval)
 			}
 		}()

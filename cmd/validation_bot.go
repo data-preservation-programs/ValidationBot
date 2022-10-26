@@ -63,7 +63,9 @@ type taskRemover interface {
 
 //nolint:gomnd,funlen,cyclop
 func setConfig(configPath string) error {
+	logger := log.With().Str("role", "main").Caller().Logger()
 	viper.SetDefault("log.pretty", true)
+	viper.SetDefault("log.level", "debug")
 	viper.SetDefault("dispatcher.enabled", true)
 	viper.SetDefault("auditor.enabled", true)
 	viper.SetDefault("observer.enabled", true)
@@ -88,7 +90,7 @@ func setConfig(configPath string) error {
 	viper.SetDefault("auditor.w3s_token", "")
 	viper.SetDefault("dispatcher.check_interval", time.Minute*5)
 	viper.SetDefault("observer.retry_interval", time.Minute*1)
-	viper.SetDefault("observer.poll_interval", time.Minute*5)
+	viper.SetDefault("observer.poll_interval", time.Minute*1)
 	viper.SetDefault("auditor.w3s_retry_wait", time.Second*10)
 	viper.SetDefault("auditor.w3s_retry_wait_max", time.Minute)
 	viper.SetDefault("auditor.w3s_retry_count", 5)
@@ -108,7 +110,7 @@ func setConfig(configPath string) error {
 	viper.SetConfigFile(configPath)
 	var newFile bool
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
+		logger.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
 		err = os.WriteFile("./config.toml", []byte{}, 0o600)
 		newFile = true
 		if err != nil {
@@ -116,14 +118,14 @@ func setConfig(configPath string) error {
 		}
 	}
 
-	log.Debug().Str("config_path", configPath).Msg("reading config file")
+	logger.Debug().Str("config_path", configPath).Msg("reading config file")
 	err := viper.ReadInConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot read config file")
 	}
 
 	if newFile {
-		log.Debug().Msg("generating new peers for dispatcher and auditor")
+		logger.Debug().Msg("generating new peers for dispatcher and auditor")
 		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return errors.Wrap(err, "cannot generate auditor key")
@@ -137,7 +139,7 @@ func setConfig(configPath string) error {
 		viper.Set("dispatcher.private_key", dispatcherKey)
 		viper.Set("auditor.trusted_peers", []string{dispatcherPeer})
 		viper.Set("observer.trusted_peers", []string{auditorPeer})
-		log.Info().Str("config_path", configPath).Msg("writing defaults to config file")
+		logger.Info().Str("config_path", configPath).Msg("writing defaults to config file")
 		err = viper.WriteConfig()
 		if err != nil {
 			return errors.Wrap(err, "cannot write defaults to created config file")
@@ -146,7 +148,7 @@ func setConfig(configPath string) error {
 
 	for _, key := range viper.AllKeys() {
 		env := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
-		log.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
+		logger.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
 		err = viper.BindEnv(key, env)
 		if err != nil {
 			return errors.Wrap(err, "cannot bind env variable")
@@ -156,7 +158,11 @@ func setConfig(configPath string) error {
 	if viper.GetBool("log.pretty") {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
-
+	level, err := zerolog.ParseLevel(viper.GetString("log.level"))
+	if err != nil {
+		return errors.Wrap(err, "cannot parse log level")
+	}
+	zerolog.SetGlobalLevel(level)
 	return nil
 }
 
@@ -164,12 +170,12 @@ func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 	id := c.Param("id")
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid id")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	err = dispatcher.Remove(c.Request().Context(), parsedID)
 	if err != nil {
-		return errors.Wrap(err, "cannot delete task definition")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.NoContent(http.StatusOK)
@@ -179,12 +185,12 @@ func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 	var definition task.Definition
 	err := c.Bind(&definition)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	err = dispatcher.Create(c.Request().Context(), &definition)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, definition)
@@ -193,7 +199,7 @@ func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 func listTasksHandler(c echo.Context, dispatcher taskLister) error {
 	definitions, err := dispatcher.List(c.Request().Context())
 	if err != nil {
-		return errors.Wrap(err, "cannot list task definitions")
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	return c.JSON(http.StatusOK, definitions)
@@ -204,13 +210,17 @@ func subscribeToErrors(ctx context.Context,
 	auditorErrorChannel <-chan error,
 	observerErrorChannel <-chan error,
 ) error {
+	log := log.With().Str("role", "main").Caller().Logger()
 	log.Debug().Msg("subscribing to errors")
 	select {
 	case err := <-dispatcherErrorChannel:
+		log.Error().Err(err).Msg("dispatcher error")
 		return errors.Wrap(err, "dispatcher error")
 	case err := <-auditorErrorChannel:
+		log.Error().Err(err).Msg("auditor error")
 		return errors.Wrap(err, "auditor error")
 	case err := <-observerErrorChannel:
+		log.Error().Err(err).Msg("observer error")
 		return errors.Wrap(err, "observer error")
 	case <-ctx.Done():
 		log.Info().Msg("shutting down")
@@ -220,7 +230,10 @@ func subscribeToErrors(ctx context.Context,
 
 func setupAPI(dispatcher *dispatcher.Dispatcher) {
 	api := echo.New()
-	echoLogger := lecho.From(log.Logger, lecho.WithLevel(log2.INFO))
+	echoLogger := lecho.From(log.Logger,
+		lecho.WithLevel(log2.INFO),
+		lecho.WithField("role", "http_api"),
+		lecho.WithTimestamp())
 	api.Logger = echoLogger
 	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
@@ -246,6 +259,7 @@ func setupAPI(dispatcher *dispatcher.Dispatcher) {
 }
 
 func run(configPath string) error {
+	log := log.With().Str("role", "main").Caller().Logger()
 	err := setConfig(configPath)
 	if err != nil {
 		return err
@@ -271,10 +285,10 @@ func run(configPath string) error {
 		anyEnabled = true
 		log.Info().Msg("starting auditor")
 		auditor, closer, err := newAuditor(ctx)
-		defer closer()
 		if err != nil {
 			return errors.Wrap(err, "cannot create auditor")
 		}
+		defer closer()
 
 		auditorErrorChannel = auditor.Start(ctx)
 	}
@@ -298,6 +312,7 @@ func run(configPath string) error {
 
 func main() {
 	var configPath string
+	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
 		Name: "validation-bot",
 		Commands: []*cli.Command{
@@ -360,7 +375,10 @@ func newObserver() (*observer.Observer, error) {
 	}
 	resultSubscriber := store.NewW3StoreSubscriber(config)
 	connectionString := viper.GetString("observer.database_connection_string")
-	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	dblogger := role.GormLogger{
+		Log: log.With().CallerWithSkipFrameCount(1).Str("role", "sql").Logger(),
+	}
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}
@@ -410,7 +428,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		RetryWaitMax: viper.GetDuration("auditor.w3s_retry_wait_max"),
 		RetryCount:   viper.GetInt("auditor.w3s_retry_count"),
 	}
-	resultPublisher, err := store.NewW3StorePublisher(config)
+	resultPublisher, err := store.NewW3StorePublisher(ctx, config)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create result publisher")
 	}
@@ -429,7 +447,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	var lotusAPI api.Gateway
 	var closer Closer = func() {}
 	if viper.GetBool("module.echo.enabled") {
-		echoModule := echo_module.Auditor{}
+		echoModule := echo_module.NewEchoAuditor()
 		modules[task.Echo] = &echoModule
 	}
 
@@ -509,7 +527,10 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 
 func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	connectionString := viper.GetString("dispatcher.database_connection_string")
-	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
+	dblogger := role.GormLogger{
+		Log: log.With().Str("role", "sql").Logger(),
+	}
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}

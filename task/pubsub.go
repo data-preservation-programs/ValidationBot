@@ -10,15 +10,13 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/discovery"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/discovery/backoff"
 	"github.com/libp2p/go-libp2p/p2p/discovery/routing"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/mock"
-	"golang.org/x/exp/slices"
 )
 
 type Publisher interface {
@@ -41,7 +39,7 @@ func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
 }
 
 func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames []string) (*Libp2pTaskSubscriber, error) {
-	log := log.With().Str("role", "task_subscriber").Logger()
+	log := log2.With().Str("role", "task_subscriber").Caller().Logger()
 
 	discovery, err := getTopicDiscovery(ctx, libp2p)
 	if err != nil {
@@ -62,6 +60,7 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames [
 	msgChan := make(chan *pubsub.Message)
 
 	for _, topicName := range topicNames {
+		log.Info().Str("topic", topicName).Msg("subscribing to topic")
 		topicName := topicName
 		topic, err := ps.Join(topicName)
 		if err != nil {
@@ -77,7 +76,7 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames [
 			for {
 				time.Sleep(time.Minute)
 				peers := topic.ListPeers()
-				log.Info().Int("peers", len(peers)).Str("topic", topicName).
+				log.Debug().Int("peers", len(peers)).Str("topic", topicName).
 					Msg("connected to peers in the topic")
 			}
 		}()
@@ -108,7 +107,7 @@ func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error
 	case <-ctx.Done():
 		return nil, nil, ctx.Err()
 	case msg := <-s.msgChan:
-		log.Info().Str("from", msg.GetFrom().String()).Str("data", string(msg.Data)).Msg("received message")
+		s.log.Info().Str("from", msg.GetFrom().String()).Bytes("data", msg.Data).Msg("received message")
 		return &msg.ReceivedFrom, msg.Data, nil
 	}
 }
@@ -119,41 +118,13 @@ type Libp2pTaskPublisher struct {
 	log    zerolog.Logger
 }
 
-//nolint:all
-func (l Libp2pTaskPublisher) connect(ctx context.Context, addr peer.AddrInfo) error {
-	// This will wait until the peer has been fully connected to the same topic
-	retry := 0
-	for {
-		log.Info().Str("addr", addr.String()).Int("retry", retry).Msg("connecting to peer")
-		err := l.libp2p.Connect(network.WithForceDirectDial(ctx, "test"), addr)
-		if err != nil {
-			return errors.Wrap(err, "cannot connect to peer")
-		}
-		if slices.Contains(l.topic.ListPeers(), addr.ID) {
-			log.Info().Str("addr", addr.String()).Msg("peer connected")
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return errors.Wrap(ctx.Err(), "context is done")
-		case <-time.After(500 * time.Millisecond):
-			retry++
-			if retry > 10 {
-				return errors.New("cannot connect to peer")
-			}
-			continue
-		}
-	}
-}
-
 func (l Libp2pTaskPublisher) Publish(ctx context.Context, task []byte) error {
-	log.Info().Bytes("task", task).Msg("publishing message")
+	l.log.Debug().Bytes("task", task).Caller().Msg("publishing message")
 	return l.topic.Publish(ctx, task)
 }
 
 func NewLibp2pTaskPublisher(ctx context.Context, libp2p host.Host, topicName string) (*Libp2pTaskPublisher, error) {
-	log := log.With().Str("role", "task_publisher").Logger()
+	log := log2.With().Str("role", "task_publisher").Caller().Logger()
 
 	discovery, err := getTopicDiscovery(ctx, libp2p)
 	if err != nil {
@@ -182,7 +153,7 @@ func NewLibp2pTaskPublisher(ctx context.Context, libp2p host.Host, topicName str
 		for {
 			time.Sleep(time.Minute)
 			peers := topic.ListPeers()
-			log.Info().Int("peers", len(peers)).Msg("connected to peers in the topic")
+			log.Debug().Int("peers", len(peers)).Msg("connected to peers in the topic")
 		}
 	}()
 
@@ -232,14 +203,13 @@ func getTopicDiscovery(ctx context.Context, h host.Host) (discovery.Discovery, e
 }
 
 func initDHT(ctx context.Context, h host.Host) (*dht.IpfsDHT, error) {
-	log := log.With().Str("role", "dht").Logger()
+	log := log2.With().Str("role", "dht").Caller().Logger()
 	log.Info().Msg("creating new DHT")
 	kdht, err := dht.New(ctx, h)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create new dht")
 	}
 
-	log.Info().Msg("bootstrapping DHT")
 	err = kdht.Bootstrap(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot bootstrap dht")

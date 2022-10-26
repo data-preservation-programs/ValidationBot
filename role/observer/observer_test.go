@@ -19,12 +19,14 @@ import (
 )
 
 const (
-	testPeerId = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
 	testTarget = "test_target"
+	testCid    = "bafkreig4bdyaaedbcqy7ysylkbwkomo43aax223btxefxfcal4aiz6iw6e"
 )
 
 func TestObserverStart(t *testing.T) {
 	assert := assert.New(t)
+	_, _, testPeerId1 := test.GeneratePeerID(t)
+	_, _, testPeerId2 := test.GeneratePeerID(t)
 	testDefinitionUUID, err := uuid.NewUUID()
 	assert.Nil(err)
 	testDefinitionId := testDefinitionUUID.String()
@@ -33,8 +35,15 @@ func TestObserverStart(t *testing.T) {
 	assert.NotNil(db)
 
 	subscriber := new(store.MockSubscriber)
+	err = db.AutoMigrate(&module.ValidationResultModel{})
+	assert.Nil(err)
+	db.Create(&module.ValidationResultModel{
+		Cid:    testCid,
+		PeerID: testPeerId1.String(),
+	})
 	obs, err := NewObserver(db, subscriber, []peer.ID{
-		peer.ID(testPeerId),
+		testPeerId1,
+		testPeerId2,
 	})
 	assert.Nil(err)
 	assert.NotNil(obs)

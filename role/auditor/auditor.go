@@ -13,7 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log2 "github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
 )
 
@@ -33,7 +33,7 @@ type Config struct {
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
-	log := log.With().Str("role", "auditor").Logger()
+	log := log2.With().Str("role", "auditor").Caller().Logger()
 
 	auditor := Auditor{
 		modules:         config.Modules,
@@ -53,18 +53,18 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 	go func() {
 		for {
-			log.Info().Msg("waiting for task")
+			log.Debug().Msg("waiting for task")
 			from, task, err := a.taskSubscriber.Next(ctx)
 			if err != nil {
 				errChannel <- errors.Wrap(err, "failed to receive next message")
 			}
 
 			if len(a.trustedPeers) > 0 && !slices.Contains(a.trustedPeers, *from) {
-				log.Info().Str("from", from.String()).Msg("received message from untrusted peer")
+				log.Debug().Str("from", from.String()).Msg("received message from untrusted peer")
 				continue
 			}
 
-			log.Info().Str("from", from.String()).Bytes("task", task).Msg("received message")
+			log.Info().Str("from", from.String()).Bytes("task", task).Msg("received a new task")
 
 			err = a.handleValidationTask(ctx, task)
 			if err != nil {
@@ -90,13 +90,13 @@ func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) e
 		return errors.Errorf("module task type is unsupported: %s", input.Type)
 	}
 
-	log.Info().Bytes("task", taskMessage).Msg("performing validation")
+	log.Debug().Bytes("task", taskMessage).Msg("performing validation")
 	result, err := mod.Validate(ctx, *input)
 	if err != nil {
 		return errors.Wrap(err, "encountered error performing module")
 	}
 
-	log.Info().Bytes("result", result.Result.Bytes).Msg("publishing result")
+	log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
 		return errors.Wrap(err, "unable to marshal result")
