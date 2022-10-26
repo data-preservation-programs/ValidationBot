@@ -172,6 +172,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 
 func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, port int) (int, error) {
 	a.log.Debug().Str("server", server).Int("port", port).Msg("invoking network test")
+
 	response, err := a.client.R().SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
 		SetQueryParam("format", "json").

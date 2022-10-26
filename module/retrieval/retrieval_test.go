@@ -15,6 +15,14 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestRetrieval_genRandNumber(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	a := genRandNumber(10)
+	assert.GreaterOrEqual(a, 0)
+	assert.Less(a, 10)
+}
+
 func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
@@ -37,7 +45,10 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.ID, input.DefinitionID)
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
-	assert.Regexp(`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]","pieceCid":""}`, string(input.Input.Bytes))
+	assert.Regexp(
+		`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]","pieceCid":""}`,
+		string(input.Input.Bytes),
+	)
 }
 
 func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
@@ -62,7 +73,10 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.ID, input.DefinitionID)
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
-	assert.Regexp(`{"protocolPreference":\["GraphSync"\],"dataCid":"","pieceCid":"cid[1234]"}`, string(input.Input.Bytes))
+	assert.Regexp(
+		`{"protocolPreference":\["GraphSync"\],"dataCid":"","pieceCid":"cid[1234]"}`,
+		string(input.Input.Bytes),
+	)
 }
 
 func TestRetrieval_GetTask_NoCidsProvided(t *testing.T) {
@@ -182,12 +196,14 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 
 	input, err := module.NewJSONB(in)
 	assert.NoError(err)
-	result, err := auditor.Validate(ctx, module.ValidationInput{
-		Task: task.Task{
-			Target: "f03223",
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f03223",
+			},
+			Input: input,
 		},
-		Input: input,
-	})
+	)
 
 	assert.NoError(err)
 	out := new(Result)
@@ -217,12 +233,14 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	}
 	input, err := module.NewJSONB(in)
 	assert.NoError(err)
-	result, err := auditor.Validate(ctx, module.ValidationInput{
-		Task: task.Task{
-			Target: "f03223",
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f03223",
+			},
+			Input: input,
 		},
-		Input: input,
-	})
+	)
 	assert.NoError(err)
 	out := new(Result)
 	err = result.Result.AssignTo(out)
@@ -259,12 +277,14 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	}
 	mockRetriever.On("Retrieve", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(resultContent, nil)
-	result, err := auditor.Validate(ctx, module.ValidationInput{
-		Task: task.Task{
-			Target: "f03223",
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f03223",
+			},
+			Input: input,
 		},
-		Input: input,
-	})
+	)
 	assert.NoError(err)
 	out := new(Result)
 	err = result.Result.AssignTo(out)

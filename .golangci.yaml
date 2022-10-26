@@ -38,6 +38,9 @@ linters:
     - nlreturn
     - godox
     - gomoddirectives
+    - rowserrcheck
+    - sqlclosecheck
+    - wastedassign
 
 linters-settings:
   wsl:
@@ -75,6 +78,7 @@ linters-settings:
     ignored-numbers:
       - '0666'
       - '0755'
+      - '0o755'
   exhaustruct:
     exclude:
       - 'task\.Definition'

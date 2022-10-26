@@ -89,9 +89,8 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	}
 
 	q.log.Debug().Str("provider", provider).Msg("sending stream to /fil/storage/ask/1.1.0")
-	
-	stream, err := (*q.libp2p).NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
 
+	stream, err := (*q.libp2p).NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
 	if err != nil {
 		return &ResultContent{
 			Status:       StreamFailure,
@@ -107,6 +106,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	}()
 
 	askRequest := &network.AskRequest{Miner: minerInfoResult.MinerAddress}
+
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err = stream.SetDeadline(deadline)
@@ -127,6 +127,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	}
 
 	var resp network.AskResponse
+
 	err = cborutil.ReadCborRPC(stream, &resp)
 	if err != nil {
 		return &ResultContent{

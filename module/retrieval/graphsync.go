@@ -84,7 +84,7 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 
 	tmpdir := filepath.Join(g.BaseDir, uuid.New().String())
 
-	err = os.MkdirAll(tmpdir, 0755)
+	err = os.MkdirAll(tmpdir, 0o755)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create temp folder")
 	}
@@ -188,6 +188,7 @@ func (r *retrievalStats) OnRetrievalEvent(event rep.RetrievalEvent) {
 			Received:  0,
 		},
 	)
+
 	if event.Code() == rep.FailureCode || event.Code() == rep.SuccessCode {
 		r.done <- event
 	}
@@ -292,6 +293,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	timeout time.Duration,
 ) (*ResultContent, error) {
 	g.log.Debug().Str("provider", provider).Msg("retrieving miner info")
+
 	minerInfoResult, err := module.GetMinerInfo(parent, g.lotusAPI, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get miner info")
@@ -322,6 +324,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 
 	go func() {
 		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("sending retrieval query")
+
 		query, err := filClient.RetrievalQuery(ctx, minerInfoResult.MinerAddress, dataCid)
 		if err != nil {
 			stats.done <- ResultContent{

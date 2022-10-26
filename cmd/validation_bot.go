@@ -115,7 +115,7 @@ func setConfig(configPath string) error {
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		logger.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
-		
+
 		err = os.WriteFile("./config.toml", []byte{}, 0o600)
 		if err != nil {
 			return errors.Wrap(err, "cannot write defaults to config file")
@@ -159,6 +159,7 @@ func setConfig(configPath string) error {
 	for _, key := range viper.AllKeys() {
 		env := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
 		logger.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
+
 		err = viper.BindEnv(key, env)
 		if err != nil {
 			return errors.Wrap(err, "cannot bind env variable")
@@ -180,6 +181,7 @@ func setConfig(configPath string) error {
 
 func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 	id := c.Param("id")
+
 	parsedID, err := uuid.Parse(id)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -195,6 +197,7 @@ func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
 
 func postTaskHandler(c echo.Context, dispatcher taskCreator) error {
 	var definition task.Definition
+
 	err := c.Bind(&definition)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -295,6 +298,7 @@ func run(configPath string) error {
 		log.Info().Msg("starting dispatcher")
 
 		anyEnabled = true
+
 		dispatcher, err := newDispatcher(ctx)
 		if err != nil {
 			return errors.Wrap(err, "cannot create dispatcher")
@@ -310,6 +314,7 @@ func run(configPath string) error {
 		log.Info().Msg("starting auditor")
 
 		anyEnabled = true
+
 		auditor, closer, err := newAuditor(ctx)
 		if err != nil {
 			return errors.Wrap(err, "cannot create auditor")
@@ -324,6 +329,7 @@ func run(configPath string) error {
 		log.Info().Msg("starting observer")
 
 		anyEnabled = true
+
 		observer, err := newObserver()
 		if err != nil {
 			return errors.Wrap(err, "cannot create observer")
@@ -407,6 +413,7 @@ func newObserver() (*observer.Observer, error) {
 	dblogger := role.GormLogger{
 		Log: log.With().CallerWithSkipFrameCount(1).Str("role", "sql").Logger(),
 	}
+
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")
@@ -458,6 +465,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		RetryWaitMax: viper.GetDuration("auditor.w3s_retry_wait_max"),
 		RetryCount:   viper.GetInt("auditor.w3s_retry_count"),
 	}
+
 	resultPublisher, err := store.NewW3StorePublisher(ctx, config)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create result publisher")
@@ -574,6 +582,7 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	dblogger := role.GormLogger{
 		Log: log.With().Str("role", "sql").Logger(),
 	}
+
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open database connection")

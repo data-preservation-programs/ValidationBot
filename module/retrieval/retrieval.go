@@ -2,7 +2,8 @@ package retrieval
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
 
 	"validation-bot/module"
@@ -27,6 +28,17 @@ func NewDispatcher(minInterval time.Duration) Dispatcher {
 	}
 }
 
+func genRandNumber(max int) int {
+	bg := big.NewInt(int64(max))
+
+	n, err := rand.Int(rand.Reader, bg)
+	if err != nil {
+		panic(err)
+	}
+
+	return int(n.Int64())
+}
+
 func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]module.ValidationInput, error) {
 	// Group by provider
 	definitionsByProvider := make(map[string][]task.Definition)
@@ -35,14 +47,12 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 	}
 
 	// Choose a random definition for each provider
-	s := rand.NewSource(time.Now().Unix())
-	r := rand.New(s)
 	inputs := make(map[uuid.UUID]module.ValidationInput)
 
 	for _, defs := range definitionsByProvider {
 		lastRun, ok := d.lastRun[defs[0].Target]
 		if !ok || time.Since(lastRun) > d.minInterval {
-			index := r.Intn(len(defs))
+			index := genRandNumber(len(defs))
 			def := defs[index]
 
 			input, err := d.GetTask(def)
@@ -60,22 +70,21 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput, error) {
 	def := new(TaskDefinition)
+
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
 		return module.ValidationInput{}, errors.Wrap(err, "failed to unmarshal definition")
 	}
 
-	s := rand.NewSource(time.Now().Unix())
-	r := rand.New(s)
 	var dataCid string
 	var pieceCid string
 
 	switch {
 	case len(def.DataCids) > 0:
-		index := r.Intn(len(def.DataCids))
+		index := genRandNumber(len(def.DataCids))
 		dataCid = def.DataCids[index]
 	case len(def.PieceCids) > 0:
-		index := r.Intn(len(def.PieceCids))
+		index := genRandNumber(len(def.PieceCids))
 		pieceCid = def.PieceCids[index]
 	default:
 		return module.ValidationInput{}, errors.New("no data or piece cids specified")
@@ -106,6 +115,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 
 func (Dispatcher) Validate(definition task.Definition) error {
 	def := new(TaskDefinition)
+
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal definition")
@@ -143,6 +153,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	q.log.Info().Str("target", validationInput.Target).Msg("starting retrieval validation")
 	provider := validationInput.Target
 	input := new(Input)
+
 	err := validationInput.Input.AssignTo(input)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal validationInput")
@@ -214,6 +225,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		MinTimeToFirstByte:    minTTFB,
 		Results:               results,
 	}
+
 	jsonb, err := module.NewJSONB(result)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal result")
