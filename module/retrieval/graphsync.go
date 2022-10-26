@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/role"
 
@@ -40,7 +41,13 @@ type MockGraphSyncRetriever struct {
 	mock.Mock
 }
 
-func (m *MockGraphSyncRetriever) Retrieve(parent context.Context, provider string, dataCid cid.Cid, timeout time.Duration) (*ResultContent, error) {
+//nolint:forcetypeassert
+func (m *MockGraphSyncRetriever) Retrieve(
+	parent context.Context,
+	provider string,
+	dataCid cid.Cid,
+	timeout time.Duration,
+) (*ResultContent, error) {
 	args := m.Called(parent, provider, dataCid, timeout)
 	return args.Get(0).(*ResultContent), args.Error(1)
 }
@@ -74,17 +81,21 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create libp2p host")
 	}
+
 	tmpdir := filepath.Join(g.BaseDir, uuid.New().String())
+
 	err = os.MkdirAll(tmpdir, 0755)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create temp folder")
 	}
+
 	retriever := GraphSyncRetrieverImpl{
 		log:      log2.With().Str("module", "retrieval_graphsync").Caller().Logger(),
 		lotusAPI: g.LotusAPI,
 		libp2p:   libp2p,
 		tmpDir:   tmpdir,
 	}
+
 	return retriever, func() { os.RemoveAll(tmpdir) }, nil
 }
 
@@ -122,29 +133,37 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 	var startTime time.Time
 	var firstByteTime time.Time
 	var lastEventTime time.Time
+
 	for _, event := range r.events {
 		if event.Timestamp.Before(startTime) || startTime.IsZero() {
 			startTime = event.Timestamp
 		}
+
 		if event.Timestamp.After(lastEventTime) {
 			lastEventTime = event.Timestamp
 		}
+
 		if event.Received > bytesDownloaded {
 			bytesDownloaded = event.Received
 		}
+
 		if event.Code == string(rep.FirstByteCode) {
 			firstByteTime = event.Timestamp
 		}
 	}
+
 	var averageSpeedPerSec float64
+	var timeToFirstByte time.Duration
+
 	timeElapsedForDownload := lastEventTime.Sub(firstByteTime)
 	if timeElapsedForDownload > 0 && bytesDownloaded > 0 {
 		averageSpeedPerSec = float64(bytesDownloaded) / timeElapsedForDownload.Seconds()
 	}
-	var timeToFirstByte time.Duration
+
 	if !firstByteTime.IsZero() {
 		timeToFirstByte = firstByteTime.Sub(startTime)
 	}
+
 	return &ResultContent{
 		Status:       status,
 		ErrorMessage: errorMessage,
@@ -161,11 +180,14 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 
 func (r *retrievalStats) OnRetrievalEvent(event rep.RetrievalEvent) {
 	r.log.Debug().Str("event_type", "retrieval_event").Str("code", string(event.Code())).Msg(string(event.Phase()))
-	r.events = append(r.events, TimeEventPair{
-		Timestamp: time.Now(),
-		Code:      string(event.Code()),
-		Message:   string(event.Phase()),
-	})
+	r.events = append(
+		r.events, TimeEventPair{
+			Timestamp: time.Now(),
+			Code:      string(event.Code()),
+			Message:   string(event.Phase()),
+			Received:  0,
+		},
+	)
 	if event.Code() == rep.FailureCode || event.Code() == rep.SuccessCode {
 		r.done <- event
 	}
@@ -175,11 +197,13 @@ func (r *retrievalStats) OnDataTransferEvent(event datatransfer.Event, channelSt
 	if event.Code == datatransfer.DataReceived && channelState.Received() == 0 {
 		return
 	}
+
 	r.log.Debug().
 		Str("event_type", "data_transfer").
 		Str("code", datatransfer.Events[event.Code]).
 		Uint64("Received", channelState.Received()).
 		Msg(event.Message)
+
 	errorEvents := []datatransfer.EventCode{
 		datatransfer.Cancel,
 		datatransfer.Error,
@@ -187,61 +211,63 @@ func (r *retrievalStats) OnDataTransferEvent(event datatransfer.Event, channelSt
 		datatransfer.RequestTimedOut,
 		datatransfer.SendDataError,
 		datatransfer.ReceiveDataError,
-		datatransfer.RequestCancelled}
-	r.events = append(r.events, TimeEventPair{
-		Timestamp: event.Timestamp,
-		Code:      datatransfer.Events[event.Code],
-		Message:   event.Message,
-		Received:  channelState.Received(),
-	})
+		datatransfer.RequestCancelled,
+	}
+
+	r.events = append(
+		r.events, TimeEventPair{
+			Timestamp: event.Timestamp,
+			Code:      datatransfer.Events[event.Code],
+			Message:   event.Message,
+			Received:  channelState.Received(),
+		},
+	)
 	if slices.Contains(errorEvents, event.Code) {
 		r.done <- event
 	}
 }
 
-func setupWallet(dir string) (*wallet.LocalWallet, error) {
+func setupWallet(ctx context.Context, dir string) (*wallet.LocalWallet, error) {
 	kstore, err := keystore.OpenOrInitKeystore(dir)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to open keystore")
 	}
 
 	wallet, err := wallet.NewWallet(kstore)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create wallet")
 	}
 
-	addrs, err := wallet.WalletList(context.TODO())
+	addrs, err := wallet.WalletList(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to list wallet addresses")
 	}
 
 	if len(addrs) == 0 {
-		_, err := wallet.WalletNew(context.TODO(), types.KTBLS)
+		_, err := wallet.WalletNew(ctx, types.KTBLS)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create new wallet address")
 		}
 	}
 
 	return wallet, nil
 }
 
-func (g GraphSyncRetrieverImpl) newFilClient(baseDir string) (*filclient.FilClient, error) {
+func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string) (*filclient.FilClient, error) {
+	//nolint:gomnd
 	bstoreDatastore, err := flatfs.CreateOrOpen(filepath.Join(baseDir, "blockstore"), flatfs.NextToLast(3), false)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create or open flatfs blockstore")
 	}
 
 	bstore := blockstore.NewBlockstoreNoPrefix(bstoreDatastore)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create blockstore")
-	}
 
-	ds, err := levelds.NewDatastore(filepath.Join(baseDir, "datastore"), nil)
+	datastore, err := levelds.NewDatastore(filepath.Join(baseDir, "datastore"), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create leveldb datastore")
 	}
 
-	wallet, err := setupWallet(filepath.Join(baseDir, "wallet"))
+	wallet, err := setupWallet(ctx, filepath.Join(baseDir, "wallet"))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create wallet")
 	}
@@ -251,7 +277,7 @@ func (g GraphSyncRetrieverImpl) newFilClient(baseDir string) (*filclient.FilClie
 		return nil, errors.Wrap(err, "cannot get default wallet address")
 	}
 
-	fc, err := filclient.NewClient(*g.libp2p, g.lotusAPI, wallet, addr, bstore, ds, baseDir)
+	fc, err := filclient.NewClient(*g.libp2p, g.lotusAPI, wallet, addr, bstore, datastore, baseDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create filclient")
 	}
@@ -259,7 +285,12 @@ func (g GraphSyncRetrieverImpl) newFilClient(baseDir string) (*filclient.FilClie
 	return fc, nil
 }
 
-func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string, dataCid cid.Cid, timeout time.Duration) (*ResultContent, error) {
+func (g GraphSyncRetrieverImpl) Retrieve(
+	parent context.Context,
+	provider string,
+	dataCid cid.Cid,
+	timeout time.Duration,
+) (*ResultContent, error) {
 	g.log.Debug().Str("provider", provider).Msg("retrieving miner info")
 	minerInfoResult, err := module.GetMinerInfo(parent, g.lotusAPI, provider)
 	if err != nil {
@@ -276,7 +307,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	filClient, err := g.newFilClient(g.tmpDir)
+	filClient, err := g.newFilClient(ctx, g.tmpDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create filClient")
 	}
@@ -288,6 +319,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 	}
 	filClient.SubscribeToRetrievalEvents(stats)
 	filClient.SubscribeToDataTransferEvents(stats.OnDataTransferEvent)
+
 	go func() {
 		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("sending retrieval query")
 		query, err := filClient.RetrievalQuery(ctx, minerInfoResult.MinerAddress, dataCid)
@@ -298,6 +330,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 			}
 			return
 		}
+
 		if query.Status == retrievalmarket.QueryResponseUnavailable {
 			stats.done <- ResultContent{
 				Status:       QueryResponseUnavailable,
@@ -322,6 +355,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 		}
 
 		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("start retrieving content")
+
 		_, err = filClient.RetrieveContent(ctx, minerInfoResult.MinerAddress, proposal)
 		if err != nil {
 			stats.done <- ResultContent{
@@ -341,9 +375,9 @@ func (g GraphSyncRetrieverImpl) Retrieve(parent context.Context, provider string
 		case rep.RetrievalEvent:
 			if result.Code() == rep.SuccessCode {
 				return stats.NewResultContent(Success, string(result.Phase())), nil
-			} else {
-				return stats.NewResultContent(RetrieveFailure, string(result.Phase())), nil
 			}
+
+			return stats.NewResultContent(RetrieveFailure, string(result.Phase())), nil
 		case datatransfer.Event:
 			return stats.NewResultContent(DataTransferFailure, result.Message), nil
 		default:

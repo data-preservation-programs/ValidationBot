@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -34,51 +35,63 @@ type AuditorModule struct {
 func getHostAndIP(addr multiaddr.Multiaddr) (string, int, error) {
 	protocols := addr.Protocols()
 	const expectedProtocolCount = 2
+
 	if len(protocols) != expectedProtocolCount {
 		return "", 0, errors.New("multiaddr does not contain two protocols")
 	}
-	if !slices.Contains([]int{
-		multiaddr.P_IP4, multiaddr.P_IP6,
-		multiaddr.P_DNS4, multiaddr.P_DNS6,
-		multiaddr.P_DNS, multiaddr.P_DNSADDR,
-	}, protocols[0].Code) {
+
+	if !slices.Contains(
+		[]int{
+			multiaddr.P_IP4, multiaddr.P_IP6,
+			multiaddr.P_DNS4, multiaddr.P_DNS6,
+			multiaddr.P_DNS, multiaddr.P_DNSADDR,
+		}, protocols[0].Code,
+	) {
 		return "", 0, errors.New("multiaddr does not contain a valid ip or dns protocol")
 	}
+
 	if protocols[1].Code != multiaddr.P_TCP {
 		return "", 0, errors.New("multiaddr does not contain a valid tcp protocol")
 	}
 
 	splitted := multiaddr.Split(addr)
+
 	component0, ok := splitted[0].(*multiaddr.Component)
 	if !ok {
 		return "", 0, errors.New("failed to cast component")
 	}
+
 	host := component0.Value()
+
 	component1, ok := splitted[1].(*multiaddr.Component)
 	if !ok {
 		return "", 0, errors.New("failed to cast component")
 	}
+
 	port, err := strconv.Atoi(component1.Value())
 	if err != nil {
 		return "", 0, errors.Wrap(err, "failed to parse port")
 	}
+
 	return host, port, nil
 }
 
 func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	a.log.Info().Str("target", input.Target).Msg("start validation with thousand eyes")
 	provider := input.Target
+	validationResult := make(ResultMap)
 
 	a.log.Debug().Str("provider", provider).Msg("retrieving miner info")
+
 	minerInfoResult, err := module.GetMinerInfo(ctx, a.lotusAPI, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get miner info")
 	}
 
-	validationResult := make(ResultMap)
 	if minerInfoResult.ErrorCode != "" {
 		return nil, errors.New("failed to get miner info")
 	}
+
 	type TestResult struct {
 		metrics   []Metric
 		err       error
@@ -86,39 +99,46 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 	}
 	resultChannels := make([]chan TestResult, 0)
 	results := make([]TestResult, 0)
+
 	for _, addr := range minerInfoResult.MultiAddrs {
 		addr := addr
+
 		host, port, err := getHostAndIP(addr)
 		if err != nil {
 			a.log.Error().Err(err).Msg("failed to get host and port from multiaddr")
 			continue
 		}
-		ch := make(chan TestResult)
-		resultChannels = append(resultChannels, ch)
+
+		resultChannel := make(chan TestResult)
+		resultChannels = append(resultChannels, resultChannel)
+
 		go func() {
 			testID, err := a.invokeNetworkTest(ctx, host, port)
 			if err != nil {
-				ch <- TestResult{
+				resultChannel <- TestResult{
 					metrics:   nil,
 					err:       err,
 					multiAddr: nil,
 				}
 			}
+
 			metrics, err := a.retrieveTestResult(ctx, testID)
 			if err != nil {
-				ch <- TestResult{
+				resultChannel <- TestResult{
 					metrics:   nil,
 					err:       err,
 					multiAddr: nil,
 				}
 			}
-			ch <- TestResult{
+
+			resultChannel <- TestResult{
 				metrics:   metrics,
 				multiAddr: addr,
 				err:       nil,
 			}
 		}()
 	}
+
 	for _, ch := range resultChannels {
 		result := <-ch
 		if result.err != nil {
@@ -127,6 +147,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 			results = append(results, result)
 		}
 	}
+
 	for _, result := range results {
 		validationResult[MultiAddrStr(result.multiAddr.String())] = ResultContent{
 			Metrics:    result.metrics,
@@ -154,16 +175,20 @@ func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, por
 	response, err := a.client.R().SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
 		SetQueryParam("format", "json").
-		SetBody(InvokeInstantTestRequest{
-			Port:     port,
-			Server:   server,
-			Protocol: "tcp",
-			Agents:   a.agents,
-		}).Post("https://api.thousandeyes.com/v6/instant/agent-to-server")
+		SetBody(
+			InvokeInstantTestRequest{
+				Port:     port,
+				Server:   server,
+				Protocol: "tcp",
+				Agents:   a.agents,
+			},
+		).Post("https://api.thousandeyes.com/v6/instant/agent-to-server")
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to invoke network test")
 	}
+
 	var invokeResponse InvokeInstantTestResponse
+
 	err = json.Unmarshal(response.Body(), &invokeResponse)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to unmarshal invoke network test response")
@@ -178,13 +203,16 @@ func (a AuditorModule) invokeNetworkTest(ctx context.Context, server string, por
 
 func (a AuditorModule) retrieveTestResult(ctx context.Context, testID int) ([]Metric, error) {
 	a.log.Debug().Int("testID", testID).Msg("retrieving test result")
+
 	response, err := a.client.R().SetContext(ctx).
 		SetQueryParam("format", "json").
 		Get("https://api.thousandeyes.com/v6/net/metrics" + strconv.Itoa(testID))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to retrieve test result")
 	}
+
 	var testResponse RetrieveTestResultResponse
+
 	err = json.Unmarshal(response.Body(), &testResponse)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal test result")

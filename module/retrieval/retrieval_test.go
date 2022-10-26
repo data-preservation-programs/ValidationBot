@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -107,10 +108,7 @@ func TestRetrieval_GetTasks(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{
-		MinInterval: time.Second,
-		LastRun:     make(map[string]time.Time),
-	}
+	dispatcher := NewDispatcher(time.Second)
 	inputs, err := dispatcher.GetTasks([]task.Definition{taskDef1, taskDef2})
 	assert.NoError(err)
 	assert.Equal(2, len(inputs))

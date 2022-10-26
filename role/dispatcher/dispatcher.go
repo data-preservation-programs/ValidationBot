@@ -43,18 +43,25 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 	}, nil
 }
 
+//nolint:lll
 func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	errChannel := make(chan error)
+
 	for modName, mod := range g.modules {
 		modName, mod := modName, mod
+		log := g.log.With().Str("moduleName", modName).Logger()
+
 		go func() {
-			log := g.log.With().Str("moduleName", modName).Logger()
 			for {
-				var defs []task.Definition
 				log.Debug().Msg("polling task definitions")
+
+				defs := make([]task.Definition, 0)
+
 				err := g.db.WithContext(ctx).Model(&task.Definition{}).
-					Where("type = ? AND interval_seconds > 0 AND (dispatched_times = 0 OR updated_at + interval_seconds * interval '1 second' < ?)",
-						modName, time.Now()).
+					Where(
+						"type = ? AND interval_seconds > 0 AND (dispatched_times = 0 OR updated_at + interval_seconds * interval '1 second' < ?)",
+						modName, time.Now(),
+					).
 					Find(&defs).Error
 				if err != nil {
 					errChannel <- errors.Wrap(err, "cannot fetch task definitions")
@@ -62,15 +69,18 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 				}
 
 				log.Info().Int("size", len(defs)).Msg("polled task definitions in ready state")
+
 				tasks, err := mod.GetTasks(defs)
-				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
 				if err != nil {
 					errChannel <- errors.Wrap(err, "cannot get tasks to dispatch")
 					return
 				}
 
+				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
+
 				for id, input := range tasks {
 					log.Info().Str("id", id.String()).Interface("task", input).Msg("dispatching task")
+
 					err = g.dispatchOnce(ctx, id, input)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "cannot dispatch task")
@@ -101,7 +111,8 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, in
 	err = g.db.WithContext(ctx).Exec(
 		"UPDATE definitions SET dispatched_times = dispatched_times + 1, updated_at = ? WHERE id = ?",
 		time.Now(),
-		definitionID).Error
+		definitionID,
+	).Error
 	if err != nil {
 		return errors.Wrap(err, "cannot increment dispatched_times")
 	}
@@ -111,6 +122,7 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, in
 
 func (g Dispatcher) List(ctx context.Context) ([]task.Definition, error) {
 	var taskDefs []task.Definition
+
 	err := g.db.WithContext(ctx).Find(&taskDefs).Error
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot fetch task definitions")

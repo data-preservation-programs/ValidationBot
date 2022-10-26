@@ -2,6 +2,7 @@ package module
 
 import (
 	"testing"
+
 	"validation-bot/task"
 
 	"github.com/stretchr/testify/assert"

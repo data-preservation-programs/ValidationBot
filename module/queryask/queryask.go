@@ -3,6 +3,7 @@ package queryask
 import (
 	"context"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -41,6 +42,7 @@ func NewAuditor(libp2p *host.Host, lotusAPI api.Gateway) Auditor {
 func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	q.log.Info().Str("target", input.Target).Msg("start validating query ask")
 	provider := input.Target
+
 	result, err := q.QueryMiner(ctx, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query miner")
@@ -60,6 +62,7 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 //nolint:nilerr,funlen,cyclop
 func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultContent, error) {
 	q.log.Debug().Str("provider", provider).Msg("querying miner info")
+
 	minerInfoResult, err := module.GetMinerInfo(ctx, q.lotusAPI, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get miner info")
@@ -86,7 +89,9 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	}
 
 	q.log.Debug().Str("provider", provider).Msg("sending stream to /fil/storage/ask/1.1.0")
+	
 	stream, err := (*q.libp2p).NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
+
 	if err != nil {
 		return &ResultContent{
 			Status:       StreamFailure,
@@ -95,13 +100,13 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 	}
 
 	(*q.libp2p).ConnManager().Protect(stream.Conn().RemotePeer(), "GetAsk")
+
 	defer func() {
 		(*q.libp2p).ConnManager().Unprotect(stream.Conn().RemotePeer(), "GetAsk")
 		stream.Close()
 	}()
 
 	askRequest := &network.AskRequest{Miner: minerInfoResult.MinerAddress}
-	var resp network.AskResponse
 	deadline, ok := ctx.Deadline()
 	if ok {
 		err = stream.SetDeadline(deadline)
@@ -121,6 +126,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		}, nil
 	}
 
+	var resp network.AskResponse
 	err = cborutil.ReadCborRPC(stream, &resp)
 	if err != nil {
 		return &ResultContent{

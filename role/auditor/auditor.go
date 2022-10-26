@@ -48,12 +48,14 @@ func NewAuditor(config Config) (*Auditor, error) {
 
 func (a Auditor) Start(ctx context.Context) <-chan error {
 	log := a.log
-	log.Info().Msg("start listening to subscription")
 	errChannel := make(chan error)
+
+	log.Info().Msg("start listening to subscription")
 
 	go func() {
 		for {
 			log.Debug().Msg("waiting for task")
+
 			from, task, err := a.taskSubscriber.Next(ctx)
 			if err != nil {
 				errChannel <- errors.Wrap(err, "failed to receive next message")
@@ -91,12 +93,14 @@ func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) e
 	}
 
 	log.Debug().Bytes("task", taskMessage).Msg("performing validation")
+
 	result, err := mod.Validate(ctx, *input)
 	if err != nil {
 		return errors.Wrap(err, "encountered error performing module")
 	}
 
 	log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
+
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
 		return errors.Wrap(err, "unable to marshal result")

@@ -2,6 +2,7 @@ package echo
 
 import (
 	"context"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -29,6 +30,7 @@ func NewEchoAuditor() Auditor {
 
 func (e Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	e.log.Info().Bytes("definition", input.Input.Bytes).Msgf("performing validation")
+
 	output := module.ValidationResult{
 		Task:   input.Task,
 		Result: input.Input,

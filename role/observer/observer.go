@@ -23,7 +23,8 @@ type Observer struct {
 	log              zerolog.Logger
 }
 
-func NewObserver(db *gorm.DB,
+func NewObserver(
+	db *gorm.DB,
 	resultSubscriber store.ResultSubscriber,
 	peers []peer.ID,
 ) (*Observer, error) {
@@ -39,43 +40,49 @@ func NewObserver(db *gorm.DB,
 	}, nil
 }
 
-func (o Observer) lastCidFromDb(peer peer.ID) (*cid.Cid, error) {
+func (o Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 	model := module.ValidationResultModel{}
+
 	last := o.db.Last(&model, "peer_id = ?", peer.String())
 	if last.Error != nil {
 		if !errors.Is(last.Error, gorm.ErrRecordNotFound) {
 			return nil, errors.Wrapf(last.Error, "failed to get last result for peer %s", peer.String())
-		} else {
-			return nil, nil
 		}
-	} else {
-		cid, err := cid.Decode(model.Cid)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode cid %s", model.Cid)
-		}
-		return &cid, nil
+
+		return nil, nil
 	}
+
+	cid, err := cid.Decode(model.Cid)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to decode cid %s", model.Cid)
+	}
+	return &cid, nil
 }
 
 func (o Observer) Start(ctx context.Context) <-chan error {
 	log := o.log
 	errChannel := make(chan error)
+
 	for _, peerID := range o.trustedPeers {
 		peerID := peerID
+
 		go func() {
-			last, err := o.lastCidFromDb(peerID)
+			last, err := o.lastCidFromDB(peerID)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get last cid from db")
 				errChannel <- err
 				return
 			}
+
 			log.Info().Str("peer", peerID.String()).Interface("lastCid", last).Msg("start listening to subscription")
+
 			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to receive next message")
 				errChannel <- err
 				return
 			}
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -84,6 +91,7 @@ func (o Observer) Start(ctx context.Context) <-chan error {
 					log.Info().Str("from", peerID.String()).Bytes("message", entry.Message).
 						Interface("previous", entry.Previous).
 						Str("cid", entry.CID.String()).Msg("storing received message")
+
 					err = o.storeResult(ctx, entry.Message, entry.CID, peerID, entry.Previous)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "failed to store result")
@@ -98,16 +106,19 @@ func (o Observer) Start(ctx context.Context) <-chan error {
 
 func (o Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {
 	result := &module.ValidationResult{}
+
 	err := json.Unmarshal(data, result)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal to concrete type")
 	}
 
 	var previousCid *string
+
 	if previous != nil {
 		p := previous.String()
 		previousCid = &p
 	}
+
 	toStore := module.ValidationResultModel{
 		Task:        result.Task,
 		Result:      result.Result,
@@ -115,6 +126,7 @@ func (o Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, pee
 		PeerID:      peerID.String(),
 		PreviousCid: previousCid,
 	}
+
 	err = o.db.WithContext(ctx).Create(&toStore).Error
 	if err != nil {
 		return errors.Wrap(err, "failed to store concrete result")

@@ -31,8 +31,14 @@ func (g GormLogger) Error(ctx context.Context, s string, i ...interface{}) {
 func (g GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
 	sql, rowsAffected := fc()
 	if err != nil {
-		g.Log.Error().Time("begin", begin).Dur("elapsed", time.Since(begin)).Int64("rowsAffected", rowsAffected).Err(err).Msg(sql)
+		g.Log.Error().Time("begin", begin).Dur("elapsed", time.Since(begin)).Int64(
+			"rowsAffected",
+			rowsAffected,
+		).Err(err).Msg(sql)
 	} else {
-		g.Log.Trace().Time("begin", begin).Dur("elapsed", time.Since(begin)).Int64("rowsAffected", rowsAffected).Msg(sql)
+		g.Log.Trace().Time("begin", begin).Dur("elapsed", time.Since(begin)).Int64(
+			"rowsAffected",
+			rowsAffected,
+		).Msg(sql)
 	}
 }
