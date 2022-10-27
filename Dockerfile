@@ -1,5 +1,5 @@
 FROM public.ecr.aws/docker/library/golang:1.18.7
-RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make
+RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make cargo wget pkg-config hwloc
 WORKDIR /app
 COPY . ./
 RUN make deps
