@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make
 WORKDIR /app
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN git clone https://github.com/data-preservation-programs/ValidationBot.git
+RUN git clone https://github.com/data-preservation-programs/ValidationBot.git .
 RUN git checkout ${CODEBUILD_RESOLVED_SOURCE_VERSION}
 
 RUN make deps
