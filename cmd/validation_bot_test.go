@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"validation-bot/helper"
@@ -27,22 +28,6 @@ const (
 	testPeerId = "12D3KooWG8tR9PHjjXcMknbNPVWT75BuXXA2RaYx3fMwwg2oPZXd"
 	testUuid   = "d54ec3a8-4045-11ed-b878-0242ac120002"
 )
-
-func TestSetDefault(t *testing.T) {
-	assert := assert.New(t)
-	defer viper.Reset()
-	setConfig("")
-	assert.True(viper.GetBool("module.echo.enabled"))
-	assert.True(viper.GetBool("dispatcher.enabled"))
-}
-
-func TestSetDefault_WithConfigFile(t *testing.T) {
-	assert := assert.New(t)
-	defer viper.Reset()
-	setConfig("../config/config.toml")
-	assert.True(viper.GetBool("module.echo.enabled"))
-	assert.True(viper.GetBool("dispatcher.enabled"))
-}
 
 func TestDeleteTaskHandler(t *testing.T) {
 	assert := assert.New(t)
@@ -109,38 +94,70 @@ func TestListTaskHandler(t *testing.T) {
 
 func TestNewObserver(t *testing.T) {
 	assert := assert.New(t)
-	defer viper.Reset()
-	viper.Set("observer.database_connection_string", helper.PostgresConnectionString)
-	viper.Set("observer.trusted_peers", []string{testPeerId})
-	obs, err := newObserver()
+	cfg := config{
+		Observer: observerConfig{
+			DatabaseConnectionString: helper.PostgresConnectionString,
+			TrustedPeers:             []string{testPeerId},
+		},
+	}
+	obs, err := newObserver(&cfg)
 	assert.NotNil(obs)
 	assert.Nil(err)
 }
 
 func TestNewAuditor(t *testing.T) {
 	assert := assert.New(t)
-	defer viper.Reset()
 	private, _, _ := helper.GeneratePeerID(t)
 	privateKey := helper.MarshalPrivateKey(t, private)
-	viper.Set("auditor.private_key", privateKey)
-	viper.Set("auditor.listen_addr", "/ip4/0.0.0.0/tcp/0")
-	viper.Set("auditor.topic_name", uuid.New().String())
-	viper.Set("auditor.w3s_token", "helper")
-	aud, _, err := newAuditor(context.TODO())
+	cfg := config{
+		Auditor: auditorConfig{
+			PrivateKey: privateKey,
+			ListenAddr: "/ip4/0.0.0.0/tcp/0",
+			TopicNames: []string{"test"},
+			W3S: w3sConfig{
+				Token: "test",
+			},
+		},
+	}
+	aud, _, err := newAuditor(context.TODO(), &cfg)
 	assert.NotNil(aud)
 	assert.Nil(err)
 }
 
 func TestNewDispatcher(t *testing.T) {
 	assert := assert.New(t)
-	defer viper.Reset()
 	private, _, _ := helper.GeneratePeerID(t)
 	privateKey := helper.MarshalPrivateKey(t, private)
-	viper.Set("dispatcher.private_key", privateKey)
-	viper.Set("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/0")
-	viper.Set("dispatcher.database_connection_string", helper.PostgresConnectionString)
-	viper.Set("module.echo.enabled", true)
-	dis, err := newDispatcher(context.TODO())
+	cfg := config{
+		Dispatcher: dispatcherConfig{
+			PrivateKey:               privateKey,
+			ListenAddr:               "/ip4/0.0.0.0/tcp/0",
+			DatabaseConnectionString: helper.PostgresConnectionString,
+		},
+		Module: moduleConfig{
+			Echo: echoConfig{
+				Enabled: true,
+			},
+		},
+	}
+	dis, err := newDispatcher(context.TODO(), &cfg)
 	assert.NotNil(dis)
 	assert.Nil(err)
+}
+
+func TestGetStringArrayFromEnv(t *testing.T) {
+	assert := assert.New(t)
+	defer viper.Reset()
+	fileName := "./" + uuid.New().String() + ".yaml"
+	defer os.Remove(fileName)
+	cfg, err := setConfig(fileName)
+	assert.Nil(err)
+	assert.NotNil(cfg)
+	assert.Equal([]string{"/filecoin/validation_bot/dev"}, cfg.Auditor.TopicNames)
+
+	os.Setenv("AUDITOR_TOPICNAMES", "test1, test2")
+	cfg, err = setConfig(fileName)
+	assert.Nil(err)
+	assert.NotNil(cfg)
+	assert.Equal([]string{"test1", " test2"}, cfg.Auditor.TopicNames)
 }

@@ -37,10 +37,10 @@ CLEAN+=build/.update-modules
 deps: $(BUILD_DEPS)
 
 build:
-	go build -o validation_bot cmd/validation_bot.go
+	go build -o validation_bot ./cmd
 
 run:
-	go run cmd/validation_bot.go
+	go run ./cmd
 
 clean:
 	go clean
