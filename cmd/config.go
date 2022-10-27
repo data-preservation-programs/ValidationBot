@@ -1,0 +1,86 @@
+package main
+
+import "time"
+
+type config struct {
+	Log        logConfig
+	Dispatcher dispatcherConfig
+	Auditor    auditorConfig
+	Observer   observerConfig
+	Module     moduleConfig
+	Lotus      lotusConfig
+}
+
+type logConfig struct {
+	Pretty bool
+	Level  string
+}
+
+type dispatcherConfig struct {
+	Enabled                  bool
+	DatabaseConnectionString string
+	PrivateKey               string
+	APIAddress               string
+	ListenAddr               string
+	TopicName                string
+	CheckInterval            time.Duration
+}
+
+type auditorConfig struct {
+	Enabled      bool
+	TrustedPeers []string
+	PrivateKey   string
+	ListenAddr   string
+	TopicNames   []string
+	W3S          w3sConfig
+}
+
+type w3sConfig struct {
+	Token        string
+	RetryWait    time.Duration
+	RetryWaitMax time.Duration
+	RetryCount   int
+}
+
+type observerConfig struct {
+	Enabled                  bool
+	DatabaseConnectionString string
+	TrustedPeers             []string
+	RetryInterval            time.Duration
+	PollInterval             time.Duration
+	W3S                      w3sConfig
+}
+
+type moduleConfig struct {
+	Echo         echoConfig
+	QueryAsk     queryAskConfig
+	ThousandEyes thousandEyesConfig
+	Retrieval    retrievalConfig
+}
+
+type echoConfig struct {
+	Enabled bool
+}
+
+type queryAskConfig struct {
+	Enabled bool
+}
+
+type thousandEyesConfig struct {
+	Enabled  bool
+	Token    string
+	Username string
+	Password string
+}
+
+type retrievalConfig struct {
+	Enabled     bool
+	TmpDir      string
+	Timeout     time.Duration
+	MinInterval time.Duration
+}
+
+type lotusConfig struct {
+	URL   string
+	Token string
+}

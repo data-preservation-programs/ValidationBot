@@ -35,11 +35,12 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	log3 "github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 	"github.com/urfave/cli/v2"
 	"github.com/ziflex/lecho/v3"
+	"gopkg.in/yaml.v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -63,120 +64,125 @@ type taskRemover interface {
 }
 
 //nolint:gomnd,funlen,cyclop
-func setConfig(configPath string) error {
-	logger := log.With().Str("role", "main").Caller().Logger()
+func setConfig(configPath string) (*config, error) {
+	log := log3.With().Str("role", "main").Caller().Logger()
 	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
 
-	viper.SetDefault("log.pretty", true)
-	viper.SetDefault("log.level", "debug")
-	viper.SetDefault("dispatcher.enabled", true)
-	viper.SetDefault("auditor.enabled", true)
-	viper.SetDefault("observer.enabled", true)
-
-	viper.SetDefault("observer.database_connection_string", defaultConnectionString)
-	viper.SetDefault("dispatcher.database_connection_string", defaultConnectionString)
-
-	viper.SetDefault("observer.trusted_peers", []string{})
-	viper.SetDefault("auditor.trusted_peers", []string{})
-
-	viper.SetDefault("auditor.private_key", "")
-	viper.SetDefault("dispatcher.private_key", "")
-
-	viper.SetDefault("dispatcher.api_address", ":80")
-	viper.SetDefault("auditor.listen_addr", "/ip4/0.0.0.0/tcp/7999")
-	viper.SetDefault("dispatcher.listen_addr", "/ip4/0.0.0.0/tcp/7998")
-
-	viper.SetDefault("auditor.topic_name", []string{"/filecoin/validation_bot/dev"})
-	viper.SetDefault("dispatcher.topic_name", "/filecoin/validation_bot/dev")
-
-	viper.SetDefault("auditor.w3s_token", "")
-	viper.SetDefault("dispatcher.check_interval", time.Minute*5)
-	viper.SetDefault("observer.retry_interval", time.Minute*1)
-	viper.SetDefault("observer.poll_interval", time.Minute*1)
-	viper.SetDefault("auditor.w3s_retry_wait", time.Second*10)
-	viper.SetDefault("auditor.w3s_retry_wait_max", time.Minute)
-	viper.SetDefault("auditor.w3s_retry_count", 5)
-	viper.SetDefault("observer.w3s_retry_wait", time.Second*10)
-	viper.SetDefault("observer.w3s_retry_wait_max", time.Minute)
-	viper.SetDefault("observer.w3s_retry_count", 5)
-
-	viper.SetDefault("module.echo.enabled", true)
-	viper.SetDefault("module.queryask.enabled", true)
-	viper.SetDefault("module.thousandeyes.enabled", false)
-	viper.SetDefault("module.retrieval.enabled", true)
-	viper.SetDefault("module.retrieval.tmp_dir", os.TempDir())
-	viper.SetDefault("module.retrieval.timeout", 10*time.Minute)
-	viper.SetDefault("module.retrieval.min_interval", 1*time.Hour)
-	viper.SetDefault("lotus.api_url", "https://api.node.glif.io/")
-	viper.SetDefault("lotus.token", "")
-
-	viper.SetConfigFile(configPath)
-	var newFile bool
+	cfg := config{
+		Log: logConfig{
+			Pretty: true,
+			Level:  "debug",
+		},
+		Dispatcher: dispatcherConfig{
+			Enabled:                  true,
+			DatabaseConnectionString: defaultConnectionString,
+			PrivateKey:               "",
+			APIAddress:               ":8000",
+			ListenAddr:               "/ip4/0.0.0.0/tcp/7998",
+			TopicName:                "/filecoin/validation_bot/dev",
+			CheckInterval:            time.Minute,
+		},
+		Auditor: auditorConfig{
+			Enabled:      true,
+			TrustedPeers: []string{},
+			PrivateKey:   "",
+			ListenAddr:   "/ip4/0.0.0.0/tcp/7999",
+			TopicNames:   []string{"/filecoin/validation_bot/dev"},
+			W3S: w3sConfig{
+				Token:        "",
+				RetryWait:    10 * time.Second,
+				RetryWaitMax: time.Minute,
+				RetryCount:   5,
+			},
+		},
+		Observer: observerConfig{
+			Enabled:                  true,
+			DatabaseConnectionString: defaultConnectionString,
+			TrustedPeers:             []string{},
+			RetryInterval:            time.Minute,
+			PollInterval:             time.Minute,
+			W3S: w3sConfig{
+				Token:        "",
+				RetryWait:    10 * time.Second,
+				RetryWaitMax: time.Minute,
+				RetryCount:   5,
+			},
+		},
+		Module: moduleConfig{
+			Echo: echoConfig{
+				Enabled: true,
+			},
+			QueryAsk: queryAskConfig{
+				Enabled: true,
+			},
+			ThousandEyes: thousandEyesConfig{
+				Enabled:  false,
+				Token:    "",
+				Username: "",
+				Password: "",
+			},
+			Retrieval: retrievalConfig{
+				Enabled:     true,
+				TmpDir:      os.TempDir(),
+				Timeout:     10 * time.Minute,
+				MinInterval: time.Hour,
+			},
+		},
+		Lotus: lotusConfig{
+			URL:   "https://api.node.glif.io/",
+			Token: "",
+		},
+	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		logger.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
-
-		err = os.WriteFile("./config.toml", []byte{}, 0o600)
-		if err != nil {
-			return errors.Wrap(err, "cannot write defaults to config file")
-		}
-
-		newFile = true
-	}
-
-	logger.Debug().Str("config_path", configPath).Msg("reading config file")
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		return errors.Wrap(err, "cannot read config file")
-	}
-
-	if newFile {
-		logger.Debug().Msg("generating new peers for dispatcher and auditor")
+		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
+		log.Info().Msg("generating new peers for dispatcher and auditor as default")
 
 		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
-			return errors.Wrap(err, "cannot generate auditor key")
+			return nil, errors.Wrap(err, "cannot generate auditor key")
 		}
 
 		dispatcherKey, _, dispatcherPeer, err := role.GenerateNewPeer()
 		if err != nil {
-			return errors.Wrap(err, "cannot generate dispatcher key")
+			return nil, errors.Wrap(err, "cannot generate dispatcher key")
 		}
 
-		viper.Set("auditor.private_key", auditorKey)
-		viper.Set("dispatcher.private_key", dispatcherKey)
-		viper.Set("auditor.trusted_peers", []string{dispatcherPeer})
-		viper.Set("observer.trusted_peers", []string{auditorPeer})
-		logger.Info().Str("config_path", configPath).Msg("writing defaults to config file")
+		cfg.Auditor.PrivateKey = auditorKey
+		cfg.Dispatcher.PrivateKey = dispatcherKey
+		cfg.Auditor.TrustedPeers = []string{dispatcherPeer}
+		cfg.Observer.TrustedPeers = []string{auditorPeer}
 
-		err = viper.WriteConfig()
+		log.Info().Str("config_path", configPath).Msg("writing defaults to config file")
+
+		cfgStr, err := yaml.Marshal(cfg)
 		if err != nil {
-			return errors.Wrap(err, "cannot write defaults to created config file")
+			return nil, errors.Wrap(err, "cannot marshal config to yaml")
 		}
-	}
 
-	for _, key := range viper.AllKeys() {
-		env := strings.ToUpper(strings.ReplaceAll(key, ".", "_"))
-		logger.Debug().Str("key", key).Str("env", env).Msg("setting up config env override")
-
-		err = viper.BindEnv(key, env)
+		err = os.WriteFile(configPath, cfgStr, 0o600)
 		if err != nil {
-			return errors.Wrap(err, "cannot bind env variable")
+			return nil, errors.Wrap(err, "cannot create an empty config file")
 		}
 	}
 
-	if viper.GetBool("log.pretty") {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	}
+	viper.SetConfigFile(configPath)
+	log.Debug().Str("config_path", configPath).Msg("reading config file")
 
-	level, err := zerolog.ParseLevel(viper.GetString("log.level"))
+	err := viper.ReadInConfig()
 	if err != nil {
-		return errors.Wrap(err, "cannot parse log level")
+		return nil, errors.Wrap(err, "cannot read config file")
 	}
 
-	zerolog.SetGlobalLevel(level)
-	return nil
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
+
+	err = viper.Unmarshal(&cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal config")
+	}
+
+	return &cfg, nil
 }
 
 func deleteTaskHandler(c echo.Context, dispatcher taskRemover) error {
@@ -226,7 +232,7 @@ func subscribeToErrors(
 	auditorErrorChannel <-chan error,
 	observerErrorChannel <-chan error,
 ) error {
-	log := log.With().Str("role", "main").Caller().Logger()
+	log := log3.With().Str("role", "main").Caller().Logger()
 	log.Debug().Msg("subscribing to errors")
 	select {
 	case err := <-dispatcherErrorChannel:
@@ -244,10 +250,10 @@ func subscribeToErrors(
 	}
 }
 
-func setupAPI(dispatcher *dispatcher.Dispatcher) {
+func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	api := echo.New()
 	echoLogger := lecho.From(
-		log.Logger,
+		log3.Logger,
 		lecho.WithLevel(log2.INFO),
 		lecho.WithField("role", "http_api"),
 		lecho.WithTimestamp(),
@@ -274,8 +280,9 @@ func setupAPI(dispatcher *dispatcher.Dispatcher) {
 	)
 
 	go func() {
-		err := api.Start(viper.GetString("dispatcher.api_address"))
+		err := api.Start(cfg.Dispatcher.APIAddress)
 		if err != nil {
+			log := log3.With().Str("role", "main").Caller().Logger()
 			log.Fatal().Err(err).Msg("cannot start dispatcher api")
 			os.Exit(1)
 		}
@@ -283,23 +290,34 @@ func setupAPI(dispatcher *dispatcher.Dispatcher) {
 }
 
 func run(configPath string) error {
-	log := log.With().Str("role", "main").Caller().Logger()
-
-	err := setConfig(configPath)
+	cfg, err := setConfig(configPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "cannot set config")
 	}
+
+	if cfg.Log.Pretty {
+		log3.Logger = log3.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+
+	log := log3.With().Str("role", "main").Caller().Logger()
+
+	level, err := zerolog.ParseLevel(cfg.Log.Level)
+	if err != nil {
+		return errors.Wrap(err, "cannot parse log level")
+	}
+
+	zerolog.SetGlobalLevel(level)
 
 	ctx := context.Background()
 	var dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel <-chan error
 	var anyEnabled bool
 
-	if viper.GetBool("dispatcher.enabled") {
+	if cfg.Dispatcher.Enabled {
 		log.Info().Msg("starting dispatcher")
 
 		anyEnabled = true
 
-		dispatcher, err := newDispatcher(ctx)
+		dispatcher, err := newDispatcher(ctx, cfg)
 		if err != nil {
 			return errors.Wrap(err, "cannot create dispatcher")
 		}
@@ -307,15 +325,15 @@ func run(configPath string) error {
 		dispatcherErrorChannel = dispatcher.Start(ctx)
 
 		log.Info().Msg("starting dispatcher api")
-		setupAPI(dispatcher)
+		setupAPI(dispatcher, cfg)
 	}
 
-	if viper.GetBool("auditor.enabled") {
+	if cfg.Auditor.Enabled {
 		log.Info().Msg("starting auditor")
 
 		anyEnabled = true
 
-		auditor, closer, err := newAuditor(ctx)
+		auditor, closer, err := newAuditor(ctx, cfg)
 		if err != nil {
 			return errors.Wrap(err, "cannot create auditor")
 		}
@@ -325,12 +343,12 @@ func run(configPath string) error {
 		auditorErrorChannel = auditor.Start(ctx)
 	}
 
-	if viper.GetBool("observer.enabled") {
+	if cfg.Observer.Enabled {
 		log.Info().Msg("starting observer")
 
 		anyEnabled = true
 
-		observer, err := newObserver()
+		observer, err := newObserver(cfg)
 		if err != nil {
 			return errors.Wrap(err, "cannot create observer")
 		}
@@ -347,6 +365,7 @@ func run(configPath string) error {
 
 func main() {
 	var configPath string
+	log := log3.With().Str("role", "main").Caller().Logger()
 	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
 		Name: "validation-bot",
@@ -359,7 +378,7 @@ func main() {
 						Name:        "config",
 						Aliases:     []string{"c"},
 						Usage:       "path to the config file",
-						Value:       "./config.toml",
+						Value:       "./config.yaml",
 						Destination: &configPath,
 					},
 				},
@@ -395,12 +414,12 @@ func main() {
 	}
 }
 
-func newObserver() (*observer.Observer, error) {
-	retryInterval := viper.GetDuration("observer.retry_interval")
-	pollInterval := viper.GetDuration("observer.poll_interval")
-	retryWait := viper.GetDuration("observer.w3s_retry_wait")
-	retryWaitMax := viper.GetDuration("observer.w3s_retry_wait_max")
-	retryCount := viper.GetInt("observer.w3s_retry_count")
+func newObserver(cfg *config) (*observer.Observer, error) {
+	retryInterval := cfg.Observer.RetryInterval
+	pollInterval := cfg.Observer.PollInterval
+	retryWait := cfg.Observer.W3S.RetryWait
+	retryWaitMax := cfg.Observer.W3S.RetryWaitMax
+	retryCount := cfg.Observer.W3S.RetryCount
 	config := store.W3StoreSubscriberConfig{
 		RetryInterval: retryInterval,
 		PollInterval:  pollInterval,
@@ -409,9 +428,9 @@ func newObserver() (*observer.Observer, error) {
 		RetryCount:    retryCount,
 	}
 	resultSubscriber := store.NewW3StoreSubscriber(config)
-	connectionString := viper.GetString("observer.database_connection_string")
+	connectionString := cfg.Observer.DatabaseConnectionString
 	dblogger := role.GormLogger{
-		Log: log.With().CallerWithSkipFrameCount(1).Str("role", "sql").Logger(),
+		Log: log3.With().CallerWithSkipFrameCount(1).Str("role", "sql").Logger(),
 	}
 
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
@@ -419,7 +438,7 @@ func newObserver() (*observer.Observer, error) {
 		return nil, errors.Wrap(err, "cannot open database connection")
 	}
 
-	trustedPeers := viper.GetStringSlice("observer.trusted_peers")
+	trustedPeers := cfg.Observer.TrustedPeers
 	peers := make([]peer.ID, len(trustedPeers))
 
 	for i, trustedPeer := range trustedPeers {
@@ -442,28 +461,28 @@ func newObserver() (*observer.Observer, error) {
 type Closer func()
 
 //nolint:funlen,cyclop
-func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
-	libp2p, err := role.NewLibp2pHost(viper.GetString("auditor.private_key"), viper.GetString("auditor.listen_addr"))
+func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, error) {
+	libp2p, err := role.NewLibp2pHost(cfg.Auditor.PrivateKey, cfg.Auditor.ListenAddr)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
-	token := viper.GetString("auditor.w3s_token")
+	token := cfg.Auditor.W3S.Token
 	if token == "" {
 		return nil, nil, errors.New("auditor.w3s_token is empty")
 	}
 
-	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, viper.GetStringSlice("auditor.topic_name"))
+	taskSubscriber, err := task.NewLibp2pTaskSubscriber(ctx, *libp2p, cfg.Auditor.TopicNames)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create task subscriber")
 	}
 
 	config := store.W3StorePublisherConfig{
 		Token:        token,
-		PrivateKey:   viper.GetString("auditor.private_key"),
-		RetryWait:    viper.GetDuration("auditor.w3s_retry_wait"),
-		RetryWaitMax: viper.GetDuration("auditor.w3s_retry_wait_max"),
-		RetryCount:   viper.GetInt("auditor.w3s_retry_count"),
+		PrivateKey:   cfg.Auditor.PrivateKey,
+		RetryWait:    cfg.Auditor.W3S.RetryWait,
+		RetryWaitMax: cfg.Auditor.W3S.RetryWaitMax,
+		RetryCount:   cfg.Auditor.W3S.RetryCount,
 	}
 
 	resultPublisher, err := store.NewW3StorePublisher(ctx, config)
@@ -471,7 +490,7 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		return nil, nil, errors.Wrap(err, "cannot create result publisher")
 	}
 
-	trustedPeers := viper.GetStringSlice("auditor.trusted_peers")
+	trustedPeers := cfg.Auditor.TrustedPeers
 	peers := make([]peer.ID, len(trustedPeers))
 
 	for i, trustedPeer := range trustedPeers {
@@ -487,22 +506,22 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	var lotusAPI api.Gateway
 	var closer Closer = func() {}
 
-	if viper.GetBool("module.echo.enabled") {
+	if cfg.Module.Echo.Enabled {
 		echoModule := echo_module.NewEchoAuditor()
 		modules[task.Echo] = &echoModule
 	}
 
-	if viper.GetBool("module.retrieval.enabled") || viper.GetBool("module.thousandeyes.enabled") {
+	if cfg.Module.Retrieval.Enabled || cfg.Module.ThousandEyes.Enabled {
 		var header http.Header
-		if viper.GetString("lotus.token") != "" {
+		if cfg.Lotus.Token != "" {
 			header = http.Header{
-				"Authorization": []string{"Bearer " + viper.GetString("lotus.token")},
+				"Authorization": []string{"Bearer " + cfg.Lotus.Token},
 			}
 		}
 
 		var clientCloser jsonrpc.ClientCloser
 
-		lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, viper.GetString("lotus.api_url"), header)
+		lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, cfg.Lotus.URL, header)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "cannot create lotus api")
 		}
@@ -512,13 +531,13 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		}
 	}
 
-	if viper.GetBool("module.queryask.enabled") {
+	if cfg.Module.QueryAsk.Enabled {
 		queryAskModule := queryask.NewAuditor(libp2p, lotusAPI)
 		modules[task.QueryAsk] = &queryAskModule
 	}
 
-	if viper.GetBool("module.thousandeyes.enabled") {
-		agents := viper.GetStringSlice("module.thousandeyes.agents")
+	if cfg.Module.ThousandEyes.Enabled {
+		agents := []string{}
 		agentIDs := make([]thousandeyes.AgentID, len(agents))
 
 		for i, agent := range agents {
@@ -531,18 +550,18 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		}
 
 		switch {
-		case viper.IsSet("module.thousandeyes.token"):
+		case cfg.Module.ThousandEyes.Token != "":
 			temodule := thousandeyes.NewAuditorModuleWithAuthToken(
 				lotusAPI,
-				viper.GetString("module.thousandeyes.token"),
+				cfg.Module.ThousandEyes.Token,
 				agentIDs,
 			)
 			modules[task.ThousandEyes] = &temodule
-		case viper.IsSet("module.thousandeyes.username") && viper.IsSet("module.thousandeyes.password"):
+		case cfg.Module.ThousandEyes.Username != "" && cfg.Module.ThousandEyes.Password != "":
 			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(
 				lotusAPI,
-				viper.GetString("module.thousandeyes.username"),
-				viper.GetString("module.thousandeyes.password"),
+				cfg.Module.ThousandEyes.Username,
+				cfg.Module.ThousandEyes.Password,
 				agentIDs,
 			)
 			modules[task.ThousandEyes] = &temodule
@@ -551,9 +570,9 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 		}
 	}
 
-	if viper.GetBool("module.retrieval.enabled") {
-		tmpDir := viper.GetString("module.retrieval.tmp_dir")
-		timeout := viper.GetDuration("module.retrieval.timeout")
+	if cfg.Module.Retrieval.Enabled {
+		tmpDir := cfg.Module.Retrieval.TmpDir
+		timeout := cfg.Module.Retrieval.Timeout
 		graphsync := retrieval.GraphSyncRetrieverBuilderImpl{
 			LotusAPI: lotusAPI,
 			BaseDir:  tmpDir,
@@ -577,10 +596,10 @@ func newAuditor(ctx context.Context) (*auditor.Auditor, Closer, error) {
 	return auditor, closer, nil
 }
 
-func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
-	connectionString := viper.GetString("dispatcher.database_connection_string")
+func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, error) {
+	connectionString := cfg.Dispatcher.DatabaseConnectionString
 	dblogger := role.GormLogger{
-		Log: log.With().Str("role", "sql").Logger(),
+		Log: log3.With().Str("role", "sql").Logger(),
 	}
 
 	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{Logger: dblogger})
@@ -594,50 +613,50 @@ func newDispatcher(ctx context.Context) (*dispatcher.Dispatcher, error) {
 	}
 
 	libp2p, err := role.NewLibp2pHost(
-		viper.GetString("dispatcher.private_key"),
-		viper.GetString("dispatcher.listen_addr"),
+		cfg.Dispatcher.PrivateKey,
+		cfg.Dispatcher.ListenAddr,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create pubsub config")
 	}
 
-	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, *libp2p, viper.GetString("dispatcher.topic_name"))
+	taskPublisher, err := task.NewLibp2pTaskPublisher(ctx, *libp2p, cfg.Dispatcher.TopicName)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create task publisher")
 	}
 
 	modules := map[string]module.DispatcherModule{}
 
-	if viper.GetBool("module.echo.enabled") {
+	if cfg.Module.Echo.Enabled {
 		echoModule := echo_module.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.Echo] = &echoModule
 	}
 
-	if viper.GetBool("module.queryask.enabled") {
+	if cfg.Module.QueryAsk.Enabled {
 		queryAskModule := queryask.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.QueryAsk] = &queryAskModule
 	}
 
-	if viper.GetBool("module.thousandeyes.enabled") {
+	if cfg.Module.ThousandEyes.Enabled {
 		teModule := thousandeyes.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.ThousandEyes] = &teModule
 	}
 
-	if viper.GetBool("module.retrieval.enabled") {
-		retrievalModule := retrieval.NewDispatcher(viper.GetDuration("module.retrieval.min_interval"))
+	if cfg.Module.Retrieval.Enabled {
+		retrievalModule := retrieval.NewDispatcher(cfg.Module.Retrieval.MinInterval)
 		modules[task.Retrieval] = &retrievalModule
 	}
 
 	dispatcherConfig := dispatcher.Config{
 		DB:            db,
 		TaskPublisher: taskPublisher,
-		CheckInterval: viper.GetDuration("dispatcher.check_interval"),
+		CheckInterval: cfg.Dispatcher.CheckInterval,
 		Modules:       modules,
 	}
 
