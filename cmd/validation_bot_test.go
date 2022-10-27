@@ -29,22 +29,6 @@ const (
 	testUuid   = "d54ec3a8-4045-11ed-b878-0242ac120002"
 )
 
-func TestSetDefault(t *testing.T) {
-	assert := assert.New(t)
-	defer viper.Reset()
-	setConfig("")
-	assert.True(viper.GetBool("module.echo.enabled"))
-	assert.True(viper.GetBool("dispatcher.enabled"))
-}
-
-func TestSetDefault_WithConfigFile(t *testing.T) {
-	assert := assert.New(t)
-	defer viper.Reset()
-	setConfig("../config/config.toml")
-	assert.True(viper.GetBool("module.echo.enabled"))
-	assert.True(viper.GetBool("dispatcher.enabled"))
-}
-
 func TestDeleteTaskHandler(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
