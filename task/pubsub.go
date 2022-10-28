@@ -157,7 +157,8 @@ func NewLibp2pTaskPublisher(ctx context.Context, libp2p host.Host, topicName str
 	go func() {
 		for {
 			time.Sleep(time.Minute)
-			log.Debug().Int("peers", len(topic.ListPeers())).Msg("connected to peers in the topic")
+			log.Debug().Int("peers", len(topic.ListPeers())).Str("topic", topicName).
+				Msg("connected to peers in the topic")
 		}
 	}()
 
@@ -190,13 +191,12 @@ func getTopicDiscovery(ctx context.Context, h host.Host) (discovery.Discovery, e
 	}
 
 	baseDisc := routing.NewRoutingDiscovery(kdht)
-	minBackoff, maxBackoff := time.Second, time.Hour
 	//nolint:gosec
 	rng := rand.New(rand.NewSource(rand.Int63()))
 	//nolint:gomnd
 	discovery, err := backoff.NewBackoffDiscovery(
 		baseDisc,
-		backoff.NewExponentialBackoff(minBackoff, maxBackoff, backoff.FullJitter, time.Second, 2, time.Second, rng),
+		backoff.NewExponentialBackoff(time.Second, time.Minute, backoff.FullJitter, time.Second, 2, time.Second, rng),
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create backoff discovery")
