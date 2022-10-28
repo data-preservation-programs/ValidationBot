@@ -78,6 +78,7 @@ type retrievalConfig struct {
 	TmpDir      string
 	Timeout     time.Duration
 	MinInterval time.Duration
+	MaxJobs     int64
 }
 
 type lotusConfig struct {

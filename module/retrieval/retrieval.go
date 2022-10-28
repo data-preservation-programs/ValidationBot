@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/sync/semaphore"
 )
 
 type Dispatcher struct {
@@ -136,13 +137,15 @@ type Auditor struct {
 	log       zerolog.Logger
 	timeout   time.Duration
 	graphsync GraphSyncRetrieverBuilder
+	sem       *semaphore.Weighted
 }
 
-func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration) Auditor {
+func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration, maxJobs int64) Auditor {
 	return Auditor{
 		log:       log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
 		timeout:   timeout,
 		graphsync: graphsync,
+		sem:       semaphore.NewWeighted(maxJobs),
 	}
 }
 
@@ -150,6 +153,14 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	*module.ValidationResult,
 	error,
 ) {
+	if !q.sem.TryAcquire(1) {
+		q.log.Debug().Msg("retrieval auditor has hit maximum jobs, waiting to acquire semaphore")
+		err := q.sem.Acquire(ctx, 1)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to acquire semaphore")
+		}
+	}
+	defer q.sem.Release(1)
 	q.log.Info().Str("target", validationInput.Target).Msg("starting retrieval validation")
 	provider := validationInput.Target
 	input := new(Input)

@@ -68,48 +68,40 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 			log.Info().Str("from", from.String()).Bytes("task", task).Msg("received a new task")
 
-			err = a.handleValidationTask(ctx, task)
+			input := new(module.ValidationInput)
+
+			err = json.Unmarshal(task, input)
 			if err != nil {
-				errChannel <- errors.Wrap(err, "failed to handle validation task")
+				errChannel <- errors.Wrap(err, "unable to unmarshal the message")
 			}
+
+			mod, ok := a.modules[input.Type]
+			if !ok {
+				errChannel <- errors.Errorf("module task type is unsupported: %s", input.Type)
+			}
+
+			go func() {
+				log.Debug().Bytes("task", task).Msg("performing validation")
+
+				result, err := mod.Validate(ctx, *input)
+				if err != nil {
+					errChannel <- errors.Wrap(err, "encountered error performing module")
+				}
+
+				log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
+
+				resultBytes, err := json.Marshal(result)
+				if err != nil {
+					errChannel <- errors.Wrap(err, "unable to marshal result")
+				}
+
+				err = a.resultPublisher.Publish(ctx, resultBytes)
+				if err != nil {
+					errChannel <- errors.Wrap(err, "failed to publish result")
+				}
+			}()
 		}
 	}()
 
 	return errChannel
-}
-
-func (a Auditor) handleValidationTask(ctx context.Context, taskMessage []byte) error {
-	log := a.log
-	input := new(module.ValidationInput)
-
-	err := json.Unmarshal(taskMessage, input)
-	if err != nil {
-		return errors.Wrap(err, "unable to unmarshal the message")
-	}
-
-	mod, ok := a.modules[input.Type]
-	if !ok {
-		return errors.Errorf("module task type is unsupported: %s", input.Type)
-	}
-
-	log.Debug().Bytes("task", taskMessage).Msg("performing validation")
-
-	result, err := mod.Validate(ctx, *input)
-	if err != nil {
-		return errors.Wrap(err, "encountered error performing module")
-	}
-
-	log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
-
-	resultBytes, err := json.Marshal(result)
-	if err != nil {
-		return errors.Wrap(err, "unable to marshal result")
-	}
-
-	err = a.resultPublisher.Publish(ctx, resultBytes)
-	if err != nil {
-		return errors.Wrap(err, "failed to publish result")
-	}
-
-	return nil
 }

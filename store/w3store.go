@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -225,6 +226,7 @@ type W3StorePublisher struct {
 	lastCid      *cid.Cid
 	lastSequence *uint64
 	log          zerolog.Logger
+	mutex        sync.Mutex
 }
 
 type W3StorePublisherConfig struct {
@@ -267,6 +269,7 @@ func NewW3StorePublisher(ctx context.Context, config W3StorePublisherConfig) (*W
 		lastCid:      nil,
 		lastSequence: nil,
 		log:          log2.With().Str("role", "w3store_publisher").Caller().Logger(),
+		mutex:        sync.Mutex{},
 	}
 
 	err = w3Store.initialize(ctx)
@@ -418,6 +421,9 @@ func getLastRecord(
 }
 
 func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	//nolint:gomnd
 	node, err := qp.BuildList(
 		basicnode.Prototype.Any, 2, func(la datamodel.ListAssembler) {

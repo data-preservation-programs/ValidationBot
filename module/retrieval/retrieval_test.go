@@ -182,7 +182,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor := NewAuditor(graphsync, 10*time.Second)
+	auditor := NewAuditor(graphsync, 10*time.Second, 1)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 	}
@@ -219,7 +219,7 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor := NewAuditor(graphsync, 10*time.Second)
+	auditor := NewAuditor(graphsync, 10*time.Second, 1)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
@@ -251,7 +251,7 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 
 	mockRetriever := new(MockGraphSyncRetriever)
 	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
-	auditor := NewAuditor(&mockRetrieverBuilder, 10*time.Second)
+	auditor := NewAuditor(&mockRetrieverBuilder, 10*time.Second, 1)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",

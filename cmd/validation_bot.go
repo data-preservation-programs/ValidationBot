@@ -126,6 +126,7 @@ func setConfig(configPath string) (*config, error) {
 				TmpDir:      os.TempDir(),
 				Timeout:     time.Minute,
 				MinInterval: 10 * time.Minute,
+				MaxJobs:     int64(1),
 			},
 		},
 		Lotus: lotusConfig{
@@ -573,11 +574,12 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 	if cfg.Module.Retrieval.Enabled {
 		tmpDir := cfg.Module.Retrieval.TmpDir
 		timeout := cfg.Module.Retrieval.Timeout
+		maxJobs := cfg.Module.Retrieval.MaxJobs
 		graphsync := retrieval.GraphSyncRetrieverBuilderImpl{
 			LotusAPI: lotusAPI,
 			BaseDir:  tmpDir,
 		}
-		retrievalModule := retrieval.NewAuditor(&graphsync, timeout)
+		retrievalModule := retrieval.NewAuditor(&graphsync, timeout, maxJobs)
 		modules[task.Retrieval] = &retrievalModule
 	}
 
