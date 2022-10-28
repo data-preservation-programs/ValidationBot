@@ -124,8 +124,8 @@ func setConfig(configPath string) (*config, error) {
 			Retrieval: retrievalConfig{
 				Enabled:     true,
 				TmpDir:      os.TempDir(),
-				Timeout:     10 * time.Minute,
-				MinInterval: time.Hour,
+				Timeout:     time.Minute,
+				MinInterval: 10 * time.Minute,
 			},
 		},
 		Lotus: lotusConfig{
