@@ -149,12 +149,14 @@ func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration, maxJ
 	}
 }
 
+//nolint:gocognit
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
 ) {
 	if !q.sem.TryAcquire(1) {
 		q.log.Debug().Msg("retrieval auditor has hit maximum jobs, waiting to acquire semaphore")
+
 		err := q.sem.Acquire(ctx, 1)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to acquire semaphore")
