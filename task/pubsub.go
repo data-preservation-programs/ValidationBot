@@ -111,8 +111,9 @@ func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error
 	case <-ctx.Done():
 		return nil, nil, errors.Wrap(ctx.Err(), "context is done")
 	case msg := <-s.msgChan:
-		s.log.Info().Str("from", msg.GetFrom().String()).Bytes("data", msg.Data).Msg("received message")
-		return &msg.ReceivedFrom, msg.Data, nil
+		from := msg.GetFrom()
+		s.log.Info().Str("from", from.String()).Bytes("data", msg.Data).Msg("received message")
+		return &from, msg.Data, nil
 	}
 }
 
