@@ -28,6 +28,8 @@ jobs:
         run: make deps
 
       - name: Build
+        env:
+          MAXMIND_LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
         run: make maxmind
 
       - name: Build
