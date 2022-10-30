@@ -28,6 +28,9 @@ jobs:
         run: make deps
 
       - name: Build
+        run: make maxmind
+
+      - name: Build
         run: make build
 
       - name: Lint
