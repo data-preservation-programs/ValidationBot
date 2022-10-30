@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/urfave/cli/v2"
 	"github.com/ziflex/lecho/v3"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -81,6 +82,7 @@ func setConfig(configPath string) (*config, error) {
 			ListenAddr:               "/ip4/0.0.0.0/tcp/7998",
 			TopicName:                "/filecoin/validation_bot/dev",
 			CheckInterval:            time.Minute,
+			AuthenticationTokens:     []string{},
 		},
 		Auditor: auditorConfig{
 			Enabled:      true,
@@ -266,6 +268,23 @@ func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	api.Logger = echoLogger
 	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
+
+	handleAuth := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if len(cfg.Dispatcher.AuthenticationTokens) > 0 {
+				auth := c.Request().Header.Get("Authorization")
+				if auth == "" ||
+					strings.ToLower(auth[:7]) != "bearer " ||
+					!slices.Contains(cfg.Dispatcher.AuthenticationTokens, auth[7:]) {
+					return echo.NewHTTPError(http.StatusUnauthorized, "invalid auth token")
+				}
+			}
+			return next(c)
+		}
+	}
+
+	api.Use(handleAuth)
+
 	api.POST(
 		createRoute, func(c echo.Context) error {
 			return postTaskHandler(c, dispatcher)

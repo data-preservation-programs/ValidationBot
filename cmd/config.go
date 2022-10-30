@@ -27,6 +27,7 @@ type dispatcherConfig struct {
 	ListenAddr               string
 	TopicName                string
 	CheckInterval            time.Duration
+	AuthenticationTokens     []string
 }
 
 type auditorConfig struct {
