@@ -6,7 +6,9 @@ import (
 	"os"
 	"testing"
 	"time"
+	"validation-bot/module"
 
+	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/api/client"
 	"github.com/ipfs/go-cid"
 	"github.com/rs/zerolog/log"
@@ -15,12 +17,12 @@ import (
 
 func TestGraphSyncRetrieverBuilderImpl_Build(t *testing.T) {
 	assert := assert.New(t)
-	retriever, closer := getRetriever(t)
+	retriever, _, closer := getRetriever(t)
 	defer closer()
 	assert.NotNil(retriever)
 }
 
-func getRetriever(t *testing.T) (GraphSyncRetriever, func()) {
+func getRetriever(t *testing.T) (GraphSyncRetriever, api.Gateway, func()) {
 	assert := assert.New(t)
 	ctx := context.Background()
 	lotusAPI, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/rpc/v0", nil)
@@ -32,7 +34,7 @@ func getRetriever(t *testing.T) (GraphSyncRetriever, func()) {
 	retriever, cleanup, err := builder.Build()
 	assert.NoError(err)
 	assert.NotNil(retriever)
-	return retriever, func() {
+	return retriever, lotusAPI, func() {
 		cleanup()
 		closer()
 	}
@@ -41,12 +43,15 @@ func getRetriever(t *testing.T) (GraphSyncRetriever, func()) {
 func TestGraphSync_Retrieve_NotAvailable(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()
-	retriever, cleanup := getRetriever(t)
+	retriever, lotusAPI, cleanup := getRetriever(t)
 	defer cleanup()
 
 	c, err := cid.Decode("bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa")
 	assert.NoError(err)
-	result, err := retriever.Retrieve(ctx, "f03223", c, time.Minute)
+	minerInfo, err := module.GetMinerInfo(ctx, lotusAPI, "f03223")
+	assert.NoError(err)
+
+	result, err := retriever.Retrieve(ctx, minerInfo.MinerAddress, c, time.Minute)
 	assert.NoError(err)
 
 	fmt.Printf("%+v\n", result)
@@ -62,12 +67,14 @@ func TestGraphSync_Retrieve_Timeout(t *testing.T) {
 	t.Skip("This is a real retrieval helper, so it's skipped by default")
 	assert := assert.New(t)
 	ctx := context.Background()
-	retriever, cleanup := getRetriever(t)
+	retriever, lotusAPI, cleanup := getRetriever(t)
 	defer cleanup()
 
 	c, err := cid.Decode("bafybeibxlbpejjvrfs7c3ytnpxyem5n4nkxbu7wecjcmrrawxuqojana3y")
 	assert.NoError(err)
-	result, err := retriever.Retrieve(ctx, "f03223", c, 10*time.Second)
+	minerInfo, err := module.GetMinerInfo(ctx, lotusAPI, "f03223")
+	assert.NoError(err)
+	result, err := retriever.Retrieve(ctx, minerInfo.MinerAddress, c, 10*time.Second)
 	assert.NoError(err)
 
 	fmt.Printf("%+v\n", result)

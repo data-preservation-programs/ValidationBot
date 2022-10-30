@@ -56,5 +56,9 @@ lint:
 test:
 	go test -p 4 -v ./...
 
+maxmind:
+	wget -O geolite2.tar.gz "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz"
+	tar -xzvf geolite2.tar.gz
+	mv GeoLite2-City_*/GeoLite2-City.mmdb resources/
 
-.PHONY: build run clean test
+.PHONY: build run clean test maxmind

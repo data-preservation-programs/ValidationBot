@@ -127,6 +127,10 @@ func setConfig(configPath string) (*config, error) {
 				Timeout:     time.Minute,
 				MinInterval: 10 * time.Minute,
 				MaxJobs:     int64(1),
+				LocationFilter: module.LocationFilterConfig{
+					Continent: nil,
+					Country:   nil,
+				},
 			},
 		},
 		Lotus: lotusConfig{
@@ -579,8 +583,19 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 			LotusAPI: lotusAPI,
 			BaseDir:  tmpDir,
 		}
-		retrievalModule := retrieval.NewAuditor(&graphsync, timeout, maxJobs)
-		modules[task.Retrieval] = &retrievalModule
+
+		retrievalModule, err := retrieval.NewAuditor(
+			lotusAPI,
+			&graphsync,
+			timeout,
+			maxJobs,
+			cfg.Module.Retrieval.LocationFilter,
+		)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "cannot create retrieval module")
+		}
+
+		modules[task.Retrieval] = retrievalModule
 	}
 
 	auditor, err := auditor.NewAuditor(

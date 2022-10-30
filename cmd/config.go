@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"time"
+	"validation-bot/module"
+)
 
 type config struct {
 	Log        logConfig
@@ -74,11 +77,12 @@ type thousandEyesConfig struct {
 }
 
 type retrievalConfig struct {
-	Enabled     bool
-	TmpDir      string
-	Timeout     time.Duration
-	MinInterval time.Duration
-	MaxJobs     int64
+	Enabled        bool
+	TmpDir         string
+	Timeout        time.Duration
+	MinInterval    time.Duration
+	MaxJobs        int64
+	LocationFilter module.LocationFilterConfig
 }
 
 type lotusConfig struct {

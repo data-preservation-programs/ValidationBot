@@ -88,6 +88,11 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 					errChannel <- errors.Wrap(err, "encountered error performing module")
 				}
 
+				if result == nil {
+					log.Info().Msg("validation result is nil, skipping publishing")
+					return
+				}
+
 				log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
 
 				resultBytes, err := json.Marshal(result)

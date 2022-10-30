@@ -9,6 +9,7 @@ import (
 	"validation-bot/module"
 	"validation-bot/task"
 
+	"github.com/filecoin-project/lotus/api"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
@@ -134,22 +135,54 @@ func (Dispatcher) Validate(definition task.Definition) error {
 }
 
 type Auditor struct {
-	log       zerolog.Logger
-	timeout   time.Duration
-	graphsync GraphSyncRetrieverBuilder
-	sem       *semaphore.Weighted
+	lotusAPI         api.Gateway
+	log              zerolog.Logger
+	timeout          time.Duration
+	graphsync        GraphSyncRetrieverBuilder
+	sem              *semaphore.Weighted
+	locationFilter   module.LocationFilterConfig
+	locationResolver *module.GeoLite2Resolver
 }
 
-func NewAuditor(graphsync GraphSyncRetrieverBuilder, timeout time.Duration, maxJobs int64) Auditor {
-	return Auditor{
-		log:       log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
-		timeout:   timeout,
-		graphsync: graphsync,
-		sem:       semaphore.NewWeighted(maxJobs),
+func NewAuditor(
+	lotusAPI api.Gateway,
+	graphsync GraphSyncRetrieverBuilder,
+	timeout time.Duration,
+	maxJobs int64,
+	locationFilter module.LocationFilterConfig,
+) (*Auditor, error) {
+	geolite2Resolver, err := module.NewGeoLite2Resolver()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create geolite2 resolver")
 	}
+
+	return &Auditor{
+		lotusAPI:         lotusAPI,
+		log:              log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
+		timeout:          timeout,
+		graphsync:        graphsync,
+		sem:              semaphore.NewWeighted(maxJobs),
+		locationFilter:   locationFilter,
+		locationResolver: geolite2Resolver,
+	}, nil
 }
 
-//nolint:gocognit
+func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
+	for _, addr := range minerInfo.MultiAddrs {
+		city, err := q.locationResolver.ResolveMultiAddr(addr)
+		if err != nil {
+			q.log.Error().Err(err).Msg("failed to resolve multiaddr with geolite2")
+			continue
+		}
+
+		if q.locationFilter.Match(city) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -165,6 +198,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	defer q.sem.Release(1)
 	q.log.Info().Str("target", validationInput.Target).Msg("starting retrieval validation")
 	provider := validationInput.Target
+
 	input := new(Input)
 
 	err := validationInput.Input.AssignTo(input)
@@ -178,56 +212,84 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	maxAvgSpeed := float64(0)
 	auditorErrors := make([]string, 0)
 
-	for _, protocol := range input.ProtocolPreference {
-		q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
+	q.log.Debug().Str("provider", provider).Msg("retrieving miner info")
 
-		switch protocol {
-		case GraphSync:
-			if input.DataCid == "" {
-				auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol")
-				continue
-			}
+	minerInfoResult, err := module.GetMinerInfo(ctx, q.lotusAPI, provider)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get miner info")
+	}
 
-			dataCid, err := cid.Decode(input.DataCid)
-			if err != nil {
-				auditorErrors = append(auditorErrors, "failed to decode data cid for GraphSync protocol: "+err.Error())
-				continue
-			}
+	//nolint:nestif
+	if minerInfoResult.ErrorCode != "" {
+		results = append(
+			results, ResultContent{
+				Status:       ResultStatus(minerInfoResult.ErrorCode),
+				ErrorMessage: minerInfoResult.ErrorMessage,
+			},
+		)
+	} else {
+		if !q.matchLocation(minerInfoResult) {
+			q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
+			return nil, nil
+		}
 
-			retriever, cleanup, err := q.graphsync.Build()
-			if err != nil {
-				auditorErrors = append(auditorErrors, "failed to build GraphSync retriever: "+err.Error())
-				continue
-			}
+		for _, protocol := range input.ProtocolPreference {
+			q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
 
-			result, err := retriever.Retrieve(ctx, provider, dataCid, q.timeout)
-			if err != nil {
-				auditorErrors = append(auditorErrors, "failed to retrieve data with GraphSync protocol: "+err.Error())
+			switch protocol {
+			case GraphSync:
+				if input.DataCid == "" {
+					auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol")
+					continue
+				}
+
+				dataCid, err := cid.Decode(input.DataCid)
+				if err != nil {
+					auditorErrors = append(
+						auditorErrors,
+						"failed to decode data cid for GraphSync protocol: "+err.Error(),
+					)
+					continue
+				}
+
+				retriever, cleanup, err := q.graphsync.Build()
+				if err != nil {
+					auditorErrors = append(auditorErrors, "failed to build GraphSync retriever: "+err.Error())
+					continue
+				}
+
+				result, err := retriever.Retrieve(ctx, minerInfoResult.MinerAddress, dataCid, q.timeout)
+				if err != nil {
+					auditorErrors = append(
+						auditorErrors,
+						"failed to retrieve data with GraphSync protocol: "+err.Error(),
+					)
+
+					cleanup()
+					continue
+				}
 
 				cleanup()
-				continue
+
+				result.Protocol = GraphSync
+				results = append(results, *result)
+				totalBytes += result.BytesDownloaded
+
+				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
+					minTTFB = result.TimeToFirstByte
+				}
+
+				if result.AverageSpeedPerSec > maxAvgSpeed {
+					maxAvgSpeed = result.AverageSpeedPerSec
+				}
+
+				if result.Status == Success {
+					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
+					break
+				}
+			default:
+				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
-
-			cleanup()
-
-			result.Protocol = GraphSync
-			results = append(results, *result)
-			totalBytes += result.BytesDownloaded
-
-			if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
-				minTTFB = result.TimeToFirstByte
-			}
-
-			if result.AverageSpeedPerSec > maxAvgSpeed {
-				maxAvgSpeed = result.AverageSpeedPerSec
-			}
-
-			if result.Status == Success {
-				q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
-				break
-			}
-		default:
-			return nil, errors.Errorf("unsupported protocol: %s", protocol)
 		}
 	}
 

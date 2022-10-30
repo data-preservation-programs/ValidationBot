@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"validation-bot/module"
 	"validation-bot/role"
 
 	"github.com/application-research/filclient"
 	"github.com/application-research/filclient/keystore"
 	"github.com/application-research/filclient/rep"
 	"github.com/application-research/filclient/retrievehelper"
+	"github.com/filecoin-project/go-address"
 	datatransfer "github.com/filecoin-project/go-data-transfer"
 	"github.com/filecoin-project/go-fil-markets/retrievalmarket"
 	"github.com/filecoin-project/lotus/api"
@@ -34,7 +34,12 @@ import (
 type Cleanup = func()
 
 type GraphSyncRetriever interface {
-	Retrieve(parent context.Context, provider string, dataCid cid.Cid, timeout time.Duration) (*ResultContent, error)
+	Retrieve(
+		parent context.Context,
+		minerAddress address.Address,
+		dataCid cid.Cid,
+		timeout time.Duration,
+	) (*ResultContent, error)
 }
 
 type MockGraphSyncRetriever struct {
@@ -44,11 +49,11 @@ type MockGraphSyncRetriever struct {
 //nolint:forcetypeassert
 func (m *MockGraphSyncRetriever) Retrieve(
 	parent context.Context,
-	provider string,
+	minerAddress address.Address,
 	dataCid cid.Cid,
 	timeout time.Duration,
 ) (*ResultContent, error) {
-	args := m.Called(parent, provider, dataCid, timeout)
+	args := m.Called(parent, minerAddress, dataCid, timeout)
 	return args.Get(0).(*ResultContent), args.Error(1)
 }
 
@@ -288,23 +293,11 @@ func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string
 
 func (g GraphSyncRetrieverImpl) Retrieve(
 	parent context.Context,
-	provider string,
+	minerAddress address.Address,
 	dataCid cid.Cid,
 	timeout time.Duration,
 ) (*ResultContent, error) {
-	g.log.Debug().Str("provider", provider).Msg("retrieving miner info")
-
-	minerInfoResult, err := module.GetMinerInfo(parent, g.lotusAPI, provider)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get miner info")
-	}
-
-	if minerInfoResult.ErrorCode != "" {
-		return &ResultContent{
-			Status:       ResultStatus(minerInfoResult.ErrorCode),
-			ErrorMessage: minerInfoResult.ErrorMessage,
-		}, nil
-	}
+	g.log.Debug().Str("provider", minerAddress.String()).Msg("retrieving miner info")
 
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
@@ -323,9 +316,12 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	filClient.SubscribeToDataTransferEvents(stats.OnDataTransferEvent)
 
 	go func() {
-		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("sending retrieval query")
+		g.log.Debug().Str("provider", minerAddress.String()).Str(
+			"dataCid",
+			dataCid.String(),
+		).Msg("sending retrieval query")
 
-		query, err := filClient.RetrievalQuery(ctx, minerInfoResult.MinerAddress, dataCid)
+		query, err := filClient.RetrievalQuery(ctx, minerAddress, dataCid)
 		if err != nil {
 			stats.done <- ResultContent{
 				Status:       QueryFailure,
@@ -357,9 +353,12 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 			return
 		}
 
-		g.log.Debug().Str("provider", provider).Str("dataCid", dataCid.String()).Msg("start retrieving content")
+		g.log.Debug().Str("provider", minerAddress.String()).Str(
+			"dataCid",
+			dataCid.String(),
+		).Msg("start retrieving content")
 
-		_, err = filClient.RetrieveContent(ctx, minerInfoResult.MinerAddress, proposal)
+		_, err = filClient.RetrieveContent(ctx, minerAddress, proposal)
 		if err != nil {
 			stats.done <- ResultContent{
 				Status:       RetrieveFailure,

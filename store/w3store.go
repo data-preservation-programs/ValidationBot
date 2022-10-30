@@ -118,7 +118,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 	return entries, nil
 }
 
-//nolint:funlen,gocognit,cyclop,varnamelen
+//nolint:funlen,cyclop,varnamelen
 func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclusive *cid.Cid, to cid.Cid) (
 	[]Entry,
 	error,
