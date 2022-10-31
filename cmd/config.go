@@ -87,6 +87,8 @@ type retrievalConfig struct {
 }
 
 type lotusConfig struct {
-	URL   string
-	Token string
+	URL                             string
+	Token                           string
+	StateMarketDealsURL             string
+	StateMarketDealsRefreshInterval time.Duration
 }

@@ -76,12 +76,13 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 	)
 }
 
-func TestRetrieval_GetTask_NoCidsProvided(t *testing.T) {
+func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 	assert := assert.New(t)
 	def := TaskDefinition{
 		ProtocolPreference: []Protocol{GraphSync},
 		DataCids:           []string{},
 		PieceCids:          []string{},
+		FromClients:        []string{"client1"},
 	}
 	definition, err := module.NewJSONB(def)
 	assert.NoError(err)
@@ -91,9 +92,23 @@ func TestRetrieval_GetTask_NoCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{}
-	_, err = dispatcher.GetTask(taskDef)
-	assert.ErrorContains(err, "no data or piece cids specified")
+	resolver := new(module.MockDealStatesResolver)
+	dispatcher := NewDispatcher(time.Second, resolver)
+	resolver.On("DealsByProviderClients", "provider", []string{"client1"}).Return(
+		[]module.SimplifiedDeal{
+			{
+				Label:    "label1",
+				PieceCID: "piece1",
+			},
+			{
+				Label:    "label2",
+				PieceCID: "piece2",
+			},
+		}, nil,
+	)
+	task, err := dispatcher.GetTask(taskDef)
+	assert.NoError(err)
+	assert.Contains(string(task.Input.Bytes), `dataCid":"label`)
 }
 
 func TestRetrieval_GetTasks(t *testing.T) {
@@ -117,7 +132,8 @@ func TestRetrieval_GetTasks(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(time.Second)
+	resolver := new(module.MockDealStatesResolver)
+	dispatcher := NewDispatcher(time.Second, resolver)
 	inputs, err := dispatcher.GetTasks([]task.Definition{taskDef1, taskDef2})
 	assert.NoError(err)
 	assert.Equal(2, len(inputs))
