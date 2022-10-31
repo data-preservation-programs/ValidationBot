@@ -175,6 +175,10 @@ func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
 			continue
 		}
 
+		q.log.Debug().Str("provider", minerInfo.MinerAddress.String()).
+			Str("continent", city.Continent.Code).Str("country", city.Country.IsoCode).
+			Msg("trying to match the provider with location filter")
+
 		if q.locationFilter.Match(city) {
 			return true
 		}

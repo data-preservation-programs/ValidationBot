@@ -136,11 +136,14 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclu
 		toStr := to.String()
 		url := "https://w3s.link/ipfs/" + toStr
 		log.Debug().Str("url", url).Msg("downloading ipfs content")
+
 		got, err := s.client.R().SetContext(ctx).Get(url)
-		log.Debug().Str("url", url).Dur("timeSpent", got.Time()).Str(
-			"status",
-			got.Status(),
-		).Msg("download response received")
+		if got != nil {
+			log.Debug().Str("url", url).Dur("timeSpent", got.Time()).Str(
+				"status",
+				got.Status(),
+			).Msg("download response received")
+		}
 
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to download car")
@@ -310,7 +313,6 @@ func (s *W3StorePublisher) initialize(ctx context.Context) error {
 
 func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) error {
 	log := s.log.With().Str("value", value.String()).Logger()
-	log.Debug().Msg("publishing new name")
 
 	sequence := uint64(0)
 	if s.lastSequence != nil {
@@ -337,11 +339,18 @@ func (s *W3StorePublisher) publishNewName(ctx context.Context, value cid.Cid) er
 	}
 
 	url := "https://name.web3.storage/name/" + peerStr
-	log.Debug().Str("url", url).Msg("publishing new name")
+	log.Debug().Str("url", url).Msg("publish new name")
 
 	resp, err := s.client.R().SetContext(ctx).
 		SetBody(base64.StdEncoding.EncodeToString(encoded)).
 		Post(url)
+	if resp != nil {
+		log.Debug().Str("url", url).Dur("timeSpent", resp.Time()).Str(
+			"status",
+			resp.Status(),
+		).Msg("publish new name response received")
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "failed to publish new record")
 	}
@@ -372,11 +381,14 @@ func getLastRecord(
 ) (*ipns_pb.IpnsEntry, error) {
 	url := "https://name.web3.storage/name/" + peerCid
 	log.Debug().Str("url", url).Msg("getting last record")
+
 	resp, err := client.R().SetContext(ctx).Get(url)
-	log.Debug().Str("url", url).Dur("timeSpent", resp.Time()).Str(
-		"status",
-		resp.Status(),
-	).Msg("got last record response")
+	if resp != nil {
+		log.Debug().Str("url", url).Dur("timeSpent", resp.Time()).Str(
+			"status",
+			resp.Status(),
+		).Msg("got last record response")
+	}
 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get last cid")
@@ -448,11 +460,14 @@ func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
 
 	url := "https://api.web3.storage/upload"
 	s.log.Debug().Str("url", url).Msg("uploading data")
+
 	responseStr, err := s.client.R().SetContext(ctx).SetBody(buffer.Bytes()).Post(url)
-	s.log.Debug().Str("url", url).Dur("timeSpent", responseStr.Time()).Str(
-		"status",
-		responseStr.Status(),
-	).Msg("uploaded data response")
+	if responseStr != nil {
+		s.log.Debug().Str("url", url).Dur("timeSpent", responseStr.Time()).Str(
+			"status",
+			responseStr.Status(),
+		).Msg("uploaded data response")
+	}
 
 	if err != nil {
 		return errors.Wrap(err, "failed to upload content")
