@@ -27,7 +27,7 @@ jobs:
       - name: Deps
         run: make deps
 
-      - name: Build
+      - name: Download maxmind
         env:
           MAXMIND_LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
         run: make maxmind

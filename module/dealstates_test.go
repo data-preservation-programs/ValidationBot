@@ -24,19 +24,19 @@ func TestDealStates(t *testing.T) {
 	err = dealStates.refresh(context.Background())
 	assert.Nil(err)
 	deals := dealStates.DealsByProvider("f01895913")
-	assert.Equal(6, len(deals))
+	assert.Equal(1, len(deals))
 	assert.Contains(deals[0].PieceCID, "baga")
 	assert.Contains(deals[0].Label, "mAX")
 
 	deals, err = dealStates.DealsByProviderClient("f01895913", "f01850099")
 	assert.Nil(err)
-	assert.Equal(6, len(deals))
+	assert.Equal(1, len(deals))
 	assert.Contains(deals[0].PieceCID, "baga")
 	assert.Contains(deals[0].Label, "mAX")
 
 	deals, err = dealStates.DealsByProviderClients("f01895913", []string{"f14abwn2goturifmt27s2bssoe3fup2b3npkgfzui"})
 	assert.Nil(err)
-	assert.Equal(6, len(deals))
+	assert.Equal(1, len(deals))
 	assert.Contains(deals[0].PieceCID, "baga")
 	assert.Contains(deals[0].Label, "mAX")
 

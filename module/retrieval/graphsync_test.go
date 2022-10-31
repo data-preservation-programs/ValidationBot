@@ -60,7 +60,7 @@ func TestGraphSync_Retrieve_NotAvailable(t *testing.T) {
 	assert.Contains(result.ErrorMessage, "key not found")
 	assert.EqualValues(0, result.BytesDownloaded)
 	assert.EqualValues(0, result.TimeToFirstByte.Seconds())
-	assert.Less(result.TimeElapsed.Seconds(), 1)
+	assert.Less(result.TimeElapsed.Seconds(), float64(1))
 }
 
 func TestGraphSync_Retrieve_Timeout(t *testing.T) {
