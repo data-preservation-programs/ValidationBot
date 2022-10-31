@@ -6,6 +6,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN git clone https://github.com/data-preservation-programs/ValidationBot.git .
 RUN git checkout ${CODEBUILD_RESOLVED_SOURCE_VERSION}
 
+ENV MAXMIND_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
 RUN make maxmind
 RUN make deps
 RUN make build
