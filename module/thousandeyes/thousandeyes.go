@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
-	"golang.org/x/exp/slices"
 )
 
 type Dispatcher struct {
@@ -30,50 +29,6 @@ type AuditorModule struct {
 	lotusAPI api.Gateway
 	client   *resty.Client
 	agents   []AgentID
-}
-
-func getHostAndIP(addr multiaddr.Multiaddr) (string, int, error) {
-	protocols := addr.Protocols()
-	const expectedProtocolCount = 2
-
-	if len(protocols) != expectedProtocolCount {
-		return "", 0, errors.New("multiaddr does not contain two protocols")
-	}
-
-	if !slices.Contains(
-		[]int{
-			multiaddr.P_IP4, multiaddr.P_IP6,
-			multiaddr.P_DNS4, multiaddr.P_DNS6,
-			multiaddr.P_DNS, multiaddr.P_DNSADDR,
-		}, protocols[0].Code,
-	) {
-		return "", 0, errors.New("multiaddr does not contain a valid ip or dns protocol")
-	}
-
-	if protocols[1].Code != multiaddr.P_TCP {
-		return "", 0, errors.New("multiaddr does not contain a valid tcp protocol")
-	}
-
-	splitted := multiaddr.Split(addr)
-
-	component0, ok := splitted[0].(*multiaddr.Component)
-	if !ok {
-		return "", 0, errors.New("failed to cast component")
-	}
-
-	host := component0.Value()
-
-	component1, ok := splitted[1].(*multiaddr.Component)
-	if !ok {
-		return "", 0, errors.New("failed to cast component")
-	}
-
-	port, err := strconv.Atoi(component1.Value())
-	if err != nil {
-		return "", 0, errors.Wrap(err, "failed to parse port")
-	}
-
-	return host, port, nil
 }
 
 func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
@@ -103,7 +58,7 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 	for _, addr := range minerInfoResult.MultiAddrs {
 		addr := addr
 
-		host, port, err := getHostAndIP(addr)
+		host, _, port, err := module.ResolveHostAndIP(addr)
 		if err != nil {
 			a.log.Error().Err(err).Msg("failed to get host and port from multiaddr")
 			continue

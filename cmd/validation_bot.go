@@ -40,6 +40,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/urfave/cli/v2"
 	"github.com/ziflex/lecho/v3"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -81,6 +82,7 @@ func setConfig(configPath string) (*config, error) {
 			ListenAddr:               "/ip4/0.0.0.0/tcp/7998",
 			TopicName:                "/filecoin/validation_bot/dev",
 			CheckInterval:            time.Minute,
+			AuthenticationTokens:     []string{},
 		},
 		Auditor: auditorConfig{
 			Enabled:      true,
@@ -126,6 +128,11 @@ func setConfig(configPath string) (*config, error) {
 				TmpDir:      os.TempDir(),
 				Timeout:     time.Minute,
 				MinInterval: 10 * time.Minute,
+				MaxJobs:     int64(1),
+				LocationFilter: module.LocationFilterConfig{
+					Continent: nil,
+					Country:   nil,
+				},
 			},
 		},
 		Lotus: lotusConfig{
@@ -261,6 +268,23 @@ func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	api.Logger = echoLogger
 	api.Use(lecho.Middleware(lecho.Config{Logger: echoLogger}))
 	api.Use(middleware.Recover())
+
+	handleAuth := func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if len(cfg.Dispatcher.AuthenticationTokens) > 0 {
+				auth := c.Request().Header.Get("Authorization")
+				if auth == "" ||
+					strings.ToLower(auth[:7]) != "bearer " ||
+					!slices.Contains(cfg.Dispatcher.AuthenticationTokens, auth[7:]) {
+					return echo.NewHTTPError(http.StatusUnauthorized, "invalid auth token")
+				}
+			}
+			return next(c)
+		}
+	}
+
+	api.Use(handleAuth)
+
 	api.POST(
 		createRoute, func(c echo.Context) error {
 			return postTaskHandler(c, dispatcher)
@@ -573,12 +597,24 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 	if cfg.Module.Retrieval.Enabled {
 		tmpDir := cfg.Module.Retrieval.TmpDir
 		timeout := cfg.Module.Retrieval.Timeout
+		maxJobs := cfg.Module.Retrieval.MaxJobs
 		graphsync := retrieval.GraphSyncRetrieverBuilderImpl{
 			LotusAPI: lotusAPI,
 			BaseDir:  tmpDir,
 		}
-		retrievalModule := retrieval.NewAuditor(&graphsync, timeout)
-		modules[task.Retrieval] = &retrievalModule
+
+		retrievalModule, err := retrieval.NewAuditor(
+			lotusAPI,
+			&graphsync,
+			timeout,
+			maxJobs,
+			cfg.Module.Retrieval.LocationFilter,
+		)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "cannot create retrieval module")
+		}
+
+		modules[task.Retrieval] = retrievalModule
 	}
 
 	auditor, err := auditor.NewAuditor(

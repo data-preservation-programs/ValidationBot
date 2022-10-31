@@ -182,7 +182,8 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor := NewAuditor(graphsync, 10*time.Second)
+	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{})
+	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 	}
@@ -219,7 +220,8 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor := NewAuditor(graphsync, 10*time.Second)
+	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{})
+	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
@@ -244,14 +246,50 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	assert.Contains(out.Results[0].ErrorMessage, "key not found")
 }
 
+func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
+	assert := assert.New(t)
+	ctx := context.Background()
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	defer closer()
+	assert.NoError(err)
+
+	graphsync := GraphSyncRetrieverBuilderImpl{
+		LotusAPI: api,
+		BaseDir:  "/tmp",
+	}
+	auditor, err := NewAuditor(
+		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+			Continent: []string{"AAA"},
+		},
+	)
+	assert.NoError(err)
+	in := Input{
+		ProtocolPreference: []Protocol{GraphSync},
+		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
+	}
+	input, err := module.NewJSONB(in)
+	assert.NoError(err)
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f03223",
+			},
+			Input: input,
+		},
+	)
+	assert.NoError(err)
+	assert.Nil(result)
+}
+
 func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	assert := assert.New(t)
-
 	ctx := context.Background()
-
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	defer closer()
 	mockRetriever := new(MockGraphSyncRetriever)
 	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
-	auditor := NewAuditor(&mockRetrieverBuilder, 10*time.Second)
+	auditor, err := NewAuditor(api, &mockRetrieverBuilder, 10*time.Second, 1, module.LocationFilterConfig{})
+	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
 		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
