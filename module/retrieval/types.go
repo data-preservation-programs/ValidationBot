@@ -20,6 +20,7 @@ type TaskDefinition struct {
 	ProtocolPreference []Protocol `json:"protocolPreference"`
 	DataCids           []string   `json:"dataCids"`
 	PieceCids          []string   `json:"pieceCids"`
+	FromClients        []string   `json:"fromClients"`
 }
 
 type Input struct {

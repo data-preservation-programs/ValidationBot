@@ -19,14 +19,16 @@ import (
 )
 
 type Dispatcher struct {
-	minInterval time.Duration
-	lastRun     map[string]time.Time
+	minInterval  time.Duration
+	lastRun      map[string]time.Time
+	dealResolver module.DealStatesResolver
 }
 
-func NewDispatcher(minInterval time.Duration) Dispatcher {
+func NewDispatcher(minInterval time.Duration, dealResolver module.DealStatesResolver) Dispatcher {
 	return Dispatcher{
-		minInterval: minInterval,
-		lastRun:     make(map[string]time.Time),
+		minInterval:  minInterval,
+		lastRun:      make(map[string]time.Time),
+		dealResolver: dealResolver,
 	}
 }
 
@@ -88,8 +90,28 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 	case len(def.PieceCids) > 0:
 		index := genRandNumber(len(def.PieceCids))
 		pieceCid = def.PieceCids[index]
+	case len(def.FromClients) > 0:
+		deals, err := d.dealResolver.DealsByProviderClients(definition.Target, def.FromClients)
+		if err != nil {
+			return module.ValidationInput{}, errors.Wrap(err, "failed to get deals")
+		}
+
+		if len(deals) == 0 {
+			return module.ValidationInput{}, errors.New("no deals found")
+		}
+
+		index := genRandNumber(len(deals))
+		dataCid = deals[index].Label
+		pieceCid = deals[index].PieceCID
 	default:
-		return module.ValidationInput{}, errors.New("no data or piece cids specified")
+		deals := d.dealResolver.DealsByProvider(definition.Target)
+		if len(deals) == 0 {
+			return module.ValidationInput{}, errors.New("no deals found")
+		}
+
+		index := genRandNumber(len(deals))
+		dataCid = deals[index].Label
+		pieceCid = deals[index].PieceCID
 	}
 
 	input := Input{

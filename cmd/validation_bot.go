@@ -136,8 +136,10 @@ func setConfig(configPath string) (*config, error) {
 			},
 		},
 		Lotus: lotusConfig{
-			URL:   "https://api.node.glif.io/",
-			Token: "",
+			URL:                             "https://api.node.glif.io/",
+			Token:                           "",
+			StateMarketDealsURL:             "https://marketdeals.s3.amazonaws.com/StateMarketDeals.json",
+			StateMarketDealsRefreshInterval: 4 * time.Hour,
 		},
 	}
 
@@ -685,7 +687,32 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 	}
 
 	if cfg.Module.Retrieval.Enabled {
-		retrievalModule := retrieval.NewDispatcher(cfg.Module.Retrieval.MinInterval)
+		var header http.Header
+		if cfg.Lotus.Token != "" {
+			header = http.Header{
+				"Authorization": []string{"Bearer " + cfg.Lotus.Token},
+			}
+		}
+
+		var clientCloser jsonrpc.ClientCloser
+
+		lotusAPI, clientCloser, err := client.NewGatewayRPCV1(ctx, cfg.Lotus.URL, header)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot create lotus api")
+		}
+
+		defer clientCloser()
+
+		dealResolver, err := module.NewDealStatesResolver(
+			ctx,
+			lotusAPI, cfg.Lotus.StateMarketDealsURL,
+			cfg.Lotus.StateMarketDealsRefreshInterval,
+		)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot create deal resolver")
+		}
+
+		retrievalModule := retrieval.NewDispatcher(cfg.Module.Retrieval.MinInterval, dealResolver)
 		modules[task.Retrieval] = &retrievalModule
 	}
 
