@@ -1,5 +1,6 @@
 FROM public.ecr.aws/docker/library/golang:1.18.7
 ARG MAXMIND_LICENSE_KEY
+ARG GITHUB_TOKEN
 RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make wget pkg-config hwloc git
 WORKDIR /app
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y

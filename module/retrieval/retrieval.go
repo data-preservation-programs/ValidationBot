@@ -44,6 +44,10 @@ func genRandNumber(max int) int {
 }
 
 func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]module.ValidationInput, error) {
+	if !d.dealResolver.Ready() {
+		return nil, errors.New("deal resolver not ready")
+	}
+
 	// Group by provider
 	definitionsByProvider := make(map[string][]task.Definition)
 	for _, def := range definitions {
@@ -74,6 +78,10 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput, error) {
 	def := new(TaskDefinition)
+
+	if !d.dealResolver.Ready() {
+		return module.ValidationInput{}, errors.New("deal resolver not ready")
+	}
 
 	err := definition.Definition.AssignTo(def)
 	if err != nil {

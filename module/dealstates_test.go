@@ -23,6 +23,7 @@ func TestDealStates(t *testing.T) {
 	assert.Nil(err)
 	err = dealStates.refresh(context.Background())
 	assert.Nil(err)
+	assert.True(dealStates.Ready())
 	deals := dealStates.DealsByProvider("f01895913")
 	assert.Equal(1, len(deals))
 	assert.Equal("baga6ea4seaqauc2ydwxtamwtij6xwe7ewoxmxprdoqn4zjnuknz77v7ijewxchq", deals[0].PieceCID)

@@ -44,6 +44,7 @@ type SimplifiedDeal struct {
 }
 
 type DealStatesResolver interface {
+	Ready() bool
 	DealsByProvider(provider string) []SimplifiedDeal
 	DealsByProviderClient(provider string, client string) ([]SimplifiedDeal, error)
 	DealsByProviderClients(provider string, clients []string) ([]SimplifiedDeal, error)
@@ -51,6 +52,10 @@ type DealStatesResolver interface {
 
 type MockDealStatesResolver struct {
 	mock.Mock
+}
+
+func (s *MockDealStatesResolver) Ready() bool {
+	return true
 }
 
 //nolint:all
@@ -77,6 +82,11 @@ type GlifDealStatesResolver struct {
 	lotusAPI         api.Gateway
 	idLookupCache    map[string]string
 	cacheMutex       sync.RWMutex
+	ready            bool
+}
+
+func (s *GlifDealStatesResolver) Ready() bool {
+	return s.ready
 }
 
 func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, error) {
@@ -224,6 +234,7 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 		return errors.New("no active deals")
 	}
 
+	s.ready = true
 	return nil
 }
 
@@ -237,25 +248,22 @@ func NewDealStatesResolver(ctx context.Context, lotusAPI api.Gateway, url string
 		lotusAPI:         lotusAPI,
 		idLookupCache:    make(map[string]string),
 		cacheMutex:       sync.RWMutex{},
-	}
-
-	err := dealStates.refresh(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to refresh deal states")
+		ready:            false,
 	}
 
 	go func() {
 		log := log.With().Str("module", "dealstates").Caller().Logger()
 
 		for {
+			err := dealStates.refresh(ctx)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to refresh deal states")
+			}
+
 			select {
 			case <-ctx.Done():
 				return
 			case <-time.After(refreshInterval):
-				err := dealStates.refresh(ctx)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to refresh deal states")
-				}
 			}
 		}
 	}()
