@@ -2,16 +2,16 @@ package module
 
 import (
 	"context"
-	"encoding/json"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/bcicen/jstream"
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/types"
-	"github.com/go-resty/resty/v2"
-	"github.com/ipfs/go-cid"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/mock"
@@ -22,8 +22,12 @@ type Deal struct {
 	State    DealState
 }
 
+type Cid struct {
+	Root string `json:"/" mapstructure:"/"`
+}
+
 type DealProposal struct {
-	PieceCID cid.Cid
+	PieceCID Cid
 	Client   string
 	Provider string
 	Label    string
@@ -149,34 +153,45 @@ func (s *GlifDealStatesResolver) DealsByProviderClients(provider string, clients
 
 func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 	log := log.With().Str("module", "dealstates").Caller().Logger()
-	client := resty.New()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.url, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to create request")
+	}
 
 	log.Debug().Str("url", s.url).Msg("refreshing deal states")
-	got, err := client.R().SetContext(ctx).Get(s.url)
 
-	if got != nil {
-		log.Debug().Str("url", s.url).Dur("timeSpent", got.Time()).Str(
-			"status",
-			got.Status(),
-		).Msg("deal states response received")
-	}
+	now := time.Now()
 
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return errors.Wrap(err, "failed to get deal states")
+		return errors.Wrap(err, "failed to make request")
 	}
 
-	deals := make(map[string]Deal)
+	defer resp.Body.Close()
 
-	err = json.Unmarshal(got.Body(), &deals)
-	if err != nil {
-		return errors.Wrap(err, "failed to unmarshal deal states")
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
+	decoder := jstream.NewDecoder(resp.Body, 1).EmitKV()
 	active := 0
 	inactive := 0
 	states := make(map[string]map[string][]SimplifiedDeal)
 
-	for _, deal := range deals {
+	for stream := range decoder.Stream() {
+		keyValuePair, ok := stream.Value.(jstream.KV)
+		if !ok {
+			return errors.New("unexpected stream value")
+		}
+
+		var deal Deal
+
+		err = mapstructure.Decode(keyValuePair.Value, &deal)
+		if err != nil {
+			return errors.Wrap(err, "failed to decode deal")
+		}
+
 		if deal.State.SlashEpoch > 0 || deal.State.SectorStartEpoch < 0 {
 			inactive++
 			continue
@@ -193,7 +208,7 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 		states[deal.Proposal.Provider][deal.Proposal.Client] =
 			append(
 				states[deal.Proposal.Provider][deal.Proposal.Client], SimplifiedDeal{
-					PieceCID: deal.Proposal.PieceCID.String(),
+					PieceCID: deal.Proposal.PieceCID.Root,
 					Label:    deal.Proposal.Label,
 				},
 			)
@@ -202,7 +217,13 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 
 	s.byProviderClient = states
 
-	log.Debug().Int("inactive_deals", inactive).Int("active_deals", active).Msg("refreshed deal states")
+	log.Debug().Int("inactive_deals", inactive).Dur("timeSpent", time.Since(now)).
+		Int("active_deals", active).Msg("refreshed deal states")
+
+	if active == 0 {
+		return errors.New("no active deals")
+	}
+
 	return nil
 }
 
