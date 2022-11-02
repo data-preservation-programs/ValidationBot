@@ -43,7 +43,10 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 	q.log.Info().Str("target", input.Target).Msg("start validating query ask")
 	provider := input.Target
 
-	result, err := q.QueryMiner(ctx, provider)
+	queryContext, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+
+	result, err := q.QueryMiner(queryContext, provider)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query miner")
 	}

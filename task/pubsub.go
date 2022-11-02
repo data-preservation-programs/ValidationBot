@@ -148,6 +148,11 @@ func NewLibp2pTaskPublisher(ctx context.Context, libp2p host.Host, topicName str
 		return nil, errors.Wrap(err, "cannot join TopicName")
 	}
 
+	_, err = topic.Subscribe()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot subscribe to TopicName")
+	}
+
 	addrInfo := peer.AddrInfo{
 		ID:    libp2p.ID(),
 		Addrs: libp2p.Addrs(),

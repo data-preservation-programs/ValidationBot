@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 			},
 			TaskPublisher: mockPublisher,
 			CheckInterval: 1 * time.Minute,
+			Jitter:        time.Millisecond * 10,
 		},
 	)
 	assert.Nil(err)
@@ -68,6 +70,15 @@ func TestDispatcher_Remove(t *testing.T) {
 	found2 := task.Definition{}
 	response = db.Find(&found2, tsk.ID)
 	assert.Equal(int64(0), response.RowsAffected)
+}
+
+func TestDispatcher_additionalJitter(t *testing.T) {
+	assert := assert.New(t)
+	_, dper, _ := createDispatcher(t)
+	jitter := dper.additionalJitter()
+	fmt.Println(int64(jitter))
+	assert.GreaterOrEqual(jitter, 0*time.Millisecond)
+	assert.Less(jitter, 10*time.Millisecond)
 }
 
 func TestDispatcher_Start_DispatchMultipleTimes(t *testing.T) {
