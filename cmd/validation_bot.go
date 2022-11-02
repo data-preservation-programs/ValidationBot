@@ -83,6 +83,7 @@ func setConfig(configPath string) (*config, error) {
 			TopicName:                "/filecoin/validation_bot/dev",
 			CheckInterval:            time.Minute,
 			AuthenticationTokens:     []string{},
+			Jitter:                   time.Minute,
 		},
 		Auditor: auditorConfig{
 			Enabled:      true,
@@ -721,6 +722,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 		TaskPublisher: taskPublisher,
 		CheckInterval: cfg.Dispatcher.CheckInterval,
 		Modules:       modules,
+		Jitter:        cfg.Dispatcher.Jitter,
 	}
 
 	dispatcher, err := dispatcher.NewDispatcher(dispatcherConfig)

@@ -28,6 +28,7 @@ type dispatcherConfig struct {
 	TopicName                string
 	CheckInterval            time.Duration
 	AuthenticationTokens     []string
+	Jitter                   time.Duration
 }
 
 type auditorConfig struct {
