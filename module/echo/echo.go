@@ -32,8 +32,8 @@ func (e Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 	e.log.Info().Bytes("definition", input.Input.Bytes).Msgf("performing validation")
 
 	output := module.ValidationResult{
-		Task:   input.Task,
-		Result: input.Input,
+		ValidationInput: input,
+		Result:          input.Input,
 	}
 	return &output, nil
 }

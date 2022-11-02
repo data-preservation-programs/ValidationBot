@@ -57,8 +57,8 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 	}
 
 	return &module.ValidationResult{
-		Task:   input.Task,
-		Result: jsonb,
+		ValidationInput: input,
+		Result:          jsonb,
 	}, nil
 }
 

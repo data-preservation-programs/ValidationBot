@@ -44,7 +44,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
 	assert.Regexp(
-		`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]","pieceCid":""}`,
+		`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]","pieceCid":"","label":""}`,
 		string(input.Input.Bytes),
 	)
 }
@@ -71,7 +71,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
 	assert.Regexp(
-		`{"protocolPreference":\["GraphSync"\],"dataCid":"","pieceCid":"cid[1234]"}`,
+		`{"protocolPreference":\["GraphSync"\],"dataCid":"","pieceCid":"cid[1234]","label":""}`,
 		string(input.Input.Bytes),
 	)
 }
@@ -108,7 +108,7 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 	)
 	task, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
-	assert.Contains(string(task.Input.Bytes), `dataCid":"label`)
+	assert.Contains(string(task.Input.Bytes), `label":"label`)
 }
 
 func TestRetrieval_GetTasks(t *testing.T) {
@@ -166,26 +166,6 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
 
-func TestRetrieval_Dispatcher_Validate_NoCidProvided(t *testing.T) {
-	assert := assert.New(t)
-	def := TaskDefinition{
-		ProtocolPreference: []Protocol{GraphSync},
-		DataCids:           []string{},
-		PieceCids:          []string{},
-	}
-	definition, err := module.NewJSONB(def)
-	assert.NoError(err)
-	taskDef := task.Definition{
-		Target:     "provider",
-		Definition: definition,
-		ID:         uuid.New(),
-		Type:       task.Retrieval,
-	}
-	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
-	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "no data or piece cids specified")
-}
-
 func TestRetrieval_CidNotGiven(t *testing.T) {
 	assert := assert.New(t)
 
@@ -221,7 +201,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
 	assert.Equal(0, len(out.Results))
-	assert.Equal([]string{"data cid is required for GraphSync protocol"}, out.AuditorErrors)
+	assert.Equal([]string{"data cid or label is required for GraphSync protocol"}, out.AuditorErrors)
 }
 
 func TestRetrieval_DataNotFound(t *testing.T) {

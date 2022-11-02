@@ -27,6 +27,7 @@ type Input struct {
 	ProtocolPreference []Protocol `json:"protocolPreference"`
 	DataCid            string     `json:"dataCid"`
 	PieceCid           string     `json:"pieceCid"`
+	Label              string     `json:"label"`
 }
 
 type ResultStatus string

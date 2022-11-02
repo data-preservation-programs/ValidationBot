@@ -90,6 +90,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 
 	var dataCid string
 	var pieceCid string
+	var label string
 
 	switch {
 	case len(def.DataCids) > 0:
@@ -109,7 +110,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 		}
 
 		index := genRandNumber(len(deals))
-		dataCid = deals[index].Label
+		label = deals[index].Label
 		pieceCid = deals[index].PieceCID
 	default:
 		deals := d.dealResolver.DealsByProvider(definition.Target)
@@ -118,7 +119,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 		}
 
 		index := genRandNumber(len(deals))
-		dataCid = deals[index].Label
+		label = deals[index].Label
 		pieceCid = deals[index].PieceCID
 	}
 
@@ -126,6 +127,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 		ProtocolPreference: def.ProtocolPreference,
 		DataCid:            dataCid,
 		PieceCid:           pieceCid,
+		Label:              label,
 	}
 
 	jsonb, err := module.NewJSONB(input)
@@ -151,10 +153,6 @@ func (Dispatcher) Validate(definition task.Definition) error {
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
 		return errors.Wrap(err, "failed to unmarshal definition")
-	}
-
-	if len(def.DataCids) == 0 && len(def.PieceCids) == 0 {
-		return errors.New("no data or piece cids specified")
 	}
 
 	if len(def.ProtocolPreference) != 1 || def.ProtocolPreference[0] != GraphSync {
@@ -269,15 +267,19 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 		for _, protocol := range input.ProtocolPreference {
 			q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
+			dataCidOrLabel := input.DataCid
+			if dataCidOrLabel == "" {
+				dataCidOrLabel = input.Label
+			}
 
 			switch protocol {
 			case GraphSync:
-				if input.DataCid == "" {
-					auditorErrors = append(auditorErrors, "data cid is required for GraphSync protocol")
+				if dataCidOrLabel == "" {
+					auditorErrors = append(auditorErrors, "data cid or label is required for GraphSync protocol")
 					continue
 				}
 
-				dataCid, err := cid.Decode(input.DataCid)
+				dataCid, err := cid.Decode(dataCidOrLabel)
 				if err != nil {
 					auditorErrors = append(
 						auditorErrors,
@@ -341,7 +343,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	return &module.ValidationResult{
-		Task:   validationInput.Task,
-		Result: jsonb,
+		ValidationInput: validationInput,
+		Result:          jsonb,
 	}, nil
 }
