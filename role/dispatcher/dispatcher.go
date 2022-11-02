@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"encoding/json"
+	"math/rand"
 	"time"
 
 	"validation-bot/module"
@@ -95,6 +96,11 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	return nil
 }
 
+func jitter() time.Duration {
+	//nolint:gosec,gomnd
+	return time.Duration(rand.Intn(60)) * time.Second
+}
+
 func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, input module.ValidationInput) error {
 	g.log.Info().Str("moduleName", input.Task.Type).
 		Str("id", definitionID.String()).Interface("task", input).Msg("dispatching task")
@@ -111,7 +117,7 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, in
 
 	err = g.db.WithContext(ctx).Exec(
 		"UPDATE definitions SET dispatched_times = dispatched_times + 1, updated_at = ? WHERE id = ?",
-		time.Now(),
+		time.Now().Add(jitter()),
 		definitionID,
 	).Error
 	if err != nil {
