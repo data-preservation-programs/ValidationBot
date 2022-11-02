@@ -166,26 +166,6 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
 
-func TestRetrieval_Dispatcher_Validate_NoCidProvided(t *testing.T) {
-	assert := assert.New(t)
-	def := TaskDefinition{
-		ProtocolPreference: []Protocol{GraphSync},
-		DataCids:           []string{},
-		PieceCids:          []string{},
-	}
-	definition, err := module.NewJSONB(def)
-	assert.NoError(err)
-	taskDef := task.Definition{
-		Target:     "provider",
-		Definition: definition,
-		ID:         uuid.New(),
-		Type:       task.Retrieval,
-	}
-	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
-	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "no data or piece cids specified")
-}
-
 func TestRetrieval_CidNotGiven(t *testing.T) {
 	assert := assert.New(t)
 

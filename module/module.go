@@ -37,7 +37,7 @@ type (
 )
 
 type ValidationResult struct {
-	task.Task
+	ValidationInput
 	Result pgtype.JSONB `json:"result" gorm:"type:jsonb;default:'{}'"`
 }
 

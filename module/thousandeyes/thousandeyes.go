@@ -119,8 +119,8 @@ func (a AuditorModule) Validate(ctx context.Context, input module.ValidationInpu
 	}
 
 	out := module.ValidationResult{
-		Task:   input.Task,
-		Result: result,
+		ValidationInput: input,
+		Result:          result,
 	}
 	return &out, nil
 }
