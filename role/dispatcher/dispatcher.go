@@ -2,8 +2,9 @@ package dispatcher
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
-	"math/rand"
+	"math/big"
 	"time"
 
 	"validation-bot/module"
@@ -23,6 +24,7 @@ type Dispatcher struct {
 	modules       map[task.Type]module.DispatcherModule
 	checkInterval time.Duration
 	log           zerolog.Logger
+	jitter        time.Duration
 }
 
 type Config struct {
@@ -30,6 +32,7 @@ type Config struct {
 	TaskPublisher task.Publisher
 	Modules       map[task.Type]module.DispatcherModule
 	CheckInterval time.Duration
+	Jitter        time.Duration
 }
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
@@ -41,6 +44,7 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 		modules:       config.Modules,
 		checkInterval: config.CheckInterval,
 		log:           log2.With().Str("role", "dispatcher").Caller().Logger(),
+		jitter:        config.Jitter,
 	}, nil
 }
 
@@ -96,9 +100,13 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 	return nil
 }
 
-func jitter() time.Duration {
-	//nolint:gosec,gomnd
-	return time.Duration(rand.Intn(60)) * time.Second
+func (g Dispatcher) additionalJitter() time.Duration {
+	rnd, err := rand.Int(rand.Reader, big.NewInt(g.jitter.Nanoseconds()))
+	if err != nil {
+		panic(err)
+	}
+
+	return time.Duration(rnd.Int64()) * time.Nanosecond
 }
 
 func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, input module.ValidationInput) error {
@@ -117,7 +125,7 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, in
 
 	err = g.db.WithContext(ctx).Exec(
 		"UPDATE definitions SET dispatched_times = dispatched_times + 1, updated_at = ? WHERE id = ?",
-		time.Now().Add(jitter()),
+		time.Now().Add(g.additionalJitter()),
 		definitionID,
 	).Error
 	if err != nil {
