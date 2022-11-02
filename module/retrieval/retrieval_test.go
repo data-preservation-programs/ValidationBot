@@ -37,7 +37,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{}
+	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -64,7 +64,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{}
+	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -161,7 +161,7 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{}
+	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
@@ -181,7 +181,7 @@ func TestRetrieval_Dispatcher_Validate_NoCidProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := Dispatcher{}
+	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "no data or piece cids specified")
 }

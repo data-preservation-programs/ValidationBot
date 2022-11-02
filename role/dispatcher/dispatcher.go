@@ -79,8 +79,6 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
 
 				for id, input := range tasks {
-					log.Info().Str("id", id.String()).Interface("task", input).Msg("dispatching task")
-
 					err = g.dispatchOnce(ctx, id, input)
 					if err != nil {
 						errChannel <- errors.Wrap(err, "cannot dispatch task")
@@ -98,6 +96,9 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 }
 
 func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, input module.ValidationInput) error {
+	g.log.Info().Str("moduleName", input.Task.Type).
+		Str("id", definitionID.String()).Interface("task", input).Msg("dispatching task")
+
 	bytes, err := json.Marshal(input)
 	if err != nil {
 		return errors.Wrap(err, "cannot marshal task input")
