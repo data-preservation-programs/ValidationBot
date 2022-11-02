@@ -32,7 +32,7 @@ type (
 	SimpleDispatcher struct{}
 	ValidationInput  struct {
 		task.Task
-		Input pgtype.JSONB `json:"input"`
+		Input pgtype.JSONB `json:"input" gorm:"type:jsonb;default:'{}'"`
 	}
 )
 
@@ -42,7 +42,7 @@ type ValidationResult struct {
 }
 
 type ValidationResultModel struct {
-	task.Task
+	ValidationInput
 	Result      pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
 	Cid         string
 	PreviousCid *string

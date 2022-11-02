@@ -120,11 +120,11 @@ func (o Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, pee
 	}
 
 	toStore := module.ValidationResultModel{
-		Task:        result.Task,
-		Result:      result.Result,
-		Cid:         cid.String(),
-		PeerID:      peerID.String(),
-		PreviousCid: previousCid,
+		ValidationInput: result.ValidationInput,
+		Result:          result.Result,
+		Cid:             cid.String(),
+		PeerID:          peerID.String(),
+		PreviousCid:     previousCid,
 	}
 
 	err = o.db.WithContext(ctx).Create(&toStore).Error
