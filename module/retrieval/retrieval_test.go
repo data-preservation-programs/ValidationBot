@@ -201,7 +201,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
 	assert.Equal(0, len(out.Results))
-	assert.Equal([]string{"data cid or label is required for GraphSync protocol"}, out.AuditorErrors)
+	assert.Equal("skipped", string(out.Status))
 }
 
 func TestRetrieval_DataNotFound(t *testing.T) {
@@ -237,9 +237,10 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	err = result.Result.AssignTo(out)
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
-	assert.Equal(0, len(out.AuditorErrors))
-	assert.Equal(QueryResponseError, out.Results[0].Status)
-	assert.Contains(out.Results[0].ErrorMessage, "key not found")
+	assert.Equal(QueryResponseError, out.Results["GraphSync"].Status)
+	assert.Equal(QueryResponseError, out.Status)
+	assert.Contains(out.Results["GraphSync"].ErrorMessage, "key not found")
+	assert.Contains(out.ErrorMessage, "key not found")
 }
 
 func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
@@ -317,8 +318,8 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	err = result.Result.AssignTo(out)
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
-	assert.Equal(0, len(out.AuditorErrors))
-	assert.Equal(Success, out.Results[0].Status)
+	assert.Equal(Success, out.Results["GraphSync"].Status)
+	assert.Equal(Success, out.Status)
 	assert.EqualValues(100, out.TotalBytesDownloaded)
 	assert.EqualValues(10, out.MaxAverageSpeedPerSec)
 	assert.Equal(2*time.Second, out.MinTimeToFirstByte)

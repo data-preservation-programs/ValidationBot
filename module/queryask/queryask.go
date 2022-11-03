@@ -78,6 +78,13 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		}, nil
 	}
 
+	if len(minerInfoResult.MultiAddrs) == 0 {
+		return &ResultContent{
+			Status:       NoMultiAddress,
+			ErrorMessage: "miner has no multi address",
+		}, nil
+	}
+
 	addrInfo := peer.AddrInfo{
 		ID:    *minerInfoResult.PeerID,
 		Addrs: minerInfoResult.MultiAddrs,

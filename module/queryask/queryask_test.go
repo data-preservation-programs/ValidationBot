@@ -105,8 +105,8 @@ func TestQueryAsk_QueryMiner_NoMultiAddr(t *testing.T) {
 	ctx := context.Background()
 	result, err := queryAsk.QueryMiner(ctx, "f0688165")
 	assert.Nil(err)
-	assert.Equal(result.Status, NoMultiAddress)
-	assert.Equal(result.ErrorMessage, "")
+	assert.Equal(NoMultiAddress, result.Status)
+	assert.Equal("miner has no multi address", result.ErrorMessage)
 }
 
 func TestQueryAsk_QueryMiner_CannotConnect(t *testing.T) {
@@ -147,7 +147,10 @@ func TestQueryAsk_Validate_Failed(t *testing.T) {
 	)
 	assert.Nil(err)
 	assert.Equal("f01000", result.Task.Target)
-	assert.Equal(`{"status":"no_multi_address"}`, string(result.Result.Bytes))
+	assert.Equal(
+		`{"status":"no_multi_address","errorMessage":"miner has no multi address"}`,
+		string(result.Result.Bytes),
+	)
 }
 
 func TestQueryAsk_Validate_Success(t *testing.T) {
