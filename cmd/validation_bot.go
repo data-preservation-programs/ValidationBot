@@ -141,6 +141,7 @@ func setConfig(configPath string) (*config, error) {
 			Token:                           "",
 			StateMarketDealsURL:             "https://marketdeals.s3.amazonaws.com/StateMarketDeals.json",
 			StateMarketDealsRefreshInterval: 4 * time.Hour,
+			SQLInsertBatchSize:              1000,
 		},
 	}
 
@@ -681,11 +682,12 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 
 		defer clientCloser()
 
-		dealResolver, err := module.NewDealStatesResolver(
+		dealResolver, err := module.NewGlifDealStatesResolver(
 			ctx,
 			db,
 			lotusAPI, cfg.Lotus.StateMarketDealsURL,
 			cfg.Lotus.StateMarketDealsRefreshInterval,
+			cfg.Lotus.SQLInsertBatchSize,
 		)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot create deal resolver")

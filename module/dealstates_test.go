@@ -21,12 +21,13 @@ func TestDealStates(t *testing.T) {
 	lotusAPI, closer, err := client.NewGatewayRPCV1(context.Background(), "https://api.node.glif.io/rpc/v0", nil)
 	assert.NoError(err)
 	defer closer()
-	dealStates, err := NewDealStatesResolver(
+	dealStates, err := NewGlifDealStatesResolver(
 		context.Background(),
 		db,
 		lotusAPI,
 		"https://market-deal-importer.s3.us-west-2.amazonaws.com/test.json",
 		time.Minute,
+		2,
 	)
 	assert.Nil(err)
 	err = dealStates.refresh(context.Background())
