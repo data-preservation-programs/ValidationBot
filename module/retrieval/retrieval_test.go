@@ -201,7 +201,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
 	assert.Equal(0, len(out.Results))
-	assert.Equal("skipped", out.Status)
+	assert.Equal("skipped", string(out.Status))
 }
 
 func TestRetrieval_DataNotFound(t *testing.T) {
