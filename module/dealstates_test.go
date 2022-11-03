@@ -31,6 +31,8 @@ func TestDealStates(t *testing.T) {
 	assert.Nil(err)
 	err = dealStates.refresh(context.Background())
 	assert.Nil(err)
+	err = dealStates.refresh(context.Background())
+	assert.Nil(err)
 	deals, err := dealStates.DealsByProvider("f01895913")
 	assert.Nil(err)
 	assert.Equal(6, len(deals))
