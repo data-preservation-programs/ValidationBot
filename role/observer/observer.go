@@ -59,27 +59,23 @@ func (o Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 	return &cid, nil
 }
 
-func (o Observer) Start(ctx context.Context) <-chan error {
-	log := o.log
-	errChannel := make(chan error)
-
+func (o Observer) Start(ctx context.Context) {
 	for _, peerID := range o.trustedPeers {
 		peerID := peerID
+		log := o.log.With().Str("peer", peerID.String()).Logger()
 
 		go func() {
 			last, err := o.lastCidFromDB(peerID)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get last cid from db")
-				errChannel <- err
 				return
 			}
 
-			log.Info().Str("peer", peerID.String()).Interface("lastCid", last).Msg("start listening to subscription")
+			log.Info().Interface("lastCid", last).Msg("start listening to subscription")
 
 			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to receive next message")
-				errChannel <- err
 				return
 			}
 
@@ -88,20 +84,18 @@ func (o Observer) Start(ctx context.Context) <-chan error {
 				case <-ctx.Done():
 					return
 				case entry := <-entries:
-					log.Info().Str("from", peerID.String()).Bytes("message", entry.Message).
+					log.Info().Bytes("message", entry.Message).
 						Interface("previous", entry.Previous).
 						Str("cid", entry.CID.String()).Msg("storing received message")
 
 					err = o.storeResult(ctx, entry.Message, entry.CID, peerID, entry.Previous)
 					if err != nil {
-						errChannel <- errors.Wrap(err, "failed to store result")
+						log.Error().Err(err).Msg("failed to store result")
 					}
 				}
 			}
 		}()
 	}
-
-	return errChannel
 }
 
 func (o Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {

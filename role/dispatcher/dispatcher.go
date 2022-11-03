@@ -49,9 +49,7 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 }
 
 //nolint:lll
-func (g Dispatcher) Start(ctx context.Context) <-chan error {
-	errChannel := make(chan error)
-
+func (g Dispatcher) Start(ctx context.Context) {
 	for modName, mod := range g.modules {
 		modName, mod := modName, mod
 		log := g.log.With().Str("moduleName", modName).Logger()
@@ -69,16 +67,18 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 					).
 					Find(&defs).Error
 				if err != nil {
-					errChannel <- errors.Wrap(err, "cannot fetch task definitions")
-					return
+					log.Error().Err(err).Msg("cannot fetch task definitions")
+					time.Sleep(g.checkInterval)
+					continue
 				}
 
 				log.Info().Int("size", len(defs)).Msg("polled task definitions in ready state")
 
 				tasks, err := mod.GetTasks(defs)
 				if err != nil {
-					errChannel <- errors.Wrap(err, "cannot get tasks to dispatch")
-					return
+					log.Error().Err(err).Msg("cannot get tasks to dispatch")
+					time.Sleep(g.checkInterval)
+					continue
 				}
 
 				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
@@ -86,18 +86,14 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 				for id, input := range tasks {
 					err = g.dispatchOnce(ctx, id, input)
 					if err != nil {
-						errChannel <- errors.Wrap(err, "cannot dispatch task")
-						return
+						log.Error().Err(err).Msg("cannot dispatch task")
 					}
 				}
 
-				log.Debug().Dur("sleep", g.checkInterval).Msg("sleeping")
 				time.Sleep(g.checkInterval)
 			}
 		}()
 	}
-
-	return errChannel
 }
 
 func (g Dispatcher) additionalJitter() time.Duration {

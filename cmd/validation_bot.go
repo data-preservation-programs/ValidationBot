@@ -236,30 +236,6 @@ func listTasksHandler(c echo.Context, dispatcher taskLister) error {
 	return c.JSON(http.StatusOK, definitions)
 }
 
-func subscribeToErrors(
-	ctx context.Context,
-	dispatcherErrorChannel <-chan error,
-	auditorErrorChannel <-chan error,
-	observerErrorChannel <-chan error,
-) error {
-	log := log3.With().Str("role", "main").Caller().Logger()
-	log.Debug().Msg("subscribing to errors")
-	select {
-	case err := <-dispatcherErrorChannel:
-		log.Error().Err(err).Msg("dispatcher error")
-		return errors.Wrap(err, "dispatcher error")
-	case err := <-auditorErrorChannel:
-		log.Error().Err(err).Msg("auditor error")
-		return errors.Wrap(err, "auditor error")
-	case err := <-observerErrorChannel:
-		log.Error().Err(err).Msg("observer error")
-		return errors.Wrap(err, "observer error")
-	case <-ctx.Done():
-		log.Info().Msg("shutting down")
-		return nil
-	}
-}
-
 func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	api := echo.New()
 	echoLogger := lecho.From(
@@ -336,7 +312,6 @@ func run(configPath string) error {
 	zerolog.SetGlobalLevel(level)
 
 	ctx := context.Background()
-	var dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel <-chan error
 	var anyEnabled bool
 
 	if cfg.Dispatcher.Enabled {
@@ -349,7 +324,7 @@ func run(configPath string) error {
 			return errors.Wrap(err, "cannot create dispatcher")
 		}
 
-		dispatcherErrorChannel = dispatcher.Start(ctx)
+		dispatcher.Start(ctx)
 
 		log.Info().Msg("starting dispatcher api")
 		setupAPI(dispatcher, cfg)
@@ -367,7 +342,7 @@ func run(configPath string) error {
 
 		defer closer()
 
-		auditorErrorChannel = auditor.Start(ctx)
+		auditor.Start(ctx)
 	}
 
 	if cfg.Observer.Enabled {
@@ -380,14 +355,16 @@ func run(configPath string) error {
 			return errors.Wrap(err, "cannot create observer")
 		}
 
-		observerErrorChannel = observer.Start(ctx)
+		observer.Start(ctx)
 	}
 
-	if anyEnabled {
-		return subscribeToErrors(ctx, dispatcherErrorChannel, auditorErrorChannel, observerErrorChannel)
+	if !anyEnabled {
+		return errors.New("no components enabled")
 	}
 
-	return errors.New("no components enabled")
+	<-ctx.Done()
+	log.Info().Msg("shutting down")
+	return nil
 }
 
 func main() {
