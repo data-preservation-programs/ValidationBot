@@ -241,11 +241,10 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to unmarshal validationInput")
 	}
 
-	results := make([]ResultContent, 0, len(input.ProtocolPreference))
+	results := make(map[string]ResultContent)
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
-	auditorErrors := make([]string, 0)
 
 	q.log.Debug().Str("provider", provider).Msg("retrieving miner info")
 
@@ -254,20 +253,19 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to get miner info")
 	}
 
-	//nolint:nestif
-	if minerInfoResult.ErrorCode != "" {
-		results = append(
-			results, ResultContent{
-				Status:       ResultStatus(minerInfoResult.ErrorCode),
-				ErrorMessage: minerInfoResult.ErrorMessage,
-			},
-		)
-	} else {
-		if !q.matchLocation(minerInfoResult) {
-			q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
-			return nil, nil
-		}
+	lastStatus := ResultStatus("skipped")
+	lastErrorMessage := ""
 
+	switch {
+	case minerInfoResult.ErrorCode != "":
+		lastStatus = ResultStatus(minerInfoResult.ErrorCode)
+		lastErrorMessage = minerInfoResult.ErrorMessage
+	case len(minerInfoResult.MultiAddrs) == 0:
+		lastStatus = module.NoMultiAddress
+	case !q.matchLocation(minerInfoResult):
+		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
+		return nil, nil
+	default:
 		for _, protocol := range input.ProtocolPreference {
 			q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
 			dataCidOrLabel := input.DataCid
@@ -278,31 +276,37 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 			switch protocol {
 			case GraphSync:
 				if dataCidOrLabel == "" {
-					auditorErrors = append(auditorErrors, "data cid or label is required for GraphSync protocol")
+					q.log.Error().Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("dataCid or label is required")
 					continue
 				}
 
 				dataCid, err := cid.Decode(dataCidOrLabel)
 				if err != nil {
-					auditorErrors = append(
-						auditorErrors,
-						"failed to decode data cid for GraphSync protocol: "+err.Error(),
-					)
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to decode data cid for GraphSync protocol")
 					continue
 				}
 
 				retriever, cleanup, err := q.graphsync.Build()
 				if err != nil {
-					auditorErrors = append(auditorErrors, "failed to build GraphSync retriever: "+err.Error())
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to build GraphSync retriever")
 					continue
 				}
 
 				result, err := retriever.Retrieve(ctx, minerInfoResult.MinerAddress, dataCid, q.timeout)
 				if err != nil {
-					auditorErrors = append(
-						auditorErrors,
-						"failed to retrieve data with GraphSync protocol: "+err.Error(),
-					)
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to retrieve data with GraphSync protocol")
 
 					cleanup()
 					continue
@@ -311,7 +315,9 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				cleanup()
 
 				result.Protocol = GraphSync
-				results = append(results, *result)
+				results[string(GraphSync)] = *result
+				lastStatus = result.Status
+				lastErrorMessage = result.ErrorMessage
 				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
@@ -333,7 +339,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	result := Result{
-		AuditorErrors:         auditorErrors,
+		Status:                lastStatus,
+		ErrorMessage:          lastErrorMessage,
 		TotalBytesDownloaded:  totalBytes,
 		MaxAverageSpeedPerSec: maxAvgSpeed,
 		MinTimeToFirstByte:    minTTFB,

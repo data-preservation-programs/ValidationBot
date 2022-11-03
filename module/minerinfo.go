@@ -76,12 +76,6 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 		maddrStrs[i] = multiaddrBytes.String()
 	}
 
-	if len(maddrs) == 0 {
-		return &MinerInfoResult{
-			ErrorCode: NoMultiAddress,
-		}, nil
-	}
-
 	return &MinerInfoResult{
 		MultiAddrs:   maddrs,
 		MultiAddrStr: maddrStrs,
