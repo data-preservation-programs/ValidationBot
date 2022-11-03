@@ -93,4 +93,5 @@ type lotusConfig struct {
 	Token                           string
 	StateMarketDealsURL             string
 	StateMarketDealsRefreshInterval time.Duration
+	SQLInsertBatchSize              int
 }

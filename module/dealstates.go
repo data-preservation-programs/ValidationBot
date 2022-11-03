@@ -252,11 +252,6 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 			return errors.Wrap(err, "failed to decode deal")
 		}
 
-		if deal.State.SectorStartEpoch < 0 {
-			// deal is not active yet
-			continue
-		}
-
 		model := DealStateModel{
 			DealID:           keyValuePair.Key,
 			PieceCid:         deal.Proposal.PieceCID.Root,
