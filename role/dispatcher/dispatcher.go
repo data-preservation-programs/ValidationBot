@@ -164,7 +164,11 @@ func (g Dispatcher) Create(ctx context.Context, taskDef *task.Definition) error 
 			return errors.Wrap(err, "cannot get task to dispatch")
 		}
 
-		err = g.dispatchOnce(ctx, taskDef.ID, input)
+		if input == nil {
+			return errors.New("No task to dispatch")
+		}
+
+		err = g.dispatchOnce(ctx, taskDef.ID, *input)
 		if err != nil {
 			return errors.Wrap(err, "cannot dispatch task")
 		}

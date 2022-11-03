@@ -25,7 +25,7 @@ type DispatcherModule interface {
 	GetTasks([]task.Definition) (map[uuid.UUID]ValidationInput, error)
 
 	// GetTask generates the task input from task definition
-	GetTask(task.Definition) (ValidationInput, error)
+	GetTask(task.Definition) (*ValidationInput, error)
 }
 
 type (
@@ -59,13 +59,13 @@ func (s SimpleDispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID
 
 	for _, definition := range definitions {
 		input, _ := s.GetTask(definition)
-		result[definition.ID] = input
+		result[definition.ID] = *input
 	}
 
 	return result, nil
 }
 
-func (s SimpleDispatcher) GetTask(definition task.Definition) (ValidationInput, error) {
+func (s SimpleDispatcher) GetTask(definition task.Definition) (*ValidationInput, error) {
 	input := ValidationInput{
 		Task: task.Task{
 			Type:         definition.Type,
@@ -74,7 +74,7 @@ func (s SimpleDispatcher) GetTask(definition task.Definition) (ValidationInput, 
 		},
 		Input: definition.Definition,
 	}
-	return input, nil
+	return &input, nil
 }
 
 func NewJSONB(input interface{}) (pgtype.JSONB, error) {

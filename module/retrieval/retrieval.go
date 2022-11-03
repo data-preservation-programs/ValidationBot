@@ -66,7 +66,10 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 				continue
 			}
 
-			inputs[input.Task.DefinitionID] = input
+			if input != nil {
+				inputs[input.Task.DefinitionID] = *input
+			}
+
 			d.lastRun[def.Target] = time.Now()
 		}
 	}
@@ -74,12 +77,12 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 	return inputs, nil
 }
 
-func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput, error) {
+func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput, error) {
 	def := new(TaskDefinition)
 
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
-		return module.ValidationInput{}, errors.Wrap(err, "failed to unmarshal definition")
+		return nil, errors.Wrap(err, "failed to unmarshal definition")
 	}
 
 	var dataCid string
@@ -96,11 +99,13 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 	case len(def.FromClients) > 0:
 		deals, err := d.dealResolver.DealsByProviderClients(definition.Target, def.FromClients)
 		if err != nil {
-			return module.ValidationInput{}, errors.Wrap(err, "failed to get deals")
+			return nil, errors.Wrap(err, "failed to get deals")
 		}
 
 		if len(deals) == 0 {
-			return module.ValidationInput{}, errors.New("no deals found")
+			log2.Warn().Str("role", "dispatcher").Str("moduleName", "retrieval").
+				Str("provider", definition.Target).Msg("no deals found")
+			return nil, nil
 		}
 
 		index := genRandNumber(len(deals))
@@ -109,11 +114,11 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 	default:
 		deals, err := d.dealResolver.DealsByProvider(definition.Target)
 		if err != nil {
-			return module.ValidationInput{}, errors.Wrap(err, "failed to get deals")
+			return nil, errors.Wrap(err, "failed to get deals")
 		}
 
 		if len(deals) == 0 {
-			return module.ValidationInput{}, errors.New("no deals found")
+			return nil, errors.New("no deals found")
 		}
 
 		index := genRandNumber(len(deals))
@@ -130,7 +135,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 
 	jsonb, err := module.NewJSONB(input)
 	if err != nil {
-		return module.ValidationInput{}, errors.Wrap(err, "failed to marshal validationInput")
+		return nil, errors.Wrap(err, "failed to marshal validationInput")
 	}
 
 	validationInput := module.ValidationInput{
@@ -142,7 +147,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 		Input: jsonb,
 	}
 
-	return validationInput, nil
+	return &validationInput, nil
 }
 
 func (Dispatcher) Validate(definition task.Definition) error {
