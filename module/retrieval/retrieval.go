@@ -44,10 +44,6 @@ func genRandNumber(max int) int {
 }
 
 func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]module.ValidationInput, error) {
-	if !d.dealResolver.Ready() {
-		return nil, errors.New("deal resolver not ready")
-	}
-
 	// Group by provider
 	definitionsByProvider := make(map[string][]task.Definition)
 	for _, def := range definitions {
@@ -65,7 +61,9 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 			input, err := d.GetTask(def)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to get task")
+				log2.Error().Str("role", "dispatcher").
+					Str("moduleName", "retrieval").Err(err).Msg("failed to get task")
+				continue
 			}
 
 			inputs[input.Task.DefinitionID] = input
@@ -78,10 +76,6 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput, error) {
 	def := new(TaskDefinition)
-
-	if !d.dealResolver.Ready() {
-		return module.ValidationInput{}, errors.New("deal resolver not ready")
-	}
 
 	err := definition.Definition.AssignTo(def)
 	if err != nil {
@@ -111,16 +105,20 @@ func (d Dispatcher) GetTask(definition task.Definition) (module.ValidationInput,
 
 		index := genRandNumber(len(deals))
 		label = deals[index].Label
-		pieceCid = deals[index].PieceCID
+		pieceCid = deals[index].PieceCid
 	default:
-		deals := d.dealResolver.DealsByProvider(definition.Target)
+		deals, err := d.dealResolver.DealsByProvider(definition.Target)
+		if err != nil {
+			return module.ValidationInput{}, errors.Wrap(err, "failed to get deals")
+		}
+
 		if len(deals) == 0 {
 			return module.ValidationInput{}, errors.New("no deals found")
 		}
 
 		index := genRandNumber(len(deals))
 		label = deals[index].Label
-		pieceCid = deals[index].PieceCID
+		pieceCid = deals[index].PieceCid
 	}
 
 	input := Input{

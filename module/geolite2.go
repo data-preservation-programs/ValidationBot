@@ -3,6 +3,7 @@ package module
 import (
 	"net"
 	"strconv"
+
 	"validation-bot/resources"
 
 	"github.com/multiformats/go-multiaddr"

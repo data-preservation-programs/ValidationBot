@@ -95,14 +95,14 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 	resolver := new(module.MockDealStatesResolver)
 	dispatcher := NewDispatcher(time.Second, resolver)
 	resolver.On("DealsByProviderClients", "provider", []string{"client1"}).Return(
-		[]module.SimplifiedDeal{
+		[]module.DealStateModel{
 			{
 				Label:    "label1",
-				PieceCID: "piece1",
+				PieceCid: "piece1",
 			},
 			{
 				Label:    "label2",
-				PieceCID: "piece2",
+				PieceCid: "piece2",
 			},
 		}, nil,
 	)
