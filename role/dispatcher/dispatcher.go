@@ -97,7 +97,7 @@ func (g Dispatcher) Start(ctx context.Context) <-chan error {
 		}()
 	}
 
-	return nil
+	return errChannel
 }
 
 func (g Dispatcher) additionalJitter() time.Duration {
