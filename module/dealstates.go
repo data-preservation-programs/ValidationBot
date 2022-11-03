@@ -90,9 +90,10 @@ type ClientAddressModel struct {
 }
 
 type GlifDealStatesResolver struct {
-	url      string
-	lotusAPI api.Gateway
-	db       *gorm.DB
+	url       string
+	lotusAPI  api.Gateway
+	db        *gorm.DB
+	batchSize int
 }
 
 func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, error) {
@@ -129,7 +130,12 @@ func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, err
 			ID:      addressID.String(),
 		}
 
-		response = s.db.Model(&ClientAddressModel{}).Create(&model)
+		response = s.db.Clauses(
+			clause.OnConflict{
+				Columns:   []clause.Column{{Name: "address"}},
+				DoNothing: true,
+			},
+		).Model(&ClientAddressModel{}).Create(&model)
 		if response.Error != nil {
 			return "", errors.Wrap(response.Error, "failed to create client address")
 		}
@@ -211,6 +217,25 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 
 	decoder := jstream.NewDecoder(resp.Body, 1).EmitKV()
 	count := 0
+	batch := make([]DealStateModel, 0)
+	save := func(batch []DealStateModel) error {
+		response := s.db.Clauses(
+			clause.OnConflict{
+				Columns: []clause.Column{{Name: "deal_id"}},
+				DoUpdates: clause.AssignmentColumns(
+					[]string{
+						"sector_start_epoch", "last_updated_epoch", "slash_epoch",
+					},
+				),
+			},
+		).Create(&batch)
+
+		if response.Error != nil {
+			return errors.Wrap(response.Error, "failed to save deal state")
+		}
+
+		return nil
+	}
 
 	for stream := range decoder.Stream() {
 		count++
@@ -246,19 +271,22 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 			LastUpdatedEpoch: deal.State.LastUpdatedEpoch,
 			SlashEpoch:       deal.State.SlashEpoch,
 		}
-		response := s.db.Clauses(
-			clause.OnConflict{
-				Columns: []clause.Column{{Name: "deal_id"}},
-				DoUpdates: clause.AssignmentColumns(
-					[]string{
-						"sector_start_epoch", "last_updated_epoch", "slash_epoch",
-					},
-				),
-			},
-		).Create(&model)
 
-		if response.Error != nil {
-			return errors.Wrap(response.Error, "failed to save deal state")
+		batch = append(batch, model)
+		if len(batch) >= s.batchSize {
+			err = save(batch)
+			if err != nil {
+				return errors.Wrap(err, "failed to save batch")
+			}
+
+			batch = make([]DealStateModel, 0)
+		}
+	}
+
+	if len(batch) > 0 {
+		err = save(batch)
+		if err != nil {
+			return errors.Wrap(err, "failed to save batch")
 		}
 	}
 
@@ -272,20 +300,22 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 	return nil
 }
 
-func NewDealStatesResolver(
+func NewGlifDealStatesResolver(
 	ctx context.Context,
 	db *gorm.DB,
 	lotusAPI api.Gateway,
 	url string,
 	refreshInterval time.Duration,
+	batchSize int,
 ) (
 	*GlifDealStatesResolver,
 	error,
 ) {
 	dealStates := GlifDealStatesResolver{
-		url:      url,
-		lotusAPI: lotusAPI,
-		db:       db,
+		url:       url,
+		lotusAPI:  lotusAPI,
+		db:        db,
+		batchSize: batchSize,
 	}
 
 	err := db.AutoMigrate(&DealStateModel{})

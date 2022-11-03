@@ -681,7 +681,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 
 		defer clientCloser()
 
-		dealResolver, err := module.NewDealStatesResolver(
+		dealResolver, err := module.NewGlifDealStatesResolver(
 			ctx,
 			db,
 			lotusAPI, cfg.Lotus.StateMarketDealsURL,

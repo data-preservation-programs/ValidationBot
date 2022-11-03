@@ -68,6 +68,7 @@ func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]modul
 
 			if input != nil {
 				inputs[input.Task.DefinitionID] = *input
+				continue
 			}
 
 			d.lastRun[def.Target] = time.Now()
