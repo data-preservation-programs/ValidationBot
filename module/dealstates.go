@@ -96,6 +96,7 @@ func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, err
 	default:
 		s.cacheMutex.RLock()
 		if id, ok := s.idLookupCache[clientAddress]; ok {
+			s.cacheMutex.RUnlock()
 			return id, nil
 		}
 		s.cacheMutex.RUnlock()
@@ -104,6 +105,9 @@ func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, err
 		if err != nil {
 			return "", errors.Wrap(err, "failed to parse clientAddress address")
 		}
+
+		log.Debug().Str("role", "lotus_api").
+			Str("method", "StateLookupID").Str("address", clientAddress).Msg("calling lotus api")
 
 		addressID, err := s.lotusAPI.StateLookupID(context.Background(), addr, types.EmptyTSK)
 		if err != nil {

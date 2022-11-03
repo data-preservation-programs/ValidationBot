@@ -10,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -37,6 +38,9 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 			ErrorMessage: err.Error(),
 		}, nil
 	}
+
+	log.Debug().Str("role", "lotus_api").
+		Str("method", "StateMinerInfo").Str("provider", provider).Msg("calling lotus api")
 
 	minerInfo, err := lotusAPI.StateMinerInfo(ctx, providerAddr, types.EmptyTSK)
 	if err != nil {
