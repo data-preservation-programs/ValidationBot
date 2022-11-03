@@ -94,12 +94,8 @@ func TestDispatcher_Start_DispatchMultipleTimes(t *testing.T) {
 	assert.Nil(err)
 	db.Create(tsk)
 	dper.checkInterval = time.Millisecond * 200
-	errChan := dper.Start(context.Background())
-	select {
-	case err := <-errChan:
-		assert.FailNow("should not return error", err)
-	case <-time.After(5 * time.Second):
-	}
+	dper.Start(context.Background())
+	time.Sleep(5 * time.Second)
 	mockPublisher.AssertNumberOfCalls(t, "Publish", 5)
 	db.First(tsk, tsk.ID)
 	assert.Equal(uint32(5), tsk.DispatchedTimes)
@@ -117,12 +113,8 @@ func TestDispatcher_Start_DonothingForOneoffTask(t *testing.T) {
 	err := tsk.Definition.Set("hello world")
 	assert.Nil(err)
 	db.Create(tsk)
-	errChan := dper.Start(context.Background())
-	select {
-	case err := <-errChan:
-		assert.FailNow("should not return error", err)
-	case <-time.After(1 * time.Second):
-	}
+	dper.Start(context.Background())
+	time.Sleep(5 * time.Second)
 
 	mockPublisher.AssertNotCalled(t, "Publish", mock.Anything, mock.Anything)
 }

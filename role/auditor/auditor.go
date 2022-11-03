@@ -3,6 +3,7 @@ package auditor
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"validation-bot/module"
 
@@ -11,7 +12,6 @@ import (
 	"validation-bot/store"
 
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
@@ -46,10 +46,8 @@ func NewAuditor(config Config) (*Auditor, error) {
 	return &auditor, nil
 }
 
-func (a Auditor) Start(ctx context.Context) <-chan error {
+func (a Auditor) Start(ctx context.Context) {
 	log := a.log
-	errChannel := make(chan error)
-
 	log.Info().Msg("start listening to subscription")
 
 	go func() {
@@ -58,7 +56,9 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 			from, task, err := a.taskSubscriber.Next(ctx)
 			if err != nil {
-				errChannel <- errors.Wrap(err, "failed to receive next message")
+				log.Error().Err(err).Msg("failed to get next task")
+				time.Sleep(time.Minute)
+				continue
 			}
 
 			if len(a.trustedPeers) > 0 && !slices.Contains(a.trustedPeers, *from) {
@@ -72,12 +72,14 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 			err = json.Unmarshal(task, input)
 			if err != nil {
-				errChannel <- errors.Wrap(err, "unable to unmarshal the message")
+				log.Error().Err(err).Msg("failed to unmarshal task")
+				continue
 			}
 
 			mod, ok := a.modules[input.Type]
 			if !ok {
-				errChannel <- errors.Errorf("module task type is unsupported: %s", input.Type)
+				log.Error().Err(err).Msg("module not found")
+				continue
 			}
 
 			go func() {
@@ -85,28 +87,29 @@ func (a Auditor) Start(ctx context.Context) <-chan error {
 
 				result, err := mod.Validate(ctx, *input)
 				if err != nil {
-					errChannel <- errors.Wrap(err, "encountered error performing module")
-				}
-
-				if result == nil {
-					log.Info().Msg("validation result is nil, skipping publishing")
+					log.Error().Bytes("task", task).Err(err).Msg("failed to validate")
 					return
 				}
 
-				log.Debug().Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
+				if result == nil {
+					log.Info().Bytes("task", task).Msg("validation result is nil, skipping publishing")
+					return
+				}
+
+				log.Debug().Bytes("task", task).Int("resultSize", len(result.Result.Bytes)).Msg("validation completed")
 
 				resultBytes, err := json.Marshal(result)
 				if err != nil {
-					errChannel <- errors.Wrap(err, "unable to marshal result")
+					log.Error().Bytes("task", task).Err(err).Msg("failed to marshal result")
+					return
 				}
 
 				err = a.resultPublisher.Publish(ctx, resultBytes)
 				if err != nil {
-					errChannel <- errors.Wrap(err, "failed to publish result")
+					log.Error().Bytes("task", task).Err(err).Msg("failed to publish result")
+					return
 				}
 			}()
 		}
 	}()
-
-	return errChannel
 }

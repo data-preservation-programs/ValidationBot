@@ -41,12 +41,8 @@ func TestAuditor_Start(t *testing.T) {
 		nil,
 	)
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
-	errChan := adt.Start(context.Background())
-	select {
-	case err := <-errChan:
-		assert.FailNow("unexpected error", err)
-	case <-time.After(time.Duration(2 * time.Second)):
-	}
+	adt.Start(context.Background())
+	time.Sleep(time.Second * 2)
 
 	mockSubscriber.AssertCalled(t, "Next", mock.Anything)
 	mockPublisher.AssertCalled(

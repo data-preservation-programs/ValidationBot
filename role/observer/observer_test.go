@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
 	"validation-bot/helper"
 	"validation-bot/module"
 	"validation-bot/store"
@@ -70,13 +69,8 @@ func TestObserverStart(t *testing.T) {
 			)),
 		}
 	}()
-	errChan := obs.Start(context.Background())
-	assert.NotNil(errChan)
-	select {
-	case err := <-errChan:
-		assert.Fail("unexpected error", err)
-	case <-time.After(2 * time.Second):
-	}
+	obs.Start(context.Background())
+	time.Sleep(2 * time.Second)
 
 	var found []module.ValidationResult
 	db.Model(&module.ValidationResultModel{}).Where("definition_id = ?", testDefinitionId).Find(&found)
