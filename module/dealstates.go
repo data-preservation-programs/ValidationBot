@@ -138,10 +138,21 @@ func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, err
 	}
 }
 
+func currentEpoch() int32 {
+	timestamp := time.Now().Unix()
+	//nolint:gomnd
+	return int32((timestamp - 1598306400) / 30)
+}
+
 func (s *GlifDealStatesResolver) DealsByProvider(provider string) ([]DealStateModel, error) {
 	deals := make([]DealStateModel, 0)
 
-	response := s.db.Model(&DealStateModel{}).Where("provider = ?", provider).Find(&deals)
+	response := s.db.Model(&DealStateModel{}).
+		Where(
+			"provider = ? and end_epoch > ? and slash_epoch < 0 and sector_start_epoch > 0",
+			provider, currentEpoch(),
+		).
+		Find(&deals)
 	if response.Error != nil {
 		return nil, errors.Wrap(response.Error, "failed to query deals by provider")
 	}
@@ -162,7 +173,12 @@ func (s *GlifDealStatesResolver) DealsByProviderClients(provider string, clients
 		ids = append(ids, id)
 	}
 
-	response := s.db.Model(&DealStateModel{}).Where("provider = ? AND client IN ?", provider, ids).Find(&deals)
+	response := s.db.Model(&DealStateModel{}).
+		Where(
+			"provider = ? AND client IN ? and end_epoch > ? and slash_epoch < 0 and sector_start_epoch > 0",
+			provider, ids, currentEpoch(),
+		).
+		Find(&deals)
 	if response.Error != nil {
 		return nil, errors.Wrap(response.Error, "failed to query deals by provider")
 	}
@@ -209,6 +225,11 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 		err = mapstructure.Decode(keyValuePair.Value, &deal)
 		if err != nil {
 			return errors.Wrap(err, "failed to decode deal")
+		}
+
+		if deal.State.SectorStartEpoch < 0 {
+			// deal is not active yet
+			continue
 		}
 
 		model := DealStateModel{
