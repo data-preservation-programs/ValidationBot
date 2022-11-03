@@ -218,6 +218,7 @@ func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
 	return false
 }
 
+//nolint:cyclop
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -268,6 +269,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	default:
 		for _, protocol := range input.ProtocolPreference {
 			q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
+
 			dataCidOrLabel := input.DataCid
 			if dataCidOrLabel == "" {
 				dataCidOrLabel = input.Label

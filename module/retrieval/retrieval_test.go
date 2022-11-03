@@ -238,7 +238,9 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
 	assert.Equal(QueryResponseError, out.Results["GraphSync"].Status)
+	assert.Equal(QueryResponseError, out.Status)
 	assert.Contains(out.Results["GraphSync"].ErrorMessage, "key not found")
+	assert.Contains(out.ErrorMessage, "key not found")
 }
 
 func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
@@ -317,6 +319,7 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	assert.NoError(err)
 	fmt.Printf("%+v\n", out)
 	assert.Equal(Success, out.Results["GraphSync"].Status)
+	assert.Equal(Success, out.Status)
 	assert.EqualValues(100, out.TotalBytesDownloaded)
 	assert.EqualValues(10, out.MaxAverageSpeedPerSec)
 	assert.Equal(2*time.Second, out.MinTimeToFirstByte)
