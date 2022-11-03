@@ -683,6 +683,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 
 		dealResolver, err := module.NewDealStatesResolver(
 			ctx,
+			db,
 			lotusAPI, cfg.Lotus.StateMarketDealsURL,
 			cfg.Lotus.StateMarketDealsRefreshInterval,
 		)

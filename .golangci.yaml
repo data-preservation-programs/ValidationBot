@@ -93,3 +93,5 @@ linters-settings:
       - 'module\.MinerInfoResult'
       - 'module\.ValidationResultModel'
       - 'module\.ValidationResult'
+      - 'module\.ClientAddressModel'
+      - 'module\.DealStateModel'
