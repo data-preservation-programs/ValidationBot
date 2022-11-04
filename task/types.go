@@ -20,7 +20,7 @@ type Task struct {
 	Type         Type      `json:"type"`
 	DefinitionID uuid.UUID `json:"definitionId"`
 	Target       string    `json:"target"`
-	Tag          string    `json:"tag"`
+	Tag          string    `json:"tag,omitempty"`
 }
 
 type Definition struct {
