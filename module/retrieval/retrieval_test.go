@@ -44,7 +44,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
 	assert.Regexp(
-		`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]","pieceCid":"","label":""}`,
+		`{"protocolPreference":\["GraphSync"\],"dataCid":"cid[1234]"}`,
 		string(input.Input.Bytes),
 	)
 }
@@ -71,7 +71,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 	assert.Equal(taskDef.Target, input.Target)
 	assert.Equal(taskDef.Type, input.Type)
 	assert.Regexp(
-		`{"protocolPreference":\["GraphSync"\],"dataCid":"","pieceCid":"cid[1234]","label":""}`,
+		`{"protocolPreference":\["GraphSync"\],"pieceCid":"cid[1234]"}`,
 		string(input.Input.Bytes),
 	)
 }

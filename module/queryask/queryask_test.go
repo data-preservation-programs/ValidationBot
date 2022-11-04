@@ -128,6 +128,7 @@ func TestQueryAsk_QueryMiner_Success(t *testing.T) {
 	result, err := queryAsk.QueryMiner(ctx, "f01873432")
 	assert.Nil(err)
 	assert.Equal(result.Status, Success)
+	assert.Greater(result.Latency.Seconds(), float64(0))
 	assert.Equal(result.ErrorMessage, "")
 	assert.Equal(uint64(0x800000000), result.MaxPieceSize)
 }

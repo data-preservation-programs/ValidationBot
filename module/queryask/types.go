@@ -1,5 +1,7 @@
 package queryask
 
+import "time"
+
 type QueryStatus string
 
 const (
@@ -13,12 +15,13 @@ const (
 )
 
 type ResultContent struct {
-	PeerID        string      `json:"peerId,omitempty"`
-	MultiAddrs    []string    `json:"multiAddrs,omitempty"`
-	Status        QueryStatus `json:"status"`
-	ErrorMessage  string      `json:"errorMessage,omitempty"`
-	Price         string      `json:"price,omitempty"`
-	VerifiedPrice string      `json:"verifiedPrice,omitempty"`
-	MinPieceSize  uint64      `json:"minPieceSize,omitempty"`
-	MaxPieceSize  uint64      `json:"maxPieceSize,omitempty"`
+	PeerID        string        `json:"peerId,omitempty"`
+	MultiAddrs    []string      `json:"multiAddrs,omitempty"`
+	Status        QueryStatus   `json:"status"`
+	ErrorMessage  string        `json:"errorMessage,omitempty"`
+	Price         string        `json:"price,omitempty"`
+	VerifiedPrice string        `json:"verifiedPrice,omitempty"`
+	MinPieceSize  uint64        `json:"minPieceSize,omitempty"`
+	MaxPieceSize  uint64        `json:"maxPieceSize,omitempty"`
+	Latency       time.Duration `json:"latency,omitempty"`
 }
