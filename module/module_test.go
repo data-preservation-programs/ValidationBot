@@ -19,6 +19,7 @@ func TestSimpleDispatcherModule_GetTasks(t *testing.T) {
 		IntervalSeconds: 0,
 		Definition:      definition,
 		DispatchedTimes: 0,
+		Tag:             "tag",
 	}
 	tasks, err := m.GetTasks([]task.Definition{tsk})
 	assert.Nil(err)
@@ -28,6 +29,7 @@ func TestSimpleDispatcherModule_GetTasks(t *testing.T) {
 	assert.Equal("echo", bytes.Type)
 	assert.Equal(`{"hello":"world"}`, string(bytes.Input.Bytes))
 	assert.Equal("target", bytes.Target)
+	assert.Equal("tag", bytes.Tag)
 }
 
 func TestSimpleDispatcherModule_GetTask(t *testing.T) {

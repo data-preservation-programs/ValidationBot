@@ -71,6 +71,7 @@ func (s SimpleDispatcher) GetTask(definition task.Definition) (*ValidationInput,
 			Type:         definition.Type,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
+			Tag:          definition.Tag,
 		},
 		Input: definition.Definition,
 	}

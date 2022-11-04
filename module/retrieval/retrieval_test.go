@@ -99,16 +99,22 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 			{
 				Label:    "label1",
 				PieceCid: "piece1",
+				DealID:   "deal1",
+				Client:   "client1",
 			},
 			{
 				Label:    "label2",
 				PieceCid: "piece2",
+				DealID:   "deal2",
+				Client:   "client2",
 			},
 		}, nil,
 	)
 	task, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Contains(string(task.Input.Bytes), `label":"label`)
+	assert.Contains(string(task.Input.Bytes), `dealId":"deal`)
+	assert.Contains(string(task.Input.Bytes), `client":"client`)
 }
 
 func TestRetrieval_GetTasks(t *testing.T) {

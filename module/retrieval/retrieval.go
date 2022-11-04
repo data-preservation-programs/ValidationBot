@@ -150,6 +150,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 			Type:         definition.Type,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
+			Tag:          definition.Tag,
 		},
 		Input: jsonb,
 	}
