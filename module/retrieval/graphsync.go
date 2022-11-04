@@ -72,7 +72,7 @@ func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, er
 type GraphSyncRetrieverImpl struct {
 	log      zerolog.Logger
 	lotusAPI api.Gateway
-	libp2p   *host.Host
+	libp2p   host.Host
 	tmpDir   string
 }
 
@@ -101,7 +101,10 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 		tmpDir:   tmpdir,
 	}
 
-	return retriever, func() { os.RemoveAll(tmpdir) }, nil
+	return retriever, func() {
+		libp2p.Close()
+		os.RemoveAll(tmpdir)
+	}, nil
 }
 
 type TimeEventPair struct {
@@ -259,36 +262,49 @@ func setupWallet(ctx context.Context, dir string) (*wallet.LocalWallet, error) {
 	return wallet, nil
 }
 
-func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string) (*filclient.FilClient, error) {
+func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string) (
+	*filclient.FilClient,
+	Cleanup,
+	error,
+) {
 	//nolint:gomnd
 	bstoreDatastore, err := flatfs.CreateOrOpen(filepath.Join(baseDir, "blockstore"), flatfs.NextToLast(3), false)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create or open flatfs blockstore")
+		return nil, nil, errors.Wrap(err, "cannot create or open flatfs blockstore")
 	}
 
 	bstore := blockstore.NewBlockstoreNoPrefix(bstoreDatastore)
 
 	datastore, err := levelds.NewDatastore(filepath.Join(baseDir, "datastore"), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create leveldb datastore")
+		bstoreDatastore.Close()
+		return nil, nil, errors.Wrap(err, "cannot create leveldb datastore")
+	}
+
+	closer := func() {
+		bstoreDatastore.Close()
+		datastore.Close()
 	}
 
 	wallet, err := setupWallet(ctx, filepath.Join(baseDir, "wallet"))
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create wallet")
+		closer()
+		return nil, nil, errors.Wrap(err, "cannot create wallet")
 	}
 
 	addr, err := wallet.GetDefault()
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get default wallet address")
+		closer()
+		return nil, nil, errors.Wrap(err, "cannot get default wallet address")
 	}
 
-	fc, err := filclient.NewClient(*g.libp2p, g.lotusAPI, wallet, addr, bstore, datastore, baseDir)
+	fClient, err := filclient.NewClient(g.libp2p, g.lotusAPI, wallet, addr, bstore, datastore, baseDir)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot create filclient")
+		closer()
+		return nil, nil, errors.Wrap(err, "cannot create filclient")
 	}
 
-	return fc, nil
+	return fClient, closer, nil
 }
 
 func (g GraphSyncRetrieverImpl) Retrieve(
@@ -302,9 +318,13 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	filClient, err := g.newFilClient(ctx, g.tmpDir)
+	filClient, cleanup, err := g.newFilClient(ctx, g.tmpDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create filClient")
+	}
+
+	if cleanup != nil {
+		defer cleanup()
 	}
 
 	stats := &retrievalStats{

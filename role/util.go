@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewLibp2pHostWithRandomIdentityAndPort() (*host.Host, error) {
+func NewLibp2pHostWithRandomIdentityAndPort() (host.Host, error) {
 	private, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot generate new key")
@@ -25,7 +25,7 @@ func NewLibp2pHostWithRandomIdentityAndPort() (*host.Host, error) {
 		return nil, errors.Wrap(err, "cannot create new libp2p host")
 	}
 
-	return &host, nil
+	return host, nil
 }
 
 func NewLibp2pHost(privateKeyStr string, listenAddr string) (*host.Host, error) {

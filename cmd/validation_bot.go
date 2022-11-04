@@ -127,7 +127,7 @@ func setConfig(configPath string) (*config, error) {
 			Retrieval: retrievalConfig{
 				Enabled:     true,
 				TmpDir:      os.TempDir(),
-				Timeout:     time.Minute,
+				Timeout:     30 * time.Second,
 				MinInterval: 10 * time.Minute,
 				MaxJobs:     int64(1),
 				LocationFilter: module.LocationFilterConfig{
