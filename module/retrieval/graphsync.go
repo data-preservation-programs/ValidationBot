@@ -264,7 +264,7 @@ func setupWallet(ctx context.Context, dir string) (*wallet.LocalWallet, error) {
 
 func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string) (
 	*filclient.FilClient,
-	func(),
+	Cleanup,
 	error,
 ) {
 	//nolint:gomnd
@@ -318,13 +318,13 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	filClient, closer, err := g.newFilClient(ctx, g.tmpDir)
+	filClient, cleanup, err := g.newFilClient(ctx, g.tmpDir)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot create filClient")
 	}
 
-	if closer != nil {
-		defer closer()
+	if cleanup != nil {
+		defer cleanup()
 	}
 
 	stats := &retrievalStats{
