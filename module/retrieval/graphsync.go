@@ -298,13 +298,13 @@ func (g GraphSyncRetrieverImpl) newFilClient(ctx context.Context, baseDir string
 		return nil, nil, errors.Wrap(err, "cannot get default wallet address")
 	}
 
-	fc, err := filclient.NewClient(g.libp2p, g.lotusAPI, wallet, addr, bstore, datastore, baseDir)
+	fClient, err := filclient.NewClient(g.libp2p, g.lotusAPI, wallet, addr, bstore, datastore, baseDir)
 	if err != nil {
 		closer()
 		return nil, nil, errors.Wrap(err, "cannot create filclient")
 	}
 
-	return fc, closer, nil
+	return fClient, closer, nil
 }
 
 func (g GraphSyncRetrieverImpl) Retrieve(
