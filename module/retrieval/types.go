@@ -25,16 +25,18 @@ type TaskDefinition struct {
 
 type Input struct {
 	ProtocolPreference []Protocol `json:"protocolPreference"`
-	DataCid            string     `json:"dataCid"`
-	PieceCid           string     `json:"pieceCid"`
-	Label              string     `json:"label"`
+	DataCid            string     `json:"dataCid,omitempty"`
+	PieceCid           string     `json:"pieceCid,omitempty"`
+	Label              string     `json:"label,omitempty"`
+	DealID             string     `json:"dealId,omitempty"`
+	Client             string     `json:"client,omitempty"`
 }
 
 type ResultStatus string
 
 type Result struct {
 	Status                ResultStatus             `json:"status"`
-	ErrorMessage          string                   `json:"errorMessage"`
+	ErrorMessage          string                   `json:"errorMessage,omitempty"`
 	TotalBytesDownloaded  uint64                   `json:"totalBytesDownloaded"`
 	MaxAverageSpeedPerSec float64                  `json:"maxAverageSpeedPerSec"`
 	MinTimeToFirstByte    time.Duration            `json:"minTimeToFirstByte"`

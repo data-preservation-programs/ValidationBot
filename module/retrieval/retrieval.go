@@ -87,6 +87,8 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 	var dataCid string
 	var pieceCid string
 	var label string
+	var dealID string
+	var client string
 
 	switch {
 	case len(def.DataCids) > 0:
@@ -110,6 +112,8 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 		index := genRandNumber(len(deals))
 		label = deals[index].Label
 		pieceCid = deals[index].PieceCid
+		dealID = deals[index].DealID
+		client = deals[index].Client
 	default:
 		deals, err := d.dealResolver.DealsByProvider(definition.Target)
 		if err != nil {
@@ -123,6 +127,8 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 		index := genRandNumber(len(deals))
 		label = deals[index].Label
 		pieceCid = deals[index].PieceCid
+		dealID = deals[index].DealID
+		client = deals[index].Client
 	}
 
 	input := Input{
@@ -130,6 +136,8 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 		DataCid:            dataCid,
 		PieceCid:           pieceCid,
 		Label:              label,
+		DealID:             dealID,
+		Client:             client,
 	}
 
 	jsonb, err := module.NewJSONB(input)
@@ -142,6 +150,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 			Type:         definition.Type,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
+			Tag:          definition.Tag,
 		},
 		Input: jsonb,
 	}

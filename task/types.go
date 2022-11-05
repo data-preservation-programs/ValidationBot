@@ -20,6 +20,7 @@ type Task struct {
 	Type         Type      `json:"type"`
 	DefinitionID uuid.UUID `json:"definitionId"`
 	Target       string    `json:"target"`
+	Tag          string    `json:"tag,omitempty"`
 }
 
 type Definition struct {
@@ -28,6 +29,7 @@ type Definition struct {
 	Type            Type         `json:"type" gorm:"index:idx_type_target"`
 	IntervalSeconds uint32       `json:"intervalSeconds"`
 	Definition      pgtype.JSONB `json:"definition" gorm:"type:jsonb;default:'{}'"`
+	Tag             string       `json:"tag"`
 	DispatchedTimes uint32
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

@@ -89,6 +89,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		ID:    *minerInfoResult.PeerID,
 		Addrs: minerInfoResult.MultiAddrs,
 	}
+	now := time.Now()
 	err = (*q.libp2p).Connect(ctx, addrInfo)
 
 	if err != nil {
@@ -146,6 +147,8 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		}, nil
 	}
 
+	latency := time.Since(now)
+
 	return &ResultContent{
 		PeerID:        minerInfoResult.PeerID.String(),
 		MultiAddrs:    minerInfoResult.MultiAddrStr,
@@ -155,5 +158,6 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		VerifiedPrice: resp.Ask.Ask.VerifiedPrice.String(),
 		MinPieceSize:  uint64(resp.Ask.Ask.MinPieceSize),
 		MaxPieceSize:  uint64(resp.Ask.Ask.MaxPieceSize),
+		Latency:       latency,
 	}, nil
 }
