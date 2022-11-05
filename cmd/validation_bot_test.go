@@ -87,7 +87,7 @@ func TestListTaskHandler(t *testing.T) {
 	assert.Equal(http.StatusOK, rec.Code)
 	mockTaskCreator.AssertCalled(t, "List", mock.Anything)
 	assert.Equal(
-		"[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"helper\":\"helper\"},\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n",
+		"[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"helper\":\"helper\"},\"tag\":\"\",\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n",
 		rec.Body.String(),
 	)
 }
