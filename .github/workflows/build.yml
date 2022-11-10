@@ -56,3 +56,9 @@ jobs:
         env:
           W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
         run: $(go env GOPATH)/bin/gotestsum --format short
+
+      - name: Docker build
+        env:
+          MAXMIND_LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: docker build --build-arg MAXMIND_LICENSE_KEY --build-arg GITHUB_TOKEN -t latest .
