@@ -10,20 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAuditor_Traceroute(t *testing.T) {
-	assert := assert.New(t)
-	ctx := context.TODO()
-	auditor := Auditor{}
-	output, err := auditor.Traceroute(ctx, "127.0.0.1", 1234)
-	assert.Nil(err)
-	fmt.Printf("%+v\n", output)
-	assert.NotNil(output)
-	assert.Equal(1, len(output))
-	assert.Equal(1, output[0].Hop)
-	assert.Equal(3, len(output[0].Probes))
-	assert.Equal("127.0.0.1", output[0].Probes[0].IP)
-}
-
 func TestAuditor_ValidateProvider(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.TODO()
