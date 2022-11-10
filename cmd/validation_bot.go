@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
+	"validation-bot/module/traceroute"
 
 	"validation-bot/module/queryask"
 	"validation-bot/module/retrieval"
-	"validation-bot/module/thousandeyes"
 	"validation-bot/role"
 
 	"validation-bot/module"
@@ -118,12 +117,6 @@ func setConfig(configPath string) (*config, error) {
 			QueryAsk: queryAskConfig{
 				Enabled: true,
 			},
-			ThousandEyes: thousandEyesConfig{
-				Enabled:  false,
-				Token:    "",
-				Username: "",
-				Password: "",
-			},
 			Retrieval: retrievalConfig{
 				Enabled:     true,
 				TmpDir:      os.TempDir(),
@@ -134,6 +127,9 @@ func setConfig(configPath string) (*config, error) {
 					Continent: nil,
 					Country:   nil,
 				},
+			},
+			Traceroute: tracerouteConfig{
+				Enabled: true,
 			},
 		},
 		Lotus: lotusConfig{
@@ -516,7 +512,7 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 		modules[task.Echo] = &echoModule
 	}
 
-	if cfg.Module.Retrieval.Enabled || cfg.Module.ThousandEyes.Enabled {
+	if cfg.Module.QueryAsk.Enabled || cfg.Module.Retrieval.Enabled || cfg.Module.Traceroute.Enabled {
 		var header http.Header
 		if cfg.Lotus.Token != "" {
 			header = http.Header{
@@ -541,40 +537,6 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 		modules[task.QueryAsk] = &queryAskModule
 	}
 
-	if cfg.Module.ThousandEyes.Enabled {
-		agents := []string{}
-		agentIDs := make([]thousandeyes.AgentID, len(agents))
-
-		for i, agent := range agents {
-			agentID, err := strconv.Atoi(agent)
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "cannot parse thousandeyes agent id")
-			}
-			//nolint:gosec
-			agentIDs[i] = thousandeyes.AgentID{AgentID: int32(agentID)}
-		}
-
-		switch {
-		case cfg.Module.ThousandEyes.Token != "":
-			temodule := thousandeyes.NewAuditorModuleWithAuthToken(
-				lotusAPI,
-				cfg.Module.ThousandEyes.Token,
-				agentIDs,
-			)
-			modules[task.ThousandEyes] = &temodule
-		case cfg.Module.ThousandEyes.Username != "" && cfg.Module.ThousandEyes.Password != "":
-			temodule := thousandeyes.NewAuditorModuleWithBasicAuth(
-				lotusAPI,
-				cfg.Module.ThousandEyes.Username,
-				cfg.Module.ThousandEyes.Password,
-				agentIDs,
-			)
-			modules[task.ThousandEyes] = &temodule
-		default:
-			return nil, nil, errors.New("thousandeyes module enabled but no authentication provided")
-		}
-	}
-
 	if cfg.Module.Retrieval.Enabled {
 		tmpDir := cfg.Module.Retrieval.TmpDir
 		timeout := cfg.Module.Retrieval.Timeout
@@ -596,6 +558,11 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 		}
 
 		modules[task.Retrieval] = retrievalModule
+	}
+
+	if cfg.Module.Traceroute.Enabled {
+		tracerouteModule := traceroute.NewAuditor(lotusAPI)
+		modules[task.Traceroute] = &tracerouteModule
 	}
 
 	auditor, err := auditor.NewAuditor(
@@ -658,11 +625,11 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 		modules[task.QueryAsk] = &queryAskModule
 	}
 
-	if cfg.Module.ThousandEyes.Enabled {
-		teModule := thousandeyes.Dispatcher{
+	if cfg.Module.Traceroute.Enabled {
+		tracerouteModule := traceroute.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
-		modules[task.ThousandEyes] = &teModule
+		modules[task.Traceroute] = &tracerouteModule
 	}
 
 	if cfg.Module.Retrieval.Enabled {
