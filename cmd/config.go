@@ -58,25 +58,22 @@ type observerConfig struct {
 }
 
 type moduleConfig struct {
-	Echo         echoConfig
-	QueryAsk     queryAskConfig
-	ThousandEyes thousandEyesConfig
-	Retrieval    retrievalConfig
+	Echo       echoConfig
+	QueryAsk   queryAskConfig
+	Retrieval  retrievalConfig
+	Traceroute tracerouteConfig
 }
 
 type echoConfig struct {
 	Enabled bool
 }
 
-type queryAskConfig struct {
+type tracerouteConfig struct {
 	Enabled bool
 }
 
-type thousandEyesConfig struct {
-	Enabled  bool
-	Token    string
-	Username string
-	Password string
+type queryAskConfig struct {
+	Enabled bool
 }
 
 type retrievalConfig struct {

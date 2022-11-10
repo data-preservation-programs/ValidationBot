@@ -10,10 +10,10 @@ import (
 type Type = string
 
 const (
-	Echo         Type = "echo"
-	QueryAsk     Type = "query_ask"
-	ThousandEyes Type = "thousand_eyes"
-	Retrieval    Type = "retrieval"
+	Echo       Type = "echo"
+	QueryAsk   Type = "query_ask"
+	Retrieval  Type = "retrieval"
+	Traceroute Type = "traceroute"
 )
 
 type Task struct {
