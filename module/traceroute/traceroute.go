@@ -152,7 +152,7 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int) ([]Hop, er
 	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 
-	outputStr, err := cmd.Output()
+	outputStr, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to run traceroute")
 	}
