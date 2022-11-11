@@ -100,7 +100,7 @@ func (q Auditor) Enabled(ctx context.Context, provider string) (*ResultContent, 
 	rootCid, err := head.QueryRootCid(ctx, libp2p, "/indexer/ingest/mainnet", *result.PeerID)
 	if err != nil {
 		if errors.Is(err, multistream.ErrNotSupported) {
-			q.log.Info().Str("provider", provider).Err(err).Msg("index provider is not enabled")
+			q.log.Info().Str("provider", provider).AnErr("err", err).Msg("index provider is not enabled")
 			return &ResultContent{
 				Status: Disabled,
 			}, nil
