@@ -31,7 +31,7 @@ type Auditor struct {
 func NewAuditor(lotusAPI api.Gateway) Auditor {
 	return Auditor{
 		lotusAPI: lotusAPI,
-		log:      log2.With().Str("role", "traceroute_auditor").Caller().Logger(),
+		log:      log2.With().Str("role", "indexprovider_auditor").Caller().Logger(),
 	}
 }
 func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
