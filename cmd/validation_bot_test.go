@@ -118,6 +118,9 @@ func TestNewAuditor(t *testing.T) {
 				Token: "test",
 			},
 		},
+		Lotus: lotusConfig{
+			URL: "https://lotus.test",
+		},
 	}
 	aud, _, err := newAuditor(context.TODO(), &cfg)
 	assert.NotNil(aud)
