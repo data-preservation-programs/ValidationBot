@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"validation-bot/module"
-	"validation-bot/task"
 
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
@@ -19,10 +18,7 @@ import (
 
 type Dispatcher struct {
 	module.SimpleDispatcher
-}
-
-func (d Dispatcher) Validate(definition task.Definition) error {
-	return nil
+	module.NoopValidator
 }
 
 type Auditor struct {

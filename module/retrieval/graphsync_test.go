@@ -65,7 +65,7 @@ func TestGraphSync_Retrieve_NotAvailable(t *testing.T) {
 }
 
 func TestGraphSync_Retrieve_Timeout(t *testing.T) {
-	t.Skip("This is a real retrieval helper, so it's skipped by default")
+	t.Skip("This is a real retrieval test, so it's skipped by default")
 	assert := assert.New(t)
 	ctx := context.Background()
 	retriever, lotusAPI, cleanup := getRetriever(t)

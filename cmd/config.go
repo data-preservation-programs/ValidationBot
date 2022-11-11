@@ -85,7 +85,6 @@ type retrievalConfig struct {
 	Enabled        bool
 	TmpDir         string
 	Timeout        time.Duration
-	MinInterval    time.Duration
 	MaxJobs        int64
 	LocationFilter module.LocationFilterConfig
 }

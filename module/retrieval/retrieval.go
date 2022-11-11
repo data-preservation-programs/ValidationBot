@@ -10,7 +10,6 @@ import (
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
-	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -19,15 +18,11 @@ import (
 )
 
 type Dispatcher struct {
-	minInterval  time.Duration
-	lastRun      map[string]time.Time
 	dealResolver module.DealStatesResolver
 }
 
-func NewDispatcher(minInterval time.Duration, dealResolver module.DealStatesResolver) Dispatcher {
+func NewDispatcher(dealResolver module.DealStatesResolver) Dispatcher {
 	return Dispatcher{
-		minInterval:  minInterval,
-		lastRun:      make(map[string]time.Time),
 		dealResolver: dealResolver,
 	}
 }
@@ -41,39 +36,6 @@ func genRandNumber(max int) int {
 	}
 
 	return int(n.Int64())
-}
-
-func (d Dispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]module.ValidationInput, error) {
-	// Group by provider
-	definitionsByProvider := make(map[string][]task.Definition)
-	for _, def := range definitions {
-		definitionsByProvider[def.Target] = append(definitionsByProvider[def.Target], def)
-	}
-
-	// Choose a random definition for each provider
-	inputs := make(map[uuid.UUID]module.ValidationInput)
-
-	for _, defs := range definitionsByProvider {
-		lastRun, ok := d.lastRun[defs[0].Target]
-		if !ok || time.Since(lastRun) > d.minInterval {
-			index := genRandNumber(len(defs))
-			def := defs[index]
-
-			input, err := d.GetTask(def)
-			if err != nil {
-				log2.Error().Str("role", "dispatcher").
-					Str("moduleName", "retrieval").Err(err).Msg("failed to get task")
-				continue
-			}
-
-			if input != nil {
-				inputs[input.Task.DefinitionID] = *input
-				d.lastRun[def.Target] = time.Now()
-			}
-		}
-	}
-
-	return inputs, nil
 }
 
 func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput, error) {
@@ -168,6 +130,10 @@ func (Dispatcher) Validate(definition task.Definition) error {
 
 	if len(def.ProtocolPreference) != 1 || def.ProtocolPreference[0] != GraphSync {
 		return errors.New("currently only GraphSync protocol is supported")
+	}
+
+	if definition.IntervalSeconds > 0 && definition.IntervalSeconds < 3600 {
+		return errors.New("interval must be at least 1 hour")
 	}
 
 	return nil

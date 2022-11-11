@@ -4,7 +4,6 @@ import (
 	"context"
 	"validation-bot/module"
 	"validation-bot/role"
-	"validation-bot/task"
 
 	"github.com/filecoin-project/go-legs/p2p/protocol/head"
 	"github.com/filecoin-project/lotus/api"
@@ -17,10 +16,7 @@ import (
 
 type Dispatcher struct {
 	module.SimpleDispatcher
-}
-
-func (d Dispatcher) Validate(definition task.Definition) error {
-	return nil
+	module.NoopValidator
 }
 
 type Auditor struct {

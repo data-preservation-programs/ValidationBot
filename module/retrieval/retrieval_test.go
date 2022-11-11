@@ -37,7 +37,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -64,7 +64,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -93,7 +93,7 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 		Type:       task.Retrieval,
 	}
 	resolver := new(module.MockDealStatesResolver)
-	dispatcher := NewDispatcher(time.Second, resolver)
+	dispatcher := NewDispatcher(resolver)
 	resolver.On("DealsByProviderClients", "provider", []string{"client1"}).Return(
 		[]module.DealStateModel{
 			{
@@ -117,41 +117,6 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 	assert.Contains(string(task.Input.Bytes), `client":"client`)
 }
 
-func TestRetrieval_GetTasks(t *testing.T) {
-	assert := assert.New(t)
-	def := TaskDefinition{
-		ProtocolPreference: []Protocol{GraphSync},
-		DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
-		PieceCids:          []string{"cid5", "cid6"},
-	}
-	definition, err := module.NewJSONB(def)
-	assert.NoError(err)
-	taskDef1 := task.Definition{
-		Target:     "provider1",
-		Definition: definition,
-		ID:         uuid.New(),
-		Type:       task.Retrieval,
-	}
-	taskDef2 := task.Definition{
-		Target:     "provider2",
-		Definition: definition,
-		ID:         uuid.New(),
-		Type:       task.Retrieval,
-	}
-	resolver := new(module.MockDealStatesResolver)
-	dispatcher := NewDispatcher(time.Second, resolver)
-	inputs, err := dispatcher.GetTasks([]task.Definition{taskDef1, taskDef2})
-	assert.NoError(err)
-	assert.Equal(2, len(inputs))
-	inputs, err = dispatcher.GetTasks([]task.Definition{taskDef1, taskDef2})
-	assert.NoError(err)
-	assert.Equal(0, len(inputs))
-	time.Sleep(time.Second)
-	inputs, err = dispatcher.GetTasks([]task.Definition{taskDef1, taskDef2})
-	assert.NoError(err)
-	assert.Equal(2, len(inputs))
-}
-
 func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 	assert := assert.New(t)
 	def := TaskDefinition{
@@ -167,7 +132,28 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(time.Second, new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	err = dispatcher.Validate(taskDef)
+	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
+}
+
+func TestRetrieval_Dispatcher_Validate_IntervalTooShort(t *testing.T) {
+	assert := assert.New(t)
+	def := TaskDefinition{
+		ProtocolPreference: []Protocol{Protocol("graphsync")},
+		DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
+		PieceCids:          []string{"cid5", "cid6"},
+	}
+	definition, err := module.NewJSONB(def)
+	assert.NoError(err)
+	taskDef := task.Definition{
+		Target:          "provider",
+		Definition:      definition,
+		ID:              uuid.New(),
+		Type:            task.Retrieval,
+		IntervalSeconds: 1800,
+	}
+	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
