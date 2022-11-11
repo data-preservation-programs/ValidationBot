@@ -149,7 +149,7 @@ func calculateLastHopOverhead(hops []Hop) float64 {
 }
 
 func (q Auditor) Traceroute(ctx context.Context, ip string, port int) ([]Hop, error) {
-	cmdStr := fmt.Sprintf("sudo traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
+	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 
 	outputStr, err := cmd.Output()
