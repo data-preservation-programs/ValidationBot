@@ -23,7 +23,6 @@ type Status string
 const (
 	Success             Status = "success"
 	InvalidMultiAddress Status = "invalid_multi_address"
-	CannotConnect       Status = "cannot_connect"
 	NoMultiAddress      Status = "no_multi_address"
 )
 

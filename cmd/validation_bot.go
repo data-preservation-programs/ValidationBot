@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
 
 	"validation-bot/module/queryask"
@@ -129,6 +130,9 @@ func setConfig(configPath string) (*config, error) {
 				},
 			},
 			Traceroute: tracerouteConfig{
+				Enabled: true,
+			},
+			IndexProvider: indexProviderConfig{
 				Enabled: true,
 			},
 		},
@@ -505,31 +509,24 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 
 	modules := map[string]module.AuditorModule{}
 	var lotusAPI api.Gateway
-	var closer Closer = func() {}
 
 	if cfg.Module.Echo.Enabled {
 		echoModule := echo_module.NewEchoAuditor()
 		modules[task.Echo] = &echoModule
 	}
 
-	if cfg.Module.QueryAsk.Enabled || cfg.Module.Retrieval.Enabled || cfg.Module.Traceroute.Enabled {
-		var header http.Header
-		if cfg.Lotus.Token != "" {
-			header = http.Header{
-				"Authorization": []string{"Bearer " + cfg.Lotus.Token},
-			}
+	var header http.Header
+	if cfg.Lotus.Token != "" {
+		header = http.Header{
+			"Authorization": []string{"Bearer " + cfg.Lotus.Token},
 		}
+	}
 
-		var clientCloser jsonrpc.ClientCloser
+	var clientCloser jsonrpc.ClientCloser
 
-		lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, cfg.Lotus.URL, header)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "cannot create lotus api")
-		}
-
-		closer = func() {
-			clientCloser()
-		}
+	lotusAPI, clientCloser, err = client.NewGatewayRPCV1(ctx, cfg.Lotus.URL, header)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "cannot create lotus api")
 	}
 
 	if cfg.Module.QueryAsk.Enabled {
@@ -565,6 +562,11 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 		modules[task.Traceroute] = &tracerouteModule
 	}
 
+	if cfg.Module.IndexProvider.Enabled {
+		indexProviderModule := indexprovider.NewAuditor(lotusAPI)
+		modules[task.IndexProvider] = &indexProviderModule
+	}
+
 	auditor, err := auditor.NewAuditor(
 		auditor.Config{
 			ResultPublisher: resultPublisher,
@@ -577,7 +579,7 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 		return nil, nil, errors.Wrap(err, "cannot create auditor")
 	}
 
-	return auditor, closer, nil
+	return auditor, Closer(clientCloser), nil
 }
 
 func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, error) {
@@ -630,6 +632,13 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 			SimpleDispatcher: module.SimpleDispatcher{},
 		}
 		modules[task.Traceroute] = &tracerouteModule
+	}
+
+	if cfg.Module.IndexProvider.Enabled {
+		indexProviderModule := indexprovider.Dispatcher{
+			SimpleDispatcher: module.SimpleDispatcher{},
+		}
+		modules[task.IndexProvider] = &indexProviderModule
 	}
 
 	if cfg.Module.Retrieval.Enabled {

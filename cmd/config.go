@@ -58,13 +58,18 @@ type observerConfig struct {
 }
 
 type moduleConfig struct {
-	Echo       echoConfig
-	QueryAsk   queryAskConfig
-	Retrieval  retrievalConfig
-	Traceroute tracerouteConfig
+	Echo          echoConfig
+	QueryAsk      queryAskConfig
+	Retrieval     retrievalConfig
+	Traceroute    tracerouteConfig
+	IndexProvider indexProviderConfig
 }
 
 type echoConfig struct {
+	Enabled bool
+}
+
+type indexProviderConfig struct {
 	Enabled bool
 }
 
