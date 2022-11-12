@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"validation-bot/module"
-	"validation-bot/task"
 
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
@@ -12,10 +11,7 @@ import (
 
 type Dispatcher struct {
 	module.SimpleDispatcher
-}
-
-func (d Dispatcher) Validate(definition task.Definition) error {
-	return nil
+	module.NoopValidator
 }
 
 type Auditor struct {

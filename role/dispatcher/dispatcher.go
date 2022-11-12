@@ -74,17 +74,20 @@ func (g Dispatcher) Start(ctx context.Context) {
 
 				log.Info().Int("size", len(defs)).Msg("polled task definitions in ready state")
 
-				tasks, err := mod.GetTasks(defs)
-				if err != nil {
-					log.Error().Err(err).Msg("cannot get tasks to dispatch")
-					time.Sleep(g.checkInterval)
-					continue
-				}
+				for _, def := range defs {
+					task, err := mod.GetTask(def)
+					if err != nil {
+						log.Error().Err(err).Interface("definition", def).Msg("cannot get task to dispatch")
+						continue
+					}
 
-				log.Info().Int("size", len(tasks)).Msg("generated tasks to be published")
+					if task == nil {
+						continue
+					}
 
-				for id, input := range tasks {
-					err = g.dispatchOnce(ctx, id, input)
+					log.Debug().Str("definitionId", def.ID.String()).Msg("dispatching task")
+
+					err = g.dispatchOnce(ctx, def.ID, *task)
 					if err != nil {
 						log.Error().Err(err).Msg("cannot dispatch task")
 					}

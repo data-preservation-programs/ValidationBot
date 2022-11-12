@@ -119,11 +119,10 @@ func setConfig(configPath string) (*config, error) {
 				Enabled: true,
 			},
 			Retrieval: retrievalConfig{
-				Enabled:     true,
-				TmpDir:      os.TempDir(),
-				Timeout:     30 * time.Second,
-				MinInterval: 10 * time.Minute,
-				MaxJobs:     int64(1),
+				Enabled: true,
+				TmpDir:  os.TempDir(),
+				Timeout: 30 * time.Second,
+				MaxJobs: int64(1),
 				LocationFilter: module.LocationFilterConfig{
 					Continent: nil,
 					Country:   nil,
@@ -616,6 +615,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 	if cfg.Module.Echo.Enabled {
 		echoModule := echo_module.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
+			NoopValidator:    module.NoopValidator{},
 		}
 		modules[task.Echo] = &echoModule
 	}
@@ -623,6 +623,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 	if cfg.Module.QueryAsk.Enabled {
 		queryAskModule := queryask.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
+			NoopValidator:    module.NoopValidator{},
 		}
 		modules[task.QueryAsk] = &queryAskModule
 	}
@@ -630,6 +631,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 	if cfg.Module.Traceroute.Enabled {
 		tracerouteModule := traceroute.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
+			NoopValidator:    module.NoopValidator{},
 		}
 		modules[task.Traceroute] = &tracerouteModule
 	}
@@ -637,6 +639,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 	if cfg.Module.IndexProvider.Enabled {
 		indexProviderModule := indexprovider.Dispatcher{
 			SimpleDispatcher: module.SimpleDispatcher{},
+			NoopValidator:    module.NoopValidator{},
 		}
 		modules[task.IndexProvider] = &indexProviderModule
 	}
@@ -669,7 +672,7 @@ func newDispatcher(ctx context.Context, cfg *config) (*dispatcher.Dispatcher, er
 			return nil, errors.Wrap(err, "cannot create deal resolver")
 		}
 
-		retrievalModule := retrieval.NewDispatcher(cfg.Module.Retrieval.MinInterval, dealResolver)
+		retrievalModule := retrieval.NewDispatcher(dealResolver)
 		modules[task.Retrieval] = &retrievalModule
 	}
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/exec"
 	"validation-bot/module"
-	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/pkg/errors"
@@ -17,10 +16,7 @@ import (
 
 type Dispatcher struct {
 	module.SimpleDispatcher
-}
-
-func (d Dispatcher) Validate(definition task.Definition) error {
-	return nil
+	module.NoopValidator
 }
 
 type Auditor struct {

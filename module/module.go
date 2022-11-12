@@ -5,7 +5,6 @@ import (
 
 	"validation-bot/task"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
@@ -20,10 +19,6 @@ type DispatcherModule interface {
 	// Validate returns the validation error for invalid tasks
 	Validate(task.Definition) error
 
-	// GetTasks returns task inputs that should be executed according to certain restriction
-	// such as priority or number of concurrent task for each target.
-	GetTasks([]task.Definition) (map[uuid.UUID]ValidationInput, error)
-
 	// GetTask generates the task input from task definition
 	GetTask(task.Definition) (*ValidationInput, error)
 }
@@ -34,6 +29,7 @@ type (
 		task.Task
 		Input pgtype.JSONB `json:"input" gorm:"type:jsonb;default:'{}'"`
 	}
+	NoopValidator struct{}
 )
 
 type ValidationResult struct {
@@ -54,15 +50,8 @@ func (ValidationResultModel) TableName() string {
 	return "validation_results"
 }
 
-func (s SimpleDispatcher) GetTasks(definitions []task.Definition) (map[uuid.UUID]ValidationInput, error) {
-	result := make(map[uuid.UUID]ValidationInput)
-
-	for _, definition := range definitions {
-		input, _ := s.GetTask(definition)
-		result[definition.ID] = *input
-	}
-
-	return result, nil
+func (NoopValidator) Validate(task.Definition) error {
+	return nil
 }
 
 func (s SimpleDispatcher) GetTask(definition task.Definition) (*ValidationInput, error) {
