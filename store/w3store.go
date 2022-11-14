@@ -62,7 +62,10 @@ func NewW3StoreSubscriber(config W3StoreSubscriberConfig) W3StoreSubscriber {
 	}
 }
 
-func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
+func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (
+	<-chan Entry,
+	error,
+) {
 	log := s.log.With().Str("peer_id", peerID.String()).Logger()
 	peerCid := peer.ToCid(peerID)
 
@@ -86,6 +89,11 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 
 			if latest == nil {
 				log.Debug().Msg("no records found")
+				if oneOff {
+					close(entries)
+					return
+				}
+				
 				time.Sleep(s.pollInterval)
 				continue
 			}
@@ -109,6 +117,11 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 			for i := len(downloaded) - 1; i >= 0; i-- {
 				entries <- downloaded[i]
 				last = &downloaded[i].CID
+			}
+
+			if oneOff {
+				close(entries)
+				return
 			}
 
 			time.Sleep(s.pollInterval)

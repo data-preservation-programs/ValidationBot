@@ -19,7 +19,7 @@ type Entry struct {
 }
 
 type ResultSubscriber interface {
-	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error)
+	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (<-chan Entry, error)
 }
 
 type Store interface {

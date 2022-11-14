@@ -9,6 +9,7 @@ import (
 	"time"
 	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
+	"validation-bot/role/trust"
 
 	"validation-bot/module/queryask"
 	"validation-bot/module/retrieval"
@@ -369,6 +370,9 @@ func run(configPath string) error {
 
 func main() {
 	var configPath string
+	var privateKey string
+	var w3sToken string
+	var peerID string
 	log := log3.With().Str("role", "main").Caller().Logger()
 	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
@@ -409,11 +413,141 @@ func main() {
 					return nil
 				},
 			},
+			{
+				Name:  "add-trusted-peer",
+				Usage: "add a new trusted peer and publish to the network via W3Sname",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "private-key",
+						Aliases:     []string{"k"},
+						Usage:       "private key of the trustor",
+						Destination: &privateKey,
+						Required:    true,
+					},
+					&cli.StringFlag{
+						Name:        "w3s-token",
+						Aliases:     []string{"t"},
+						Usage:       "token for web3.storage",
+						Destination: &w3sToken,
+						Required:    true,
+					},
+					&cli.StringFlag{
+						Name:        "peerid",
+						Aliases:     []string{"p"},
+						Usage:       "peerID to trust",
+						Destination: &peerID,
+						Required:    true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					publisher, err := store.NewW3StorePublisher(
+						c.Context, store.W3StorePublisherConfig{
+							Token:        w3sToken,
+							PrivateKey:   privateKey,
+							RetryWait:    time.Second,
+							RetryWaitMax: time.Minute,
+							RetryCount:   10,
+						},
+					)
+					if err != nil {
+						return errors.Wrap(err, "cannot create publisher")
+					}
+
+					err = trust.TrustNewPeer(c.Context, publisher, peerID)
+					if err != nil {
+						return errors.Wrap(err, "cannot publish record to trust new peer")
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:  "revoke-trusted-peer",
+				Usage: "add a trusted peer and publish to the network via W3Sname",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "private-key",
+						Aliases:     []string{"k"},
+						Usage:       "private key of the trustor",
+						Destination: &privateKey,
+						Required:    true,
+					},
+					&cli.StringFlag{
+						Name:        "w3s-token",
+						Aliases:     []string{"t"},
+						Usage:       "token for web3.storage",
+						Destination: &w3sToken,
+						Required:    true,
+					},
+					&cli.StringFlag{
+						Name:        "peerid",
+						Aliases:     []string{"p"},
+						Usage:       "peerID to trust",
+						Destination: &peerID,
+						Required:    true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					publisher, err := store.NewW3StorePublisher(
+						c.Context, store.W3StorePublisherConfig{
+							Token:        w3sToken,
+							PrivateKey:   privateKey,
+							RetryWait:    time.Second,
+							RetryWaitMax: time.Minute,
+							RetryCount:   10,
+						},
+					)
+					if err != nil {
+						return errors.Wrap(err, "cannot create publisher")
+					}
+
+					err = trust.RevokePeer(c.Context, publisher, peerID)
+					if err != nil {
+						return errors.Wrap(err, "cannot publish record to revoke peer")
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:  "list-trusted-peers",
+				Usage: "list all published trusted peers",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "peerid",
+						Aliases:     []string{"p"},
+						Usage:       "peerID of the trustor",
+						Destination: &peerID,
+						Required:    true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					subscriber := store.NewW3StoreSubscriber(
+						store.W3StoreSubscriberConfig{
+							RetryInterval: time.Second,
+							PollInterval:  time.Minute,
+							RetryWait:     time.Second,
+							RetryWaitMax:  time.Minute,
+							RetryCount:    10,
+						},
+					)
+					peers, err := trust.ListPeers(c.Context, subscriber, peerID)
+					if err != nil {
+						return errors.Wrap(err, "cannot list trusted peers")
+					}
+					for peerStr, revoked := range peers {
+						fmt.Printf("%s - Revoked: %v\n", peerStr, revoked)
+					}
+
+					return nil
+				},
+			},
 		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal().Err(err).Msg("")
+		log.Error().Err(err).Msg("")
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }

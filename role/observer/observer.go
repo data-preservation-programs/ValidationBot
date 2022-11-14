@@ -73,7 +73,7 @@ func (o Observer) Start(ctx context.Context) {
 
 			log.Info().Interface("lastCid", last).Msg("start listening to subscription")
 
-			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
+			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last, false)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to receive next message")
 				return
