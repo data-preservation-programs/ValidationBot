@@ -58,7 +58,7 @@ jobs:
       - name: Test
         env:
           W3S_TOKEN_TEST: ${{ secrets.W3S_TOKEN_TEST }}
-        run: sudo $(go env GOPATH)/bin/gotestsum --format short
+        run: sudo -E $(go env GOPATH)/bin/gotestsum --format short
 
       - name: Docker build
         env:
