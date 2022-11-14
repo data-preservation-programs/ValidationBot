@@ -59,6 +59,7 @@ func TestObserverStart(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
+		mock.Anything,
 	).Return(writeOnly, nil)
 	testOutput := uuid.New().String()
 	go func() {
