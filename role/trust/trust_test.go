@@ -3,6 +3,7 @@ package trust
 import (
 	"context"
 	"testing"
+
 	"validation-bot/helper"
 	"validation-bot/store"
 
@@ -41,11 +42,11 @@ func TestListPeers(t *testing.T) {
 	}
 
 	newPeer1 := "peer1"
-	err := TrustNewPeer(context.Background(), &store, newPeer1)
+	err := AddNewPeer(context.Background(), &store, newPeer1)
 	assert.NoError(err)
 
 	newPeer2 := "peer2"
-	err = TrustNewPeer(context.Background(), &store, newPeer2)
+	err = AddNewPeer(context.Background(), &store, newPeer2)
 	assert.NoError(err)
 
 	err = RevokePeer(context.Background(), &store, newPeer1)

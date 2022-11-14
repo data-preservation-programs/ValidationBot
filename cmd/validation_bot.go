@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
 	"validation-bot/role/trust"
@@ -368,6 +369,7 @@ func run(configPath string) error {
 	return nil
 }
 
+//nolint:funlen,forbidigo,dupl
 func main() {
 	var configPath string
 	var privateKey string
@@ -440,6 +442,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					//nolint:gomnd
 					publisher, err := store.NewW3StorePublisher(
 						c.Context, store.W3StorePublisherConfig{
 							Token:        w3sToken,
@@ -453,7 +456,7 @@ func main() {
 						return errors.Wrap(err, "cannot create publisher")
 					}
 
-					err = trust.TrustNewPeer(c.Context, publisher, peerID)
+					err = trust.AddNewPeer(c.Context, publisher, peerID)
 					if err != nil {
 						return errors.Wrap(err, "cannot publish record to trust new peer")
 					}
@@ -488,6 +491,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					//nolint:gomnd
 					publisher, err := store.NewW3StorePublisher(
 						c.Context, store.W3StorePublisherConfig{
 							Token:        w3sToken,
@@ -522,6 +526,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
+					//nolint:gomnd
 					subscriber := store.NewW3StoreSubscriber(
 						store.W3StoreSubscriberConfig{
 							RetryInterval: time.Second,
@@ -535,8 +540,10 @@ func main() {
 					if err != nil {
 						return errors.Wrap(err, "cannot list trusted peers")
 					}
-					for peerStr, revoked := range peers {
-						fmt.Printf("%s - Revoked: %v\n", peerStr, revoked)
+
+					fmt.Println("Trusted peers:")
+					for peerStr, valid := range peers {
+						fmt.Printf("%s - Valid: %v\n", peerStr, valid)
 					}
 
 					return nil
@@ -546,9 +553,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Error().Err(err).Msg("")
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
+		log.Fatal().Err(err).Msg("")
 	}
 }
 

@@ -89,11 +89,12 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 
 			if latest == nil {
 				log.Debug().Msg("no records found")
+
 				if oneOff {
 					close(entries)
 					return
 				}
-				
+
 				time.Sleep(s.pollInterval)
 				continue
 			}

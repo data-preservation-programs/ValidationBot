@@ -3,15 +3,18 @@ package trust
 import (
 	"context"
 	"encoding/json"
+
 	"validation-bot/store"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 )
 
-type Revoked = bool
-type PeerIDStr = string
-type OperationType = string
+type (
+	Revoked       = bool
+	PeerIDStr     = string
+	OperationType = string
+)
 
 const (
 	Create OperationType = "create"
@@ -23,7 +26,7 @@ type Operation struct {
 	Peer PeerIDStr     `json:"peer"`
 }
 
-func TrustNewPeer(ctx context.Context, publisher store.ResultPublisher, peerID PeerIDStr) error {
+func AddNewPeer(ctx context.Context, publisher store.ResultPublisher, peerID PeerIDStr) error {
 	operation := Operation{
 		Type: Create,
 		Peer: peerID,
@@ -79,6 +82,7 @@ func ListPeers(ctx context.Context, subscriber store.ResultSubscriber, peerID Pe
 
 	for entry := range entries {
 		var operation Operation
+
 		err = json.Unmarshal(entry.Message, &operation)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal operation")
