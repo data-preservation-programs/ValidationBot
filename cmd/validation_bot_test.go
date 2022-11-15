@@ -153,13 +153,13 @@ func TestGetStringArrayFromEnv(t *testing.T) {
 	defer viper.Reset()
 	fileName := "./" + uuid.New().String() + ".yaml"
 	defer os.Remove(fileName)
-	cfg, err := setConfig(fileName)
+	cfg, err := setConfig(context.Background(), fileName)
 	assert.Nil(err)
 	assert.NotNil(cfg)
 	assert.Equal([]string{"/filecoin/validation_bot/dev"}, cfg.Auditor.TopicNames)
 
 	os.Setenv("AUDITOR_TOPICNAMES", "test1, test2")
-	cfg, err = setConfig(fileName)
+	cfg, err = setConfig(context.Background(), fileName)
 	assert.Nil(err)
 	assert.NotNil(cfg)
 	assert.Equal([]string{"test1", " test2"}, cfg.Auditor.TopicNames)
