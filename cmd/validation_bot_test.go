@@ -5,7 +5,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"validation-bot/helper"
@@ -146,21 +145,4 @@ func TestNewDispatcher(t *testing.T) {
 	dis, err := newDispatcher(context.TODO(), &cfg)
 	assert.NotNil(dis)
 	assert.Nil(err)
-}
-
-func TestGetStringArrayFromEnv(t *testing.T) {
-	assert := assert.New(t)
-	defer viper.Reset()
-	fileName := "./" + uuid.New().String() + ".yaml"
-	defer os.Remove(fileName)
-	cfg, err := setConfig(context.Background(), fileName)
-	assert.Nil(err)
-	assert.NotNil(cfg)
-	assert.Equal([]string{"/filecoin/validation_bot/dev"}, cfg.Auditor.TopicNames)
-
-	os.Setenv("AUDITOR_TOPICNAMES", "test1, test2")
-	cfg, err = setConfig(context.Background(), fileName)
-	assert.Nil(err)
-	assert.NotNil(cfg)
-	assert.Equal([]string{"test1", " test2"}, cfg.Auditor.TopicNames)
 }
