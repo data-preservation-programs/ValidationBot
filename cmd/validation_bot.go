@@ -147,9 +147,11 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 		},
 	}
 
+	//nolint:nestif
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
 		log.Info().Msg("generating new peers for dispatcher and auditor as default")
+
 		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
 			return nil, errors.New("AUDITOR_W3S_TOKEN env var is not set. This is required to initialize a config")
 		}
@@ -178,6 +180,9 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 				RetryCount:   10,
 			},
 		)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot create publisher")
+		}
 
 		err = trust.AddNewPeer(ctx, publisher, auditorPeer)
 		if err != nil {
@@ -347,6 +352,7 @@ func run(ctx context.Context, configPath string) error {
 		dispatcher.Start(ctx)
 
 		log.Info().Msg("starting dispatcher api")
+		//nolint:contextcheck
 		setupAPI(dispatcher, cfg)
 	}
 
