@@ -152,10 +152,6 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
 		log.Info().Msg("generating new peers for dispatcher and auditor as default")
 
-		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
-			return nil, errors.New("AUDITOR_W3S_TOKEN env var is not set. This is required to initialize a config")
-		}
-
 		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot generate auditor key")
@@ -171,22 +167,26 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 		cfg.Auditor.TrustedPeers = []string{dispatcherPeer.String()}
 		cfg.Observer.TrustedPeers = []string{dispatcherPeer.String()}
 
-		publisher, err := store.NewW3StorePublisher(
-			ctx, store.W3StorePublisherConfig{
-				Token:        os.Getenv("AUDITOR_W3S_TOKEN"),
-				PrivateKey:   dispatcherKey,
-				RetryWait:    time.Second,
-				RetryWaitMax: time.Minute,
-				RetryCount:   10,
-			},
-		)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot create publisher")
-		}
+		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
+			log.Warn().Msg("AUDITOR_W3S_TOKEN env variable is not set, skip publishing auditor peer to w3s")
+		} else {
+			publisher, err := store.NewW3StorePublisher(
+				ctx, store.W3StorePublisherConfig{
+					Token:        os.Getenv("AUDITOR_W3S_TOKEN"),
+					PrivateKey:   dispatcherKey,
+					RetryWait:    time.Second,
+					RetryWaitMax: time.Minute,
+					RetryCount:   10,
+				},
+			)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot create publisher")
+			}
 
-		err = trust.AddNewPeer(ctx, publisher, auditorPeer)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
+			err = trust.AddNewPeer(ctx, publisher, auditorPeer)
+			if err != nil {
+				return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
+			}
 		}
 
 		log.Info().Str("config_path", configPath).Msg("writing defaults to config file")
