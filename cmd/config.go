@@ -75,6 +75,7 @@ type indexProviderConfig struct {
 
 type tracerouteConfig struct {
 	Enabled bool
+	UseSudo bool
 }
 
 type queryAskConfig struct {

@@ -71,7 +71,10 @@ func TestObserverStart(t *testing.T) {
 			)),
 		}
 	}()
-	obs.Start(context.Background())
+	obs.trustedAuditorPeers[testPeerId1] = struct{}{}
+	obs.trustedAuditorPeers[testPeerId2] = struct{}{}
+	go obs.downloadEntriesForAuditorPeer(context.Background(), testPeerId1)
+	go obs.downloadEntriesForAuditorPeer(context.Background(), testPeerId2)
 	time.Sleep(2 * time.Second)
 
 	var found []module.ValidationResult

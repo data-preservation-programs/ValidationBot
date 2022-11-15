@@ -50,7 +50,7 @@ func NewLibp2pHost(privateKeyStr string, listenAddr string) (*host.Host, error) 
 	return &host, nil
 }
 
-func GenerateNewPeer() (string, string, string, error) {
+func GenerateNewPeer() (string, string, peer.ID, error) {
 	private, public, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
 		return "", "", "", errors.Wrap(err, "cannot generate new peer")
@@ -74,5 +74,5 @@ func GenerateNewPeer() (string, string, string, error) {
 	}
 
 	publicStr := base64.StdEncoding.EncodeToString(publicBytes)
-	return privateStr, publicStr, peerID.String(), nil
+	return privateStr, publicStr, peerID, nil
 }

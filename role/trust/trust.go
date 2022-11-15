@@ -11,8 +11,7 @@ import (
 )
 
 type (
-	Revoked       = bool
-	PeerIDStr     = string
+	Valid         = bool
 	OperationType = string
 )
 
@@ -23,13 +22,13 @@ const (
 
 type Operation struct {
 	Type OperationType `json:"type"`
-	Peer PeerIDStr     `json:"peer"`
+	Peer string        `json:"peer"`
 }
 
-func AddNewPeer(ctx context.Context, publisher store.ResultPublisher, peerID PeerIDStr) error {
+func AddNewPeer(ctx context.Context, publisher store.ResultPublisher, peerID peer.ID) error {
 	operation := Operation{
 		Type: Create,
-		Peer: peerID,
+		Peer: peerID.String(),
 	}
 
 	marshal, err := json.Marshal(operation)
@@ -45,10 +44,10 @@ func AddNewPeer(ctx context.Context, publisher store.ResultPublisher, peerID Pee
 	return nil
 }
 
-func RevokePeer(ctx context.Context, publisher store.ResultPublisher, peerID PeerIDStr) error {
+func RevokePeer(ctx context.Context, publisher store.ResultPublisher, peerID peer.ID) error {
 	operation := Operation{
 		Type: Revoke,
-		Peer: peerID,
+		Peer: peerID.String(),
 	}
 
 	marshal, err := json.Marshal(operation)
@@ -64,21 +63,16 @@ func RevokePeer(ctx context.Context, publisher store.ResultPublisher, peerID Pee
 	return nil
 }
 
-func ListPeers(ctx context.Context, subscriber store.ResultSubscriber, peerID PeerIDStr) (
-	map[PeerIDStr]Revoked,
+func ListPeers(ctx context.Context, subscriber store.ResultSubscriber, peerID peer.ID) (
+	map[peer.ID]Valid,
 	error,
 ) {
-	decode, err := peer.Decode(peerID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to decode peer id %s", peerID)
-	}
-
-	entries, err := subscriber.Subscribe(ctx, decode, nil, true)
+	entries, err := subscriber.Subscribe(ctx, peerID, nil, true)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to subscribe to peer %s", peerID)
 	}
 
-	result := make(map[PeerIDStr]Revoked)
+	result := make(map[peer.ID]Valid)
 
 	for entry := range entries {
 		var operation Operation
@@ -88,11 +82,16 @@ func ListPeers(ctx context.Context, subscriber store.ResultSubscriber, peerID Pe
 			return nil, errors.Wrapf(err, "failed to unmarshal operation")
 		}
 
+		operationPeerID, err := peer.Decode(operation.Peer)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to decode peer")
+		}
+
 		switch operation.Type {
 		case Create:
-			result[operation.Peer] = true
+			result[operationPeerID] = true
 		case Revoke:
-			result[operation.Peer] = false
+			result[operationPeerID] = false
 		default:
 			return nil, errors.Errorf("unknown operation type %s", operation.Type)
 		}

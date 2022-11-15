@@ -41,11 +41,11 @@ func TestListPeers(t *testing.T) {
 		Storage: [][]byte{},
 	}
 
-	newPeer1 := "peer1"
+	_, _, newPeer1 := helper.GeneratePeerID(t)
 	err := AddNewPeer(context.Background(), &store, newPeer1)
 	assert.NoError(err)
 
-	newPeer2 := "peer2"
+	_, _, newPeer2 := helper.GeneratePeerID(t)
 	err = AddNewPeer(context.Background(), &store, newPeer2)
 	assert.NoError(err)
 
@@ -54,7 +54,7 @@ func TestListPeers(t *testing.T) {
 
 	_, _, peer := helper.GeneratePeerID(t)
 
-	peers, err := ListPeers(context.Background(), &store, peer.String())
+	peers, err := ListPeers(context.Background(), &store, peer)
 	assert.NoError(err)
 	assert.Equal(2, len(peers))
 	assert.False(peers[newPeer1])

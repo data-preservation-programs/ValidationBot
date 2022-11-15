@@ -67,7 +67,7 @@ type taskRemover interface {
 }
 
 //nolint:gomnd,funlen,cyclop
-func setConfig(configPath string) (*config, error) {
+func setConfig(ctx context.Context, configPath string) (*config, error) {
 	log := log3.With().Str("role", "main").Caller().Logger()
 	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
 
@@ -132,6 +132,7 @@ func setConfig(configPath string) (*config, error) {
 			},
 			Traceroute: tracerouteConfig{
 				Enabled: true,
+				UseSudo: false,
 			},
 			IndexProvider: indexProviderConfig{
 				Enabled: true,
@@ -149,6 +150,9 @@ func setConfig(configPath string) (*config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
 		log.Info().Msg("generating new peers for dispatcher and auditor as default")
+		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
+			return nil, errors.New("AUDITOR_W3S_TOKEN env var is not set. This is required to initialize a config")
+		}
 
 		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 		if err != nil {
@@ -162,8 +166,23 @@ func setConfig(configPath string) (*config, error) {
 
 		cfg.Auditor.PrivateKey = auditorKey
 		cfg.Dispatcher.PrivateKey = dispatcherKey
-		cfg.Auditor.TrustedPeers = []string{dispatcherPeer}
-		cfg.Observer.TrustedPeers = []string{auditorPeer}
+		cfg.Auditor.TrustedPeers = []string{dispatcherPeer.String()}
+		cfg.Observer.TrustedPeers = []string{dispatcherPeer.String()}
+
+		publisher, err := store.NewW3StorePublisher(
+			ctx, store.W3StorePublisherConfig{
+				Token:        os.Getenv("AUDITOR_W3S_TOKEN"),
+				PrivateKey:   dispatcherKey,
+				RetryWait:    time.Second,
+				RetryWaitMax: time.Minute,
+				RetryCount:   10,
+			},
+		)
+
+		err = trust.AddNewPeer(ctx, publisher, auditorPeer)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
+		}
 
 		log.Info().Str("config_path", configPath).Msg("writing defaults to config file")
 
@@ -294,8 +313,8 @@ func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	}()
 }
 
-func run(configPath string) error {
-	cfg, err := setConfig(configPath)
+func run(ctx context.Context, configPath string) error {
+	cfg, err := setConfig(ctx, configPath)
 	if err != nil {
 		return errors.Wrap(err, "cannot set config")
 	}
@@ -313,7 +332,6 @@ func run(configPath string) error {
 
 	zerolog.SetGlobalLevel(level)
 
-	ctx := context.Background()
 	var anyEnabled bool
 
 	if cfg.Dispatcher.Enabled {
@@ -374,7 +392,7 @@ func main() {
 	var configPath string
 	var privateKey string
 	var w3sToken string
-	var peerID string
+	var peerIDStr string
 	log := log3.With().Str("role", "main").Caller().Logger()
 	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
@@ -393,7 +411,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					return run(configPath)
+					return run(c.Context, configPath)
 				},
 			},
 			{
@@ -408,7 +426,7 @@ func main() {
 					//nolint:forbidigo
 					{
 						fmt.Println("New peer generated using ed25519, keys are encoded in base64")
-						fmt.Println("peer id:     ", peerStr)
+						fmt.Println("peer id:     ", peerStr.String())
 						fmt.Println("public key:  ", publicStr)
 						fmt.Println("private key: ", privateStr)
 					}
@@ -436,8 +454,8 @@ func main() {
 					&cli.StringFlag{
 						Name:        "peerid",
 						Aliases:     []string{"p"},
-						Usage:       "peerID to trust",
-						Destination: &peerID,
+						Usage:       "peerIDStr to trust",
+						Destination: &peerIDStr,
 						Required:    true,
 					},
 				},
@@ -454,6 +472,11 @@ func main() {
 					)
 					if err != nil {
 						return errors.Wrap(err, "cannot create publisher")
+					}
+
+					peerID, err := peer.Decode(peerIDStr)
+					if err != nil {
+						return errors.Wrap(err, "cannot decode peer id")
 					}
 
 					err = trust.AddNewPeer(c.Context, publisher, peerID)
@@ -485,8 +508,8 @@ func main() {
 					&cli.StringFlag{
 						Name:        "peerid",
 						Aliases:     []string{"p"},
-						Usage:       "peerID to trust",
-						Destination: &peerID,
+						Usage:       "peerIDStr to trust",
+						Destination: &peerIDStr,
 						Required:    true,
 					},
 				},
@@ -505,6 +528,11 @@ func main() {
 						return errors.Wrap(err, "cannot create publisher")
 					}
 
+					peerID, err := peer.Decode(peerIDStr)
+					if err != nil {
+						return errors.Wrap(err, "cannot decode peer id")
+					}
+
 					err = trust.RevokePeer(c.Context, publisher, peerID)
 					if err != nil {
 						return errors.Wrap(err, "cannot publish record to revoke peer")
@@ -520,8 +548,8 @@ func main() {
 					&cli.StringFlag{
 						Name:        "peerid",
 						Aliases:     []string{"p"},
-						Usage:       "peerID of the trustor",
-						Destination: &peerID,
+						Usage:       "peerIDStr of the trustor",
+						Destination: &peerIDStr,
 						Required:    true,
 					},
 				},
@@ -536,6 +564,12 @@ func main() {
 							RetryCount:    10,
 						},
 					)
+
+					peerID, err := peer.Decode(peerIDStr)
+					if err != nil {
+						return errors.Wrap(err, "cannot decode peer id")
+					}
+
 					peers, err := trust.ListPeers(c.Context, subscriber, peerID)
 					if err != nil {
 						return errors.Wrap(err, "cannot list trusted peers")
@@ -696,7 +730,7 @@ func newAuditor(ctx context.Context, cfg *config) (*auditor.Auditor, Closer, err
 	}
 
 	if cfg.Module.Traceroute.Enabled {
-		tracerouteModule := traceroute.NewAuditor(lotusAPI)
+		tracerouteModule := traceroute.NewAuditor(lotusAPI, cfg.Module.Traceroute.UseSudo)
 		modules[task.Traceroute] = &tracerouteModule
 	}
 
