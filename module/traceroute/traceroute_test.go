@@ -11,11 +11,11 @@ import (
 )
 
 func TestAuditor_Traceroute(t *testing.T) {
-	t.Skip("github hides traceroute details")
+	t.Skip("skip github test")
 	assert := assert.New(t)
 	ctx := context.TODO()
 	auditor := Auditor{}
-	output, err := auditor.Traceroute(ctx, "127.0.0.1", 1234)
+	output, err := auditor.Traceroute(ctx, "127.0.0.1", 1234, true)
 	assert.Nil(err)
 	fmt.Printf("%+v\n", output)
 	assert.NotNil(output)
@@ -26,13 +26,13 @@ func TestAuditor_Traceroute(t *testing.T) {
 }
 
 func TestAuditor_ValidateProvider(t *testing.T) {
-	t.Skip("github hides traceroute details")
+	t.Skip("skip github test")
 	assert := assert.New(t)
 	ctx := context.TODO()
 	lotusAPI, closer, err := client.NewGatewayRPCV1(context.Background(), "https://api.node.glif.io/rpc/v0", nil)
 	assert.NoError(err)
 	defer closer()
-	auditor := NewAuditor(lotusAPI)
+	auditor := NewAuditor(lotusAPI, true)
 	output, err := auditor.ValidateProvider(ctx, "f03223")
 	assert.Nil(err)
 	fmt.Printf("%+v\n", output)
@@ -48,13 +48,13 @@ func TestAuditor_ValidateProvider(t *testing.T) {
 }
 
 func TestAuditor_ValidateProviderWithOverhead(t *testing.T) {
-	t.Skip("github hides traceroute details")
+	t.Skip("skip github test")
 	assert := assert.New(t)
 	ctx := context.TODO()
 	lotusAPI, closer, err := client.NewGatewayRPCV1(context.Background(), "https://api.node.glif.io/rpc/v0", nil)
 	assert.NoError(err)
 	defer closer()
-	auditor := NewAuditor(lotusAPI)
+	auditor := NewAuditor(lotusAPI, true)
 	output, err := auditor.ValidateProvider(ctx, "f01732188")
 	assert.Nil(err)
 	fmt.Printf("%+v\n", output)
@@ -76,7 +76,7 @@ func TestAuditor_ValidateProvider_Evergreen(t *testing.T) {
 	lotusAPI, closer, err := client.NewGatewayRPCV1(context.Background(), "https://api.node.glif.io/rpc/v0", nil)
 	assert.NoError(err)
 	defer closer()
-	auditor := NewAuditor(lotusAPI)
+	auditor := NewAuditor(lotusAPI, true)
 	for _, provider := range strings.Split(providers, ",") {
 		result, err := auditor.ValidateProvider(ctx, provider)
 		assert.Nil(err)

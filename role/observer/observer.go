@@ -3,8 +3,10 @@ package observer
 import (
 	"context"
 	"encoding/json"
-
+	"sync"
+	"time"
 	"validation-bot/module"
+	"validation-bot/role/trust"
 
 	"validation-bot/store"
 
@@ -17,10 +19,12 @@ import (
 )
 
 type Observer struct {
-	db               *gorm.DB
-	trustedPeers     []peer.ID
-	resultSubscriber store.ResultSubscriber
-	log              zerolog.Logger
+	db                      *gorm.DB
+	trustedPeers            []peer.ID
+	trustedAuditorPeers     map[peer.ID]struct{}
+	trustedAuditorPeersLock sync.RWMutex
+	resultSubscriber        store.ResultSubscriber
+	log                     zerolog.Logger
 }
 
 func NewObserver(
@@ -33,14 +37,16 @@ func NewObserver(
 		return nil, errors.Wrapf(err, "failed to migrate types")
 	}
 	return &Observer{
-		db:               db,
-		trustedPeers:     peers,
-		resultSubscriber: resultSubscriber,
-		log:              log2.With().Str("role", "observer").Caller().Logger(),
+		db:                      db,
+		trustedPeers:            peers,
+		trustedAuditorPeers:     make(map[peer.ID]struct{}),
+		trustedAuditorPeersLock: sync.RWMutex{},
+		resultSubscriber:        resultSubscriber,
+		log:                     log2.With().Str("role", "observer").Caller().Logger(),
 	}, nil
 }
 
-func (o Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
+func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 	model := module.ValidationResultModel{}
 
 	last := o.db.Last(&model, "peer_id = ?", peer.String())
@@ -59,46 +65,107 @@ func (o Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 	return &cid, nil
 }
 
-func (o Observer) Start(ctx context.Context) {
-	for _, peerID := range o.trustedPeers {
-		peerID := peerID
-		log := o.log.With().Str("peer", peerID.String()).Logger()
+func (o *Observer) Start(ctx context.Context) {
+	go o.downloadListOfAuditorPeers(ctx)
+}
 
-		go func() {
-			last, err := o.lastCidFromDB(peerID)
+func (o *Observer) downloadListOfAuditorPeers(ctx context.Context) {
+	for {
+		newAuditorPeers := make(map[peer.ID]struct{})
+
+		for _, peerID := range o.trustedPeers {
+			log := o.log.With().Str("peer", peerID.String()).Logger()
+
+			log.Debug().Msg("start downloading list of auditor peers")
+
+			peers, err := trust.ListPeers(ctx, o.resultSubscriber, peerID)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to get last cid from db")
-				return
+				log.Error().Err(err).Msg("failed to list peers")
+				time.Sleep(time.Minute)
+				continue
 			}
 
-			log.Info().Interface("lastCid", last).Msg("start listening to subscription")
+			log.Debug().Int("peers", len(peers)).Msg("received list of auditor peers")
 
-			entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to receive next message")
-				return
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case entry := <-entries:
-					log.Info().Bytes("message", entry.Message).
-						Interface("previous", entry.Previous).
-						Str("cid", entry.CID.String()).Msg("storing received message")
-
-					err = o.storeResult(ctx, entry.Message, entry.CID, peerID, entry.Previous)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to store result")
-					}
+			for peerID, valid := range peers {
+				if valid {
+					newAuditorPeers[peerID] = struct{}{}
 				}
 			}
-		}()
+		}
+
+		diff := make(map[peer.ID]struct{})
+
+		o.trustedAuditorPeersLock.Lock()
+
+		for peerID := range newAuditorPeers {
+			if _, ok := o.trustedAuditorPeers[peerID]; !ok {
+				diff[peerID] = struct{}{}
+			}
+		}
+
+		o.trustedAuditorPeers = newAuditorPeers
+		o.trustedAuditorPeersLock.Unlock()
+		o.log.Debug().Int("peers", len(diff)).Msg("new auditor peers")
+
+		for peerID := range diff {
+			go o.downloadEntriesForAuditorPeer(ctx, peerID)
+		}
+
+		time.Sleep(time.Minute)
 	}
 }
 
-func (o Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {
+func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID peer.ID) {
+	log := o.log.With().Str("peer", peerID.String()).Logger()
+
+	last, err := o.lastCidFromDB(peerID)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get last cid from db")
+		return
+	}
+
+	log.Info().Interface("lastCid", last).Msg("start listening to subscription")
+
+	entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last, false)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to receive next message")
+		return
+	}
+
+	for {
+		stillValid := false
+
+		o.trustedAuditorPeersLock.RLock()
+
+		if _, ok := o.trustedAuditorPeers[peerID]; ok {
+			stillValid = true
+		}
+
+		o.trustedAuditorPeersLock.RUnlock()
+
+		if !stillValid {
+			log.Warn().Msg("peer has been revoked")
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case entry := <-entries:
+			log.Info().Bytes("message", entry.Message).
+				Interface("previous", entry.Previous).
+				Str("cid", entry.CID.String()).Msg("storing received message")
+
+			err = o.storeResult(ctx, entry.Message, entry.CID, peerID, entry.Previous)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to store result")
+			}
+		}
+	}
+}
+
+func (o *Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {
 	result := &module.ValidationResult{}
 
 	err := json.Unmarshal(data, result)

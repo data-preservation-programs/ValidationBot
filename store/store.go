@@ -19,7 +19,7 @@ type Entry struct {
 }
 
 type ResultSubscriber interface {
-	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error)
+	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (<-chan Entry, error)
 }
 
 type Store interface {
@@ -32,8 +32,11 @@ type MockSubscriber struct {
 }
 
 //nolint:all
-func (m *MockSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan Entry, error) {
-	args := m.Called(ctx, peerID, last)
+func (m *MockSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (
+	<-chan Entry,
+	error,
+) {
+	args := m.Called(ctx, peerID, last, oneOff)
 	return args.Get(0).(<-chan Entry), args.Error(1)
 }
 

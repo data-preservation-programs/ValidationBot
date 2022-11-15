@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+
 	"validation-bot/module"
 
 	"github.com/filecoin-project/lotus/api"
@@ -22,12 +23,14 @@ type Dispatcher struct {
 type Auditor struct {
 	log      zerolog.Logger
 	lotusAPI api.Gateway
+	useSudo  bool
 }
 
-func NewAuditor(lotusAPI api.Gateway) Auditor {
+func NewAuditor(lotusAPI api.Gateway, useSudo bool) Auditor {
 	return Auditor{
 		log:      log2.With().Str("role", "traceroute_auditor").Caller().Logger(),
 		lotusAPI: lotusAPI,
+		useSudo:  useSudo,
 	}
 }
 
@@ -88,7 +91,7 @@ func (q Auditor) ValidateProvider(ctx context.Context, provider string) (*Result
 			}, nil
 		}
 
-		hops, err := q.Traceroute(ctx, host, port)
+		hops, err := q.Traceroute(ctx, host, port, q.useSudo)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to traceroute")
 		}
@@ -144,8 +147,12 @@ func calculateLastHopOverhead(hops []Hop) float64 {
 	return lastRTT - firstRTT
 }
 
-func (q Auditor) Traceroute(ctx context.Context, ip string, port int) ([]Hop, error) {
+func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bool) ([]Hop, error) {
 	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
+	if useSudo {
+		cmdStr = fmt.Sprintf("sudo %s", cmdStr)
+	}
+
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 
 	outputStr, err := cmd.CombinedOutput()

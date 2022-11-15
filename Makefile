@@ -48,6 +48,7 @@ clean:
 	rm -rf $(CLEAN) $(BINS)
 
 fmt:
+	go fmt ./...
 	gofumpt -w .
 
 lint:

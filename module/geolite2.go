@@ -2,6 +2,7 @@ package module
 
 import (
 	"net"
+
 	"validation-bot/resources"
 
 	"github.com/multiformats/go-multiaddr"

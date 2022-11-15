@@ -64,6 +64,7 @@ linters-settings:
       - e error
       - t testing.T
       - c echo.Context
+      - c *cli.Context
   paralleltest:
     ignore-missing: true
   funlen:

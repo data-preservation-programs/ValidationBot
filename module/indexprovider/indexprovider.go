@@ -2,6 +2,7 @@ package indexprovider
 
 import (
 	"context"
+
 	"validation-bot/module"
 	"validation-bot/role"
 
@@ -30,6 +31,7 @@ func NewAuditor(lotusAPI api.Gateway) Auditor {
 		log:      log2.With().Str("role", "indexprovider_auditor").Caller().Logger(),
 	}
 }
+
 func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	provider := input.Target
 	log := q.log.With().Str("provider", provider).Logger()
