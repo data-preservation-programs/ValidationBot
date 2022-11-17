@@ -2,6 +2,7 @@ package indexprovider
 
 import (
 	"context"
+	"validation-bot/task"
 
 	"validation-bot/module"
 	"validation-bot/role"
@@ -20,9 +21,17 @@ type Dispatcher struct {
 	module.NoopValidator
 }
 
+func (Dispatcher) Type() task.Type {
+	return task.IndexProvider
+}
+
 type Auditor struct {
 	log      zerolog.Logger
 	lotusAPI api.Gateway
+}
+
+func (Auditor) Type() task.Type {
+	return task.IndexProvider
 }
 
 func NewAuditor(lotusAPI api.Gateway) Auditor {

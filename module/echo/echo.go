@@ -2,6 +2,7 @@ package echo
 
 import (
 	"context"
+	"validation-bot/task"
 
 	"validation-bot/module"
 
@@ -14,8 +15,16 @@ type Dispatcher struct {
 	module.NoopValidator
 }
 
+func (Dispatcher) Type() task.Type {
+	return task.Echo
+}
+
 type Auditor struct {
 	log zerolog.Logger
+}
+
+func (Auditor) Type() task.Type {
+	return task.Echo
 }
 
 func NewEchoAuditor() Auditor {

@@ -2,9 +2,11 @@ package module
 
 import (
 	"context"
+	"time"
 
 	"validation-bot/task"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
@@ -13,6 +15,8 @@ import (
 type AuditorModule interface {
 	// Validate accepts the task input and returns the validation Result
 	Validate(ctx context.Context, input ValidationInput) (*ValidationResult, error)
+
+	Type() task.Type
 }
 
 type DispatcherModule interface {
@@ -21,6 +25,8 @@ type DispatcherModule interface {
 
 	// GetTask generates the task input from task definition
 	GetTask(task.Definition) (*ValidationInput, error)
+
+	Type() task.Type
 }
 
 type (
@@ -29,7 +35,11 @@ type (
 		task.Task
 		Input pgtype.JSONB `json:"input" gorm:"type:jsonb;default:'{}'"`
 	}
-	NoopValidator struct{}
+	NoopValidator     struct{}
+	DefaultDispatcher struct {
+		SimpleDispatcher
+		NoopValidator
+	}
 )
 
 type ValidationResult struct {
@@ -38,12 +48,15 @@ type ValidationResult struct {
 }
 
 type ValidationResultModel struct {
+	CreatedAt time.Time `gorm:"index:idx_createdAt_type_target"`
 	ValidationInput
 	Result      pgtype.JSONB `gorm:"type:jsonb;default:'{}'"`
 	Cid         string
 	PreviousCid *string
 	PeerID      string
-	gorm.Model
+	ID          uint `gorm:"primarykey"`
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 
 func (ValidationResultModel) TableName() string {
@@ -61,6 +74,7 @@ func (s SimpleDispatcher) GetTask(definition task.Definition) (*ValidationInput,
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 			Tag:          definition.Tag,
+			TaskID:       uuid.New(),
 		},
 		Input: definition.Definition,
 	}

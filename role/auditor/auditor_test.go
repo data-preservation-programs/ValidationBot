@@ -26,10 +26,10 @@ func TestAuditor_Start(t *testing.T) {
 	mockSubscriber := &task.MockSubscriber{}
 	adt, err := NewAuditor(
 		Config{
-			TrustedPeers:    []peer.ID{peerId},
-			ResultPublisher: mockPublisher,
-			TaskSubscriber:  mockSubscriber,
-			Modules:         map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
+			TrustedDispatcherPeers: []peer.ID{peerId},
+			ResultPublisher:        mockPublisher,
+			TaskSubscriber:         mockSubscriber,
+			Modules:                map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
 		},
 	)
 	assert.Nil(err)

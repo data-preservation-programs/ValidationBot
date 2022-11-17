@@ -31,7 +31,7 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-type Cleanup = func()
+type Cleanup func()
 
 type GraphSyncRetriever interface {
 	Retrieve(

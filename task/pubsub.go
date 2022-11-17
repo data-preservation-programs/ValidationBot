@@ -38,7 +38,7 @@ func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
 	return s.addrInfo
 }
 
-func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames []string) (
+func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName string) (
 	*Libp2pTaskSubscriber,
 	error,
 ) {
@@ -63,40 +63,37 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicNames [
 
 	msgChan := make(chan *pubsub.Message)
 
-	for _, topicName := range topicNames {
-		log.Info().Str("topic", topicName).Msg("subscribing to topic")
-		topicName := topicName
+	log.Info().Str("topic", topicName).Msg("subscribing to topic")
 
-		topic, err := gossipSub.Join(topicName)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot join TopicName")
-		}
-
-		subscription, err := topic.Subscribe()
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot subscribe to TopicName")
-		}
-
-		go func() {
-			for {
-				time.Sleep(time.Minute)
-				log.Debug().Int("peers", len(topic.ListPeers())).Str("topic", topicName).
-					Msg("connected to peers in the topic")
-			}
-		}()
-
-		go func() {
-			for {
-				msg, err := subscription.Next(ctx)
-				if err != nil {
-					log.Error().Str("topic", topicName).Err(err).Msg("cannot get next message")
-					time.Sleep(time.Minute)
-					continue
-				}
-				msgChan <- msg
-			}
-		}()
+	topic, err := gossipSub.Join(topicName)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot join TopicName")
 	}
+
+	subscription, err := topic.Subscribe()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot subscribe to TopicName")
+	}
+
+	go func() {
+		for {
+			time.Sleep(time.Minute)
+			log.Debug().Int("peers", len(topic.ListPeers())).Str("topic", topicName).
+				Msg("connected to peers in the topic")
+		}
+	}()
+
+	go func() {
+		for {
+			msg, err := subscription.Next(ctx)
+			if err != nil {
+				log.Error().Str("topic", topicName).Err(err).Msg("cannot get next message")
+				time.Sleep(time.Minute)
+				continue
+			}
+			msgChan <- msg
+		}
+	}()
 
 	return &Libp2pTaskSubscriber{
 		libp2p:   libp2p,

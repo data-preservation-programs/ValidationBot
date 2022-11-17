@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type ResultPublisher interface {
+type Publisher interface {
 	Publish(ctx context.Context, input []byte) error
 }
 
@@ -18,13 +18,13 @@ type Entry struct {
 	CID      cid.Cid
 }
 
-type ResultSubscriber interface {
+type Subscriber interface {
 	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (<-chan Entry, error)
 }
 
 type Store interface {
-	ResultPublisher
-	ResultSubscriber
+	Publisher
+	Subscriber
 }
 
 type MockSubscriber struct {
