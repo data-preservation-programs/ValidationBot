@@ -9,6 +9,7 @@ import (
 	"validation-bot/store"
 
 	"github.com/ipfs/go-cid"
+	cid "github.com/ipfs/go-cid/_rsrch/cidiface"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -65,7 +66,6 @@ func (o *Observer) Start(ctx context.Context) {
 }
 
 func (o *Observer) downloadListOfAuditorPeers(ctx context.Context) {
-	o.trustManager.Start(ctx)
 	o.trustManager.SubscribeToDiff(
 		func(diff map[peer.ID]struct{}) {
 			for peerID := range diff {
@@ -73,6 +73,7 @@ func (o *Observer) downloadListOfAuditorPeers(ctx context.Context) {
 			}
 		},
 	)
+	o.trustManager.Start(ctx)
 }
 
 func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID peer.ID) {
