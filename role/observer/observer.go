@@ -64,7 +64,9 @@ func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 
 func (o *Observer) Start(ctx context.Context) {
 	o.trustManager.Start(ctx)
+
 	currentTrustees := map[peer.ID]struct{}{}
+
 	go func() {
 		for {
 			newTrustees := o.trustManager.Trustees()
@@ -75,6 +77,7 @@ func (o *Observer) Start(ctx context.Context) {
 			}
 
 			currentTrustees = newTrustees
+
 			time.Sleep(time.Second)
 		}
 	}()

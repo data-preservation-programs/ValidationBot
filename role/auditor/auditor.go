@@ -63,12 +63,13 @@ func NewAuditor(config Config) (*Auditor, error) {
 		peerID:                 config.PeerID,
 		modules:                config.Modules,
 		trustedDispatcherPeers: config.TrustedDispatcherPeers,
+		trustManager:           config.TrustManager,
 		resultPublisher:        config.ResultPublisher,
 		taskSubscriber:         config.TaskSubscriber,
 		taskPublisher:          config.TaskPublisher,
-		trustManager:           config.TrustManager,
 		log:                    log,
 		bidding:                make(map[uuid.UUID]map[peer.ID]uint64),
+		biddingLock:            sync.RWMutex{},
 		biddingWait:            config.BiddingWait,
 	}
 
@@ -77,6 +78,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 
 func (a *Auditor) Start(ctx context.Context) {
 	a.trustManager.Start(ctx)
+
 	for {
 		if len(a.trustManager.Trustees()) > 0 {
 			a.log.Info().Msg("trustees for bidding have been found")
@@ -104,6 +106,7 @@ func (a *Auditor) Start(ctx context.Context) {
 
 			// If the message is a bidding message
 			bidding := new(Bidding)
+
 			err = json.Unmarshal(task, bidding)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to unmarshal bidding")
@@ -181,8 +184,10 @@ func (a *Auditor) Start(ctx context.Context) {
 
 func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 	log := a.log
+
 	log.Debug().Bytes("task", task).Msg("waiting for all bids before performing validation")
 	time.Sleep(a.biddingWait)
+
 	defer func() {
 		a.biddingLock.Lock()
 		delete(a.bidding, bidding.TaskID)
@@ -190,7 +195,9 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 	}()
 
 	maxBid := uint64(0)
+
 	a.biddingLock.RLock()
+
 	for _, bid := range a.bidding[bidding.TaskID] {
 		if bid > maxBid {
 			maxBid = bid
@@ -198,6 +205,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 	}
 
 	won := true
+
 	if maxBid != a.bidding[bidding.TaskID][a.peerID] {
 		log.Debug().Bytes(
 			"task",
@@ -235,6 +243,7 @@ func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
 func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput) error {
 	randomNumber, err := rand.Int(rand.Reader, big.NewInt(math.MaxUint32))
 	a.log.Debug().Str("task_id", input.TaskID.String()).Uint64("bid", randomNumber.Uint64()).Msg("making bidding")
+
 	if err != nil {
 		return errors.Wrap(err, "failed to generate random number")
 	}
