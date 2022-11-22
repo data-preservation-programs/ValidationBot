@@ -13,6 +13,7 @@ require (
 	github.com/filecoin-project/go-state-types v0.1.12-beta
 	github.com/filecoin-project/lotus v1.17.2
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
 	github.com/ipfs/go-block-format v0.0.3
 	github.com/ipfs/go-cid v0.3.2

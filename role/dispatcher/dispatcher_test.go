@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,7 +138,11 @@ func TestDispatcher_CreateOneoffTask(t *testing.T) {
 		t,
 		"Publish",
 		mock.Anything,
-		[]byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":{"message":"hello world"}}`),
+		mock.MatchedBy(
+			func(msg []byte) bool {
+				return strings.Contains(string(msg), `"input":{"message":"hello world"}`)
+			},
+		),
 	)
 }
 

@@ -76,3 +76,22 @@ func GenerateNewPeer() (string, string, peer.ID, error) {
 	publicStr := base64.StdEncoding.EncodeToString(publicBytes)
 	return privateStr, publicStr, peerID, nil
 }
+
+func GetPeerIDFromPrivateKeyStr(privateKeyStr string) (peer.ID, error) {
+	privateKeyBytes, err := base64.StdEncoding.DecodeString(privateKeyStr)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot decode private key")
+	}
+
+	privateKey, err := crypto.UnmarshalPrivateKey(privateKeyBytes)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot unmarshal private key")
+	}
+
+	peerID, err := peer.IDFromPrivateKey(privateKey)
+	if err != nil {
+		return "", errors.Wrap(err, "cannot generate peer id")
+	}
+
+	return peerID, nil
+}

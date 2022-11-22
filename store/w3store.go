@@ -62,8 +62,47 @@ func NewW3StoreSubscriber(config W3StoreSubscriberConfig) W3StoreSubscriber {
 	}
 }
 
-func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (
-	<-chan Entry,
+func (s W3StoreSubscriber) Head(ctx context.Context, peerID peer.ID) (*Entry, error) {
+	log := s.log.With().Str("peer_id", peerID.String()).Logger()
+	peerCid := peer.ToCid(peerID)
+
+	peerStr, err := mbase.Encode(mbase.Base36, peerCid.Bytes())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot encode peer cid")
+	}
+
+	latest, err := getLastRecord(ctx, log, s.client, peerStr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get last record")
+	}
+
+	if latest == nil {
+		return nil, nil
+	}
+
+	latestCid, err := cid.Decode(string(latest.Value))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode last cid")
+	}
+
+	// Push all entries from latestCid until last
+	limit := new(int)
+	*limit = 1
+
+	downloaded, err := s.downloadChainedEntries(ctx, nil, latestCid, limit)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to download entries")
+	}
+
+	if len(downloaded) == 0 {
+		return nil, nil
+	}
+
+	return &downloaded[0], nil
+}
+
+func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (
+	<-chan *Entry,
 	error,
 ) {
 	log := s.log.With().Str("peer_id", peerID.String()).Logger()
@@ -74,7 +113,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 		return nil, errors.Wrap(err, "cannot encode peer cid")
 	}
 
-	entries := make(chan Entry)
+	entries := make(chan *Entry)
 
 	log.Info().Interface("lastCid", last).Str("peerCid", peerStr).Msg("subscribing to w3store updates")
 
@@ -89,12 +128,6 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 
 			if latest == nil {
 				log.Debug().Msg("no records found")
-
-				if oneOff {
-					close(entries)
-					return
-				}
-
 				time.Sleep(s.pollInterval)
 				continue
 			}
@@ -106,7 +139,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 				continue
 			}
 			// Push all entries from latestCid until last
-			downloaded, err := s.downloadChainedEntries(ctx, last, latestCid)
+			downloaded, err := s.downloadChainedEntries(ctx, last, latestCid, nil)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to download chained entries")
 				time.Sleep(s.retryInterval)
@@ -116,13 +149,9 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 			log.Debug().Int("count", len(downloaded)).Msg("downloaded entries")
 
 			for i := len(downloaded) - 1; i >= 0; i-- {
-				entries <- downloaded[i]
-				last = &downloaded[i].CID
-			}
+				entries <- &downloaded[i]
 
-			if oneOff {
-				close(entries)
-				return
+				last = &downloaded[i].CID
 			}
 
 			time.Sleep(s.pollInterval)
@@ -133,7 +162,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 }
 
 //nolint:funlen,cyclop,varnamelen
-func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclusive *cid.Cid, to cid.Cid) (
+func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclusive *cid.Cid, to cid.Cid, limit *int) (
 	[]Entry,
 	error,
 ) {
@@ -143,6 +172,10 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclu
 	log.Debug().Msg("downloading chained entries")
 
 	for {
+		if limit != nil && len(entries) >= *limit {
+			break
+		}
+
 		if fromExclusive != nil && to == *fromExclusive {
 			break
 		}

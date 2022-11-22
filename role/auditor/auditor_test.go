@@ -2,8 +2,11 @@ package auditor
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
+
+	"validation-bot/role/trust"
 
 	"validation-bot/module/echo"
 
@@ -21,34 +24,76 @@ import (
 
 func TestAuditor_Start(t *testing.T) {
 	assert := assert.New(t)
-	_, _, peerId := helper.GeneratePeerID(t)
-	mockPublisher := &store.MockPublisher{}
+	_, _, dispatcherPeerID := helper.GeneratePeerID(t)
+	_, _, auditorPeerID := helper.GeneratePeerID(t)
+	mockResultPublisher := &store.MockPublisher{}
+	mockTaskPublisher := &store.MockPublisher{}
 	mockSubscriber := &task.MockSubscriber{}
+	inmemoryStore := store.InMemoryStore{
+		Storage: make([][]byte, 0),
+	}
+	trustManager := trust.NewManager(
+		[]peer.ID{dispatcherPeerID},
+		&inmemoryStore,
+		time.Second,
+		time.Minute,
+	)
+	err := trust.ModifyPeers(
+		context.Background(),
+		&inmemoryStore,
+		&inmemoryStore,
+		trust.Create,
+		dispatcherPeerID,
+		[]peer.ID{auditorPeerID},
+		time.Second,
+	)
+	assert.NoError(err)
 	adt, err := NewAuditor(
 		Config{
-			TrustedDispatcherPeers: []peer.ID{peerId},
-			ResultPublisher:        mockPublisher,
+			PeerID:                 auditorPeerID,
+			TrustedDispatcherPeers: []peer.ID{dispatcherPeerID},
+			TrustManager:           trustManager,
+			ResultPublisher:        mockResultPublisher,
 			TaskSubscriber:         mockSubscriber,
+			TaskPublisher:          mockTaskPublisher,
 			Modules:                map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
+			BiddingWait:            3 * time.Second,
 		},
 	)
 	assert.Nil(err)
 	assert.NotNil(adt)
 	mockSubscriber.On("Next", mock.Anything).
 		After(time.Duration(time.Second)).Return(
-		&peerId,
-		[]byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","input":"hello world"}`),
+		&dispatcherPeerID,
+		[]byte(`{"type":"echo","taskId":"a4d90653-de5d-4ef4-b4dd-4b0818dd73a3","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","input":"hello world"}`),
+		nil,
+	).Once()
+	mockSubscriber.On("Next", mock.Anything).
+		After(time.Duration(time.Second)).Return(
+		&auditorPeerID,
+		[]byte(`{"type":"bidding","taskId":"a4d90653-de5d-4ef4-b4dd-4b0818dd73a3","value":100}`),
+		nil,
+	).Once()
+	mockSubscriber.On("Next", mock.Anything).
+		After(time.Duration(time.Hour)).Return(
+		&auditorPeerID,
+		[]byte(`{"type":"bidding","taskId":"a4d90653-de5d-4ef4-b4dd-4b0818dd73a3","value":100}`),
 		nil,
 	)
-	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
+	mockResultPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
+	mockTaskPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 	adt.Start(context.Background())
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 5)
 
 	mockSubscriber.AssertCalled(t, "Next", mock.Anything)
-	mockPublisher.AssertCalled(
+	mockResultPublisher.AssertCalled(
 		t,
 		"Publish",
 		mock.Anything,
-		[]byte(`{"type":"echo","definitionId":"d17e7152-af60-494c-9391-1270293d2c08","target":"target","input":"hello world","result":"hello world"}`),
+		mock.MatchedBy(
+			func(data []byte) bool {
+				return strings.Contains(string(data), `"result":"hello world"`)
+			},
+		),
 	)
 }

@@ -84,13 +84,17 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			ConnectionString: defaultConnectionString,
 		},
 		Trust: trustConfig{
-			TrustedPeers: []string{},
+			TrustedPeers:  []string{},
+			RetryInterval: 10 * time.Second,
+			PollInterval:  time.Minute,
 		},
 		W3S: w3sConfig{
-			Token:              "",
-			ClientRetryWait:    10 * time.Second,
-			ClientRetryWaitMax: time.Minute,
-			ClientRetryCount:   5,
+			Token:                   "",
+			ClientRetryWait:         10 * time.Second,
+			ClientRetryWaitMax:      time.Minute,
+			ClientRetryCount:        5,
+			SubscriberRetryInterval: 10 * time.Second,
+			SubscriberPollInterval:  time.Minute,
 		},
 		Dispatcher: dispatcherConfig{
 			Enabled:              true,
@@ -102,9 +106,10 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			Jitter:               time.Minute,
 		},
 		Auditor: auditorConfig{
-			Enabled:    true,
-			PrivateKey: "",
-			ListenAddr: "/ip4/0.0.0.0/tcp/7999",
+			Enabled:     true,
+			PrivateKey:  "",
+			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
+			BiddingWait: 10 * time.Second,
 		},
 		Observer: observerConfig{
 			Enabled:       true,
@@ -187,7 +192,25 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 				return nil, errors.Wrap(err, "cannot create publisher")
 			}
 
-			err = trust.AddNewPeer(ctx, publisher, auditorPeer)
+			subscriber := store.NewW3StoreSubscriber(
+				store.W3StoreSubscriberConfig{
+					RetryInterval: time.Second,
+					PollInterval:  time.Second,
+					RetryWait:     time.Second,
+					RetryWaitMax:  time.Second,
+					RetryCount:    3,
+				},
+			)
+
+			err = trust.ModifyPeers(
+				ctx,
+				publisher,
+				subscriber,
+				trust.Create,
+				dispatcherPeer,
+				[]peer.ID{auditorPeer},
+				time.Second,
+			)
 			if err != nil {
 				return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
 			}
@@ -322,8 +345,10 @@ func setupAPI(dispatcher *dispatcher.Dispatcher, cfg *config) {
 	}()
 }
 
+//nolint:wrapcheck,funlen,gocyclo,cyclop,maintidx
 func setupDependencies(ctx context.Context, container *dig.Container, configPath string) (*config, error) {
 	log := log3.With().Str("role", "main").Caller().Logger()
+
 	cfg, err := setConfig(ctx, configPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot set config")
@@ -342,7 +367,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 	// DI: api.Gateway
 	err = container.Provide(
-		func(cfg *config) (api.Gateway, error) {
+		func() (api.Gateway, error) {
 			var header http.Header
 			if cfg.Lotus.Token != "" {
 				header = http.Header{
@@ -409,6 +434,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.In
 		libp2p host.Host `name:"dispatcher_libp2p"`
 	}
+
 	err = container.Provide(
 		func(params DispatcherTaskPublisherParams) (task.Publisher, error) {
 			return task.NewLibp2pTaskPublisher(ctx, params.libp2p, cfg.Topic.TopicName)
@@ -424,6 +450,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.In
 		libp2p host.Host `name:"auditor_libp2p"`
 	}
+
 	err = container.Provide(
 		func(params AuditorTaskPublisherParams) (task.Publisher, error) {
 			return task.NewLibp2pTaskPublisher(ctx, params.libp2p, cfg.Topic.TopicName)
@@ -439,6 +466,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.In
 		libp2p host.Host `name:"auditor_libp2p"`
 	}
+
 	err = container.Provide(
 		func(params AuditorTaskSubscriberParams) (task.Subscriber, error) {
 			return task.NewLibp2pTaskSubscriber(ctx, params.libp2p, cfg.Topic.TopicName)
@@ -498,6 +526,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.In
 		db *gorm.DB `name:"dispatcher_db"`
 	}
+
 	err = container.Provide(
 		func(params DealStatesResolverParams, cfg *config, lotusAPI api.Gateway) (module.DealStatesResolver, error) {
 			return module.NewGlifDealStatesResolver(
@@ -682,6 +711,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		taskPublisher task.Publisher            `name:"dispatcher_task_publisher"`
 		modules       []module.DispatcherModule `group:"dispatcher_module"`
 	}
+
 	err = container.Provide(
 		func(params DispatcherParams) (*dispatcher.Dispatcher, error) {
 			modules := make(map[string]module.DispatcherModule)
@@ -728,7 +758,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: trust.Manager
 	err = container.Provide(
 		func(trustedPeers []peer.ID, resultSubscriber store.Subscriber) *trust.Manager {
-			return trust.NewManager(trustedPeers, resultSubscriber)
+			return trust.NewManager(trustedPeers, resultSubscriber, cfg.Trust.RetryInterval, cfg.Trust.PollInterval)
 		},
 	)
 	if err != nil {
@@ -745,6 +775,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		taskSubscriber  task.Subscriber
 		taskPublisher   task.Publisher `name:"auditor_task_publisher"`
 	}
+
 	err = container.Provide(
 		func(params AuditorParams, resultSubscriber store.Subscriber) (*auditor.Auditor, error) {
 			trustedPeers := cfg.Trust.TrustedPeers
@@ -768,7 +799,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 				auditor.Config{
 					PeerID:                 params.libp2p.ID(),
 					TrustedDispatcherPeers: peers,
-					TrustManager:           *params.trustManager,
+					TrustManager:           params.trustManager,
 					ResultPublisher:        params.resultPublisher,
 					TaskSubscriber:         params.taskSubscriber,
 					TaskPublisher:          params.taskPublisher,
@@ -785,7 +816,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: observer.Observer
 	err = container.Provide(
 		func(db *gorm.DB, resultSubscriber store.Subscriber, trustManager *trust.Manager) (*observer.Observer, error) {
-			return observer.NewObserver(db, *trustManager, resultSubscriber)
+			return observer.NewObserver(db, trustManager, resultSubscriber)
 		},
 	)
 	if err != nil {
@@ -797,16 +828,19 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 func run(ctx context.Context, configPath string) error {
 	container := dig.New()
+
 	cfg, err := setupDependencies(ctx, container, configPath)
 	if err != nil {
 		return errors.Wrap(err, "cannot setup dependencies")
 	}
 
-	var anyEnabled = cfg.Dispatcher.Enabled || cfg.Auditor.Enabled || cfg.Observer.Enabled
+	anyEnabled := cfg.Dispatcher.Enabled || cfg.Auditor.Enabled || cfg.Observer.Enabled
 	log := log3.With().Str("role", "main").Caller().Logger()
 
 	if cfg.Dispatcher.Enabled {
 		log.Info().Msg("starting dispatcher")
+
+		//nolint:contextcheck
 		err = container.Invoke(
 			func(dispatcher *dispatcher.Dispatcher) {
 				dispatcher.Start(ctx)
@@ -820,6 +854,7 @@ func run(ctx context.Context, configPath string) error {
 
 	if cfg.Auditor.Enabled {
 		log.Info().Msg("starting auditor")
+
 		err = container.Invoke(
 			func(auditor *auditor.Auditor) {
 				auditor.Start(ctx)
@@ -832,6 +867,7 @@ func run(ctx context.Context, configPath string) error {
 
 	if cfg.Observer.Enabled {
 		log.Info().Msg("starting observer")
+
 		err = container.Invoke(
 			func(observer *observer.Observer) {
 				observer.Start(ctx)
@@ -856,7 +892,9 @@ func main() {
 	var configPath string
 	var privateKey string
 	var w3sToken string
+	var peerIDSlice cli.StringSlice
 	var peerIDStr string
+	var operationType string
 	log := log3.With().Str("role", "main").Caller().Logger()
 	zerolog.DurationFieldUnit = time.Second
 	app := &cli.App{
@@ -898,11 +936,17 @@ func main() {
 				},
 			},
 			{
-				Name:  "add-trusted-peer",
-				Usage: "add a new trusted peer and publish to the network via W3Sname",
+				Name:  "modify-trusted-peer",
+				Usage: "create/revoke/reset trusted peers and publish to the network via W3Sname",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:        "private-key",
+						Name:        "type",
+						Usage:       "create/revoke/reset",
+						Destination: &operationType,
+						Required:    true,
+					},
+					&cli.StringFlag{
+						Name:        "trustor-key",
 						Aliases:     []string{"k"},
 						Usage:       "private key of the trustor",
 						Destination: &privateKey,
@@ -915,11 +959,11 @@ func main() {
 						Destination: &w3sToken,
 						Required:    true,
 					},
-					&cli.StringFlag{
-						Name:        "peerid",
+					&cli.StringSliceFlag{
+						Name:        "peer",
 						Aliases:     []string{"p"},
-						Usage:       "peerIDStr to trust",
-						Destination: &peerIDStr,
+						Usage:       "trustee peerID(s) string to operate on",
+						Destination: &peerIDSlice,
 						Required:    true,
 					},
 				},
@@ -938,68 +982,43 @@ func main() {
 						return errors.Wrap(err, "cannot create publisher")
 					}
 
-					peerID, err := peer.Decode(peerIDStr)
-					if err != nil {
-						return errors.Wrap(err, "cannot decode peer id")
+					//nolint:gomnd
+					subscriber := store.NewW3StoreSubscriber(
+						store.W3StoreSubscriberConfig{
+							RetryInterval: time.Second,
+							PollInterval:  time.Minute,
+							RetryWait:     time.Second,
+							RetryWaitMax:  time.Minute,
+							RetryCount:    10,
+						},
+					)
+
+					peerIDs := make([]peer.ID, 0)
+					for _, peerIDStr := range peerIDSlice.Value() {
+						peerID, err := peer.Decode(peerIDStr)
+						if err != nil {
+							return errors.Wrap(err, "cannot decode peer id")
+						}
+
+						peerIDs = append(peerIDs, peerID)
 					}
 
-					err = trust.AddNewPeer(c.Context, publisher, peerID)
+					trustorPeerID, err := role.GetPeerIDFromPrivateKeyStr(privateKey)
+					if err != nil {
+						return errors.Wrap(err, "cannot get peer id from private key")
+					}
+
+					err = trust.ModifyPeers(
+						c.Context,
+						publisher,
+						subscriber,
+						operationType,
+						trustorPeerID,
+						peerIDs,
+						time.Second,
+					)
 					if err != nil {
 						return errors.Wrap(err, "cannot publish record to trust new peer")
-					}
-
-					return nil
-				},
-			},
-			{
-				Name:  "revoke-trusted-peer",
-				Usage: "add a trusted peer and publish to the network via W3Sname",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:        "private-key",
-						Aliases:     []string{"k"},
-						Usage:       "private key of the trustor",
-						Destination: &privateKey,
-						Required:    true,
-					},
-					&cli.StringFlag{
-						Name:        "w3s-token",
-						Aliases:     []string{"t"},
-						Usage:       "token for web3.storage",
-						Destination: &w3sToken,
-						Required:    true,
-					},
-					&cli.StringFlag{
-						Name:        "peerid",
-						Aliases:     []string{"p"},
-						Usage:       "peerIDStr to trust",
-						Destination: &peerIDStr,
-						Required:    true,
-					},
-				},
-				Action: func(c *cli.Context) error {
-					//nolint:gomnd
-					publisher, err := store.NewW3StorePublisher(
-						c.Context, store.W3StorePublisherConfig{
-							Token:        w3sToken,
-							PrivateKey:   privateKey,
-							RetryWait:    time.Second,
-							RetryWaitMax: time.Minute,
-							RetryCount:   10,
-						},
-					)
-					if err != nil {
-						return errors.Wrap(err, "cannot create publisher")
-					}
-
-					peerID, err := peer.Decode(peerIDStr)
-					if err != nil {
-						return errors.Wrap(err, "cannot decode peer id")
-					}
-
-					err = trust.RevokePeer(c.Context, publisher, peerID)
-					if err != nil {
-						return errors.Wrap(err, "cannot publish record to revoke peer")
 					}
 
 					return nil
@@ -1040,8 +1059,8 @@ func main() {
 					}
 
 					fmt.Println("Trusted peers:")
-					for peerStr, valid := range peers {
-						fmt.Printf("%s - Valid: %v\n", peerStr, valid)
+					for _, peerStr := range peers {
+						fmt.Printf("%s\n", peerStr)
 					}
 
 					return nil

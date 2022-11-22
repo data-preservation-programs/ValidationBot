@@ -8,6 +8,7 @@ import (
 
 	"validation-bot/store"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -15,93 +16,127 @@ import (
 )
 
 type (
-	Valid         = bool
 	OperationType = string
 )
 
 const (
 	Create OperationType = "create"
 	Revoke OperationType = "revoke"
+	Reset  OperationType = "reset"
 )
 
 type Operation struct {
-	Type OperationType `json:"type"`
-	Peer string        `json:"peer"`
+	Type         OperationType `json:"type"`
+	Peer         string        `json:"peer,omitempty"`
+	Peers        []string      `json:"peers,omitempty"`
+	TrustedPeers []string      `json:"trustedPeers"`
 }
 
-func AddNewPeer(ctx context.Context, publisher store.Publisher, peerID peer.ID) error {
-	operation := Operation{
-		Type: Create,
-		Peer: peerID.String(),
+func ModifyPeers(
+	ctx context.Context,
+	publisher store.Publisher,
+	subscriber store.Subscriber,
+	operationType OperationType,
+	trustor peer.ID,
+	trustees []peer.ID,
+	conflictRetryInterval time.Duration,
+) error {
+	currentTrustedPeers, err := ListPeers(ctx, subscriber, trustor)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list peers")
 	}
 
-	marshal, err := json.Marshal(operation)
-	if err != nil {
-		return errors.Wrapf(err, "failed to marshal operation")
-	}
+	for {
+		trusteesStr := make([]string, len(trustees))
+		for i, peerID := range trustees {
+			trusteesStr[i] = peerID.String()
+		}
 
-	err = publisher.Publish(ctx, marshal)
-	if err != nil {
-		return errors.Wrapf(err, "failed to publish operation")
+		newState := make(map[string]struct{})
+
+		if operationType == Reset {
+			for _, peerID := range trustees {
+				newState[peerID.String()] = struct{}{}
+			}
+		} else {
+			for _, peerID := range currentTrustedPeers {
+				newState[peerID] = struct{}{}
+			}
+
+			if operationType == Create {
+				for _, peerID := range trustees {
+					newState[peerID.String()] = struct{}{}
+				}
+			} else if operationType == Revoke {
+				for _, peerID := range trustees {
+					delete(newState, peerID.String())
+				}
+			}
+		}
+
+		trustedPeers := make([]string, 0)
+		for peerID := range newState {
+			trustedPeers = append(trustedPeers, peerID)
+		}
+
+		operation := Operation{
+			Type:         operationType,
+			Peer:         "",
+			Peers:        trusteesStr,
+			TrustedPeers: trustedPeers,
+		}
+
+		marshal, err := json.Marshal(operation)
+		if err != nil {
+			return errors.Wrapf(err, "failed to marshal operation")
+		}
+
+		err = publisher.Publish(ctx, marshal)
+		if err != nil {
+			return errors.Wrapf(err, "failed to publish operation")
+		}
+
+		currentTrustedPeers, err = ListPeers(ctx, subscriber, trustor)
+		if err != nil {
+			return errors.Wrapf(err, "failed to list peers")
+		}
+
+		if cmp.Equal(currentTrustedPeers, trustedPeers) {
+			break
+		} else {
+			log2.Debug().Msgf("detected conflict. retrying to modify peers")
+			time.Sleep(conflictRetryInterval)
+		}
 	}
 
 	return nil
 }
 
-func RevokePeer(ctx context.Context, publisher store.Publisher, peerID peer.ID) error {
-	operation := Operation{
-		Type: Revoke,
-		Peer: peerID.String(),
-	}
-
-	marshal, err := json.Marshal(operation)
-	if err != nil {
-		return errors.Wrapf(err, "failed to marshal operation")
-	}
-
-	err = publisher.Publish(ctx, marshal)
-	if err != nil {
-		return errors.Wrapf(err, "failed to publish operation")
-	}
-
-	return nil
-}
-
-func ListPeers(ctx context.Context, subscriber store.Subscriber, peerID peer.ID) (
-	map[peer.ID]Valid,
+func ListPeers(ctx context.Context, subscriber store.Subscriber, trustor peer.ID) (
+	[]string,
 	error,
 ) {
-	entries, err := subscriber.Subscribe(ctx, peerID, nil, true)
+	entry, err := subscriber.Head(ctx, trustor)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to subscribe to peer %s", peerID)
+		return nil, errors.Wrapf(err, "failed to get head for trustor %s", trustor)
 	}
 
-	result := make(map[peer.ID]Valid)
-
-	for entry := range entries {
-		var operation Operation
-
-		err = json.Unmarshal(entry.Message, &operation)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to unmarshal operation")
-		}
-
-		operationPeerID, err := peer.Decode(operation.Peer)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode peer")
-		}
-
-		switch operation.Type {
-		case Create:
-			result[operationPeerID] = true
-		case Revoke:
-			result[operationPeerID] = false
-		default:
-			return nil, errors.Errorf("unknown operation type %s", operation.Type)
-		}
+	if entry == nil {
+		return []string{}, nil
 	}
 
-	return result, nil
+	var operation Operation
+
+	err = json.Unmarshal(entry.Message, &operation)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to unmarshal operation")
+	}
+
+	if operation.TrustedPeers == nil {
+		return []string{}, nil
+	}
+
+	return operation.TrustedPeers, nil
 }
 
 type Manager struct {
@@ -111,15 +146,25 @@ type Manager struct {
 	log              zerolog.Logger
 	started          bool
 	startedLock      sync.Mutex
-	diffSubscribers  []func(map[peer.ID]struct{})
+	retryInterval    time.Duration
+	pollInterval     time.Duration
 }
 
-func NewManager(trustors []peer.ID, resultSubscriber store.Subscriber) *Manager {
+func NewManager(
+	trustors []peer.ID,
+	resultSubscriber store.Subscriber,
+	retryInterval time.Duration,
+	pollInterval time.Duration,
+) *Manager {
 	return &Manager{
 		trustors:         trustors,
 		trustees:         &map[peer.ID]struct{}{},
 		resultSubscriber: resultSubscriber,
 		log:              log2.With().Str("component", "trust-manager").Caller().Logger(),
+		started:          false,
+		startedLock:      sync.Mutex{},
+		retryInterval:    retryInterval,
+		pollInterval:     pollInterval,
 	}
 }
 
@@ -130,10 +175,6 @@ func (m *Manager) Trustees() map[peer.ID]struct{} {
 func (m *Manager) IsTrusted(peerID peer.ID) bool {
 	_, ok := (*m.trustees)[peerID]
 	return ok
-}
-
-func (m *Manager) SubscribeToDiff(f func(map[peer.ID]struct{})) {
-	m.diffSubscribers = append(m.diffSubscribers, f)
 }
 
 func (m *Manager) Start(ctx context.Context) {
@@ -156,34 +197,25 @@ func (m *Manager) Start(ctx context.Context) {
 				peers, err := ListPeers(ctx, m.resultSubscriber, peerID)
 				if err != nil {
 					log.Error().Err(err).Msg("failed to list peers")
-					time.Sleep(time.Minute)
+					time.Sleep(m.retryInterval)
 					continue
 				}
 
 				log.Debug().Int("peers", len(peers)).Msg("received list of trustee peers")
 
-				for peerID, valid := range peers {
-					if valid {
-						newTrustees[peerID] = struct{}{}
+				for _, peerIDStr := range peers {
+					peerID, err = peer.Decode(peerIDStr)
+					if err != nil {
+						log.Error().Err(err).Msg("failed to decode peerID")
+						continue
 					}
-				}
-			}
 
-			diff := make(map[peer.ID]struct{})
-			oldTrustees := *m.trustees
-			for peerID := range newTrustees {
-				if _, ok := oldTrustees[peerID]; !ok {
-					diff[peerID] = struct{}{}
+					newTrustees[peerID] = struct{}{}
 				}
 			}
 
 			m.trustees = &newTrustees
-			m.log.Debug().Int("peers", len(diff)).Msg("new auditor peers")
-			for _, subscriber := range m.diffSubscribers {
-				subscriber(diff)
-			}
-
-			time.Sleep(time.Minute)
+			time.Sleep(m.pollInterval)
 		}
 	}()
 }

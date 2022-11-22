@@ -37,6 +37,7 @@ type Config struct {
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
 	db := config.DB
+
 	err := db.AutoMigrate(&task.Definition{})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot migrate task definitions")

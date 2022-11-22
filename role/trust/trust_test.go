@@ -18,24 +18,28 @@ func TestListPeers(t *testing.T) {
 		Storage: [][]byte{},
 	}
 
-	_, _, newPeer1 := helper.GeneratePeerID(t)
-	err := AddNewPeer(context.Background(), &store, newPeer1)
+	_, _, trustor := helper.GeneratePeerID(t)
+	_, _, trustee1 := helper.GeneratePeerID(t)
+	err := ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee1}, time.Second)
 	assert.NoError(err)
+	peers, err := ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee1.String()}, peers)
 
-	_, _, newPeer2 := helper.GeneratePeerID(t)
-	err = AddNewPeer(context.Background(), &store, newPeer2)
+	_, _, trustee2 := helper.GeneratePeerID(t)
+	err = ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee2}, time.Second)
 	assert.NoError(err)
-
-	err = RevokePeer(context.Background(), &store, newPeer1)
-	assert.NoError(err)
-
-	_, _, peer := helper.GeneratePeerID(t)
-
-	peers, err := ListPeers(context.Background(), &store, peer)
-	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
 	assert.Equal(2, len(peers))
-	assert.False(peers[newPeer1])
-	assert.True(peers[newPeer2])
+
+	err = ModifyPeers(context.Background(), &store, &store, Revoke, trustor, []peer.ID{trustee2}, time.Second)
+	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee1.String()}, peers)
+
+	err = ModifyPeers(context.Background(), &store, &store, Reset, trustor, []peer.ID{trustee2}, time.Second)
+	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee2.String()}, peers)
 }
 
 func TestManager_Start(t *testing.T) {
@@ -46,21 +50,19 @@ func TestManager_Start(t *testing.T) {
 
 	_, _, trustor := helper.GeneratePeerID(t)
 	_, _, newPeer1 := helper.GeneratePeerID(t)
-	err := AddNewPeer(context.Background(), &store, newPeer1)
+	_, _, trustee1 := helper.GeneratePeerID(t)
+	err := ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee1}, time.Second)
 	assert.NoError(err)
 
-	manager := NewManager([]peer.ID{trustor}, &store)
+	manager := NewManager([]peer.ID{trustor}, &store, time.Second, time.Second)
 	ctx := context.Background()
 	assert.False(manager.IsTrusted(newPeer1))
-	diffEmited := false
-	manager.SubscribeToDiff(
-		func(diff map[peer.ID]struct{}) {
-			assert.Equal(1, len(diff))
-			diffEmited = true
-		},
-	)
 	manager.Start(ctx)
 	time.Sleep(time.Second)
-	assert.True(manager.IsTrusted(newPeer1))
-	assert.True(diffEmited)
+	assert.True(manager.IsTrusted(trustee1))
+
+	err = ModifyPeers(context.Background(), &store, &store, Revoke, trustor, []peer.ID{trustee1}, time.Second)
+	assert.NoError(err)
+	time.Sleep(2 * time.Second)
+	assert.False(manager.IsTrusted(trustee1))
 }

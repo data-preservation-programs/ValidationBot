@@ -3,13 +3,14 @@ package observer
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"validation-bot/module"
 	"validation-bot/role/trust"
 
 	"validation-bot/store"
 
 	"github.com/ipfs/go-cid"
-	cid "github.com/ipfs/go-cid/_rsrch/cidiface"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -19,14 +20,14 @@ import (
 
 type Observer struct {
 	db               *gorm.DB
-	trustManager     trust.Manager
+	trustManager     *trust.Manager
 	resultSubscriber store.Subscriber
 	log              zerolog.Logger
 }
 
 func NewObserver(
 	db *gorm.DB,
-	trustManager trust.Manager,
+	trustManager *trust.Manager,
 	resultSubscriber store.Subscriber,
 ) (*Observer, error) {
 	err := db.AutoMigrate(&module.ValidationResultModel{})
@@ -62,18 +63,21 @@ func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 }
 
 func (o *Observer) Start(ctx context.Context) {
-	go o.downloadListOfAuditorPeers(ctx)
-}
-
-func (o *Observer) downloadListOfAuditorPeers(ctx context.Context) {
-	o.trustManager.SubscribeToDiff(
-		func(diff map[peer.ID]struct{}) {
-			for peerID := range diff {
-				go o.downloadEntriesForAuditorPeer(ctx, peerID)
-			}
-		},
-	)
 	o.trustManager.Start(ctx)
+	currentTrustees := map[peer.ID]struct{}{}
+	go func() {
+		for {
+			newTrustees := o.trustManager.Trustees()
+			for peerID := range newTrustees {
+				if _, ok := currentTrustees[peerID]; !ok {
+					go o.downloadEntriesForAuditorPeer(ctx, peerID)
+				}
+			}
+
+			currentTrustees = newTrustees
+			time.Sleep(time.Second)
+		}
+	}()
 }
 
 func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID peer.ID) {
@@ -87,7 +91,7 @@ func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID pee
 
 	log.Info().Interface("lastCid", last).Msg("start listening to subscription")
 
-	entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last, false)
+	entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to receive next message")
 		return

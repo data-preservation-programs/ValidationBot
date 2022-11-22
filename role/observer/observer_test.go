@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
 	"validation-bot/role/trust"
 
 	"validation-bot/helper"
@@ -34,7 +35,16 @@ func TestObserverStart(t *testing.T) {
 
 	_, _, trustor := helper.GeneratePeerID(t)
 	_, _, newPeer1 := helper.GeneratePeerID(t)
-	err := trust.AddNewPeer(context.Background(), &trustStore, newPeer1)
+	err := trust.ModifyPeers(
+		context.Background(),
+		&trustStore,
+		&trustStore,
+		trust.Create,
+		trustor,
+		[]peer.ID{newPeer1},
+		time.Second,
+	)
+	assert.NoError(err)
 	testDefinitionUUID, err := uuid.NewUUID()
 	assert.Nil(err)
 	testDefinitionId := testDefinitionUUID.String()
@@ -43,7 +53,7 @@ func TestObserverStart(t *testing.T) {
 	assert.NotNil(db)
 	err = db.AutoMigrate(&module.ValidationResultModel{})
 	assert.Nil(err)
-	manager := trust.NewManager([]peer.ID{trustor}, &trustStore)
+	manager := trust.NewManager([]peer.ID{trustor}, &trustStore, time.Second, time.Second)
 
 	db.Create(
 		&module.ValidationResultModel{
@@ -52,7 +62,7 @@ func TestObserverStart(t *testing.T) {
 		},
 	)
 	obs, err := NewObserver(
-		db, *manager, &resultStore,
+		db, manager, &resultStore,
 	)
 	assert.Nil(err)
 	assert.NotNil(obs)
