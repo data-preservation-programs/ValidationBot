@@ -3,60 +3,66 @@ package trust
 import (
 	"context"
 	"testing"
+	"time"
 
 	"validation-bot/helper"
 	"validation-bot/store"
 
-	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 )
 
-type InMemoryStore struct {
-	Storage [][]byte
-}
-
-func (i *InMemoryStore) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (
-	<-chan store.Entry,
-	error,
-) {
-	ch := make(chan store.Entry)
-	go func() {
-		for _, entry := range i.Storage {
-			ch <- store.Entry{Message: entry}
-		}
-		close(ch)
-	}()
-	return ch, nil
-}
-
-func (i *InMemoryStore) Publish(ctx context.Context, input []byte) error {
-	i.Storage = append(i.Storage, input)
-	return nil
-}
-
 func TestListPeers(t *testing.T) {
 	assert := assert.New(t)
-	store := InMemoryStore{
+	store := store.InMemoryStore{
 		Storage: [][]byte{},
 	}
 
-	_, _, newPeer1 := helper.GeneratePeerID(t)
-	err := AddNewPeer(context.Background(), &store, newPeer1)
+	_, _, trustor := helper.GeneratePeerID(t)
+	_, _, trustee1 := helper.GeneratePeerID(t)
+	err := ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee1}, time.Second)
 	assert.NoError(err)
+	peers, err := ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee1.String()}, peers)
 
-	_, _, newPeer2 := helper.GeneratePeerID(t)
-	err = AddNewPeer(context.Background(), &store, newPeer2)
+	_, _, trustee2 := helper.GeneratePeerID(t)
+	err = ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee2}, time.Second)
 	assert.NoError(err)
-
-	err = RevokePeer(context.Background(), &store, newPeer1)
-	assert.NoError(err)
-
-	_, _, peer := helper.GeneratePeerID(t)
-
-	peers, err := ListPeers(context.Background(), &store, peer)
-	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
 	assert.Equal(2, len(peers))
-	assert.False(peers[newPeer1])
-	assert.True(peers[newPeer2])
+
+	err = ModifyPeers(context.Background(), &store, &store, Revoke, trustor, []peer.ID{trustee2}, time.Second)
+	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee1.String()}, peers)
+
+	err = ModifyPeers(context.Background(), &store, &store, Reset, trustor, []peer.ID{trustee2}, time.Second)
+	assert.NoError(err)
+	peers, err = ListPeers(context.Background(), &store, trustor)
+	assert.Equal([]string{trustee2.String()}, peers)
+}
+
+func TestManager_Start(t *testing.T) {
+	assert := assert.New(t)
+	store := store.InMemoryStore{
+		Storage: [][]byte{},
+	}
+
+	_, _, trustor := helper.GeneratePeerID(t)
+	_, _, newPeer1 := helper.GeneratePeerID(t)
+	_, _, trustee1 := helper.GeneratePeerID(t)
+	err := ModifyPeers(context.Background(), &store, &store, Create, trustor, []peer.ID{trustee1}, time.Second)
+	assert.NoError(err)
+
+	manager := NewManager([]peer.ID{trustor}, &store, time.Second, time.Second)
+	ctx := context.Background()
+	assert.False(manager.IsTrusted(newPeer1))
+	manager.Start(ctx)
+	time.Sleep(time.Second)
+	assert.True(manager.IsTrusted(trustee1))
+
+	err = ModifyPeers(context.Background(), &store, &store, Revoke, trustor, []peer.ID{trustee1}, time.Second)
+	assert.NoError(err)
+	time.Sleep(2 * time.Second)
+	assert.False(manager.IsTrusted(trustee1))
 }

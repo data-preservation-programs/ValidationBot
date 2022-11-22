@@ -40,7 +40,7 @@ build:
 	go build -o validation_bot ./cmd
 
 run:
-	go run ./cmd
+	go run ./cmd run
 
 clean:
 	go clean

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"validation-bot/module"
-	"validation-bot/role"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -19,20 +18,15 @@ import (
 
 func getModule(t *testing.T, mockGateway *module.MockGateway) Auditor {
 	assert := assert.New(t)
-	priv, _, _, err := role.GenerateNewPeer()
-	assert.Nil(err)
-	libp2p, err := role.NewLibp2pHost(priv, "/ip4/0.0.0.0/tcp/0")
-	assert.Nil(err)
-	assert.NotNil(libp2p)
 	ctx := context.Background()
 	var queryAsk Auditor
 	if mockGateway == nil {
 		lotusApi, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
 		defer closer()
 		assert.Nil(err)
-		queryAsk = NewAuditor(libp2p, lotusApi)
+		queryAsk = NewAuditor(lotusApi)
 	} else {
-		queryAsk = NewAuditor(libp2p, mockGateway)
+		queryAsk = NewAuditor(mockGateway)
 	}
 	return queryAsk
 }

@@ -41,7 +41,7 @@ func TestW3StorePublisher_Initialize(t *testing.T) {
 	assert.Nil(err)
 }
 
-func TestW3StorePublisher_publishNewRecordTwice(t *testing.T) {
+func TestW3StorePublisher_publishNewRecordTwiceAndHead(t *testing.T) {
 	assert := assert.New(t)
 	context := context.Background()
 	store := getStore(t)
@@ -80,6 +80,7 @@ func TestW3StoreSubscriber_downloadChainedEntries(t *testing.T) {
 		ctx,
 		nil,
 		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+		nil,
 	)
 	assert.Nil(err)
 	assert.Equal(3, len(entries))
@@ -107,6 +108,7 @@ func TestW3StoreSubscriber_downloadChainedEntries_FromNotNil(t *testing.T) {
 		ctx,
 		&from,
 		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+		nil,
 	)
 	assert.Nil(err)
 	assert.Equal(1, len(entries))
@@ -129,6 +131,7 @@ func TestW3StoreSubscriber_downloadChainedEntries_FromLatest(t *testing.T) {
 		ctx,
 		&from,
 		cid.MustParse("bafkreic2omcnent2hmq4jvw3ajml4kceweoyyggno5qkvqd7cz53q6qbjq"),
+		nil,
 	)
 	assert.Nil(err)
 	assert.Equal(0, len(entries))
@@ -140,6 +143,19 @@ func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 	store := getStore(t)
 	err := store.initialize(ctx)
 	assert.Nil(err)
+
+	config := W3StoreSubscriberConfig{
+		RetryInterval: time.Second,
+		PollInterval:  time.Minute,
+		RetryWait:     time.Second,
+		RetryWaitMax:  time.Minute,
+		RetryCount:    3,
+	}
+	subscriber := NewW3StoreSubscriber(config)
+	head, err := subscriber.Head(ctx, store.peerID)
+	assert.Nil(err)
+	assert.Nil(head)
+
 	err = store.Publish(ctx, []byte("test1"))
 	assert.Nil(err)
 	assert.NotNil(store.lastCid)
@@ -153,16 +169,12 @@ func TestW3StorePublisher_PublishAndSubscribe(t *testing.T) {
 	assert.NotNil(store.lastCid)
 	assert.Equal(uint64(2), *store.lastSequence)
 
-	config := W3StoreSubscriberConfig{
-		RetryInterval: time.Second,
-		PollInterval:  time.Minute,
-		RetryWait:     time.Second,
-		RetryWaitMax:  time.Minute,
-		RetryCount:    3,
-	}
 	time.Sleep(time.Second * 5)
-	subscriber := NewW3StoreSubscriber(config)
-	entryChan, err := subscriber.Subscribe(ctx, store.peerID, nil, true)
+	head, err = subscriber.Head(ctx, store.peerID)
+	assert.Nil(err)
+	assert.Equal("test3", string(head.Message))
+
+	entryChan, err := subscriber.Subscribe(ctx, store.peerID, nil)
 	for _, expected := range []string{"test1", "test2", "test3"} {
 		select {
 		case entry := <-entryChan:

@@ -2,12 +2,10 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"validation-bot/helper"
 	"validation-bot/task"
 
 	"github.com/google/uuid"
@@ -89,60 +87,4 @@ func TestListTaskHandler(t *testing.T) {
 		"[{\"id\":\"00000000-0000-0000-0000-000000000000\",\"target\":\"\",\"type\":\"\",\"intervalSeconds\":0,\"definition\":{\"helper\":\"helper\"},\"tag\":\"\",\"DispatchedTimes\":0,\"CreatedAt\":\"0001-01-01T00:00:00Z\",\"UpdatedAt\":\"0001-01-01T00:00:00Z\"}]\n",
 		rec.Body.String(),
 	)
-}
-
-func TestNewObserver(t *testing.T) {
-	assert := assert.New(t)
-	cfg := config{
-		Observer: observerConfig{
-			DatabaseConnectionString: helper.PostgresConnectionString,
-			TrustedPeers:             []string{testPeerId},
-		},
-	}
-	obs, err := newObserver(&cfg)
-	assert.NotNil(obs)
-	assert.Nil(err)
-}
-
-func TestNewAuditor(t *testing.T) {
-	assert := assert.New(t)
-	private, _, _ := helper.GeneratePeerID(t)
-	privateKey := helper.MarshalPrivateKey(t, private)
-	cfg := config{
-		Auditor: auditorConfig{
-			PrivateKey: privateKey,
-			ListenAddr: "/ip4/0.0.0.0/tcp/0",
-			TopicNames: []string{"test"},
-			W3S: w3sConfig{
-				Token: "test",
-			},
-		},
-		Lotus: lotusConfig{
-			URL: "https://lotus.test",
-		},
-	}
-	aud, _, err := newAuditor(context.TODO(), &cfg)
-	assert.NotNil(aud)
-	assert.Nil(err)
-}
-
-func TestNewDispatcher(t *testing.T) {
-	assert := assert.New(t)
-	private, _, _ := helper.GeneratePeerID(t)
-	privateKey := helper.MarshalPrivateKey(t, private)
-	cfg := config{
-		Dispatcher: dispatcherConfig{
-			PrivateKey:               privateKey,
-			ListenAddr:               "/ip4/0.0.0.0/tcp/0",
-			DatabaseConnectionString: helper.PostgresConnectionString,
-		},
-		Module: moduleConfig{
-			Echo: echoConfig{
-				Enabled: true,
-			},
-		},
-	}
-	dis, err := newDispatcher(context.TODO(), &cfg)
-	assert.NotNil(dis)
-	assert.Nil(err)
 }

@@ -19,32 +19,37 @@ import (
 )
 
 type Dispatcher struct {
-	db            *gorm.DB
-	taskPublisher task.Publisher
-	modules       map[task.Type]module.DispatcherModule
-	checkInterval time.Duration
-	log           zerolog.Logger
-	jitter        time.Duration
+	db                      *gorm.DB
+	taskPublisherSubscriber task.PublisherSubscriber
+	modules                 map[task.Type]module.DispatcherModule
+	checkInterval           time.Duration
+	log                     zerolog.Logger
+	jitter                  time.Duration
 }
 
 type Config struct {
-	DB            *gorm.DB
-	TaskPublisher task.Publisher
-	Modules       map[task.Type]module.DispatcherModule
-	CheckInterval time.Duration
-	Jitter        time.Duration
+	DB                      *gorm.DB
+	TaskPublisherSubscriber task.PublisherSubscriber
+	Modules                 map[task.Type]module.DispatcherModule
+	CheckInterval           time.Duration
+	Jitter                  time.Duration
 }
 
 func NewDispatcher(config Config) (*Dispatcher, error) {
 	db := config.DB
 
+	err := db.AutoMigrate(&task.Definition{})
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot migrate task definitions")
+	}
+
 	return &Dispatcher{
-		db:            db,
-		taskPublisher: config.TaskPublisher,
-		modules:       config.Modules,
-		checkInterval: config.CheckInterval,
-		log:           log2.With().Str("role", "dispatcher").Caller().Logger(),
-		jitter:        config.Jitter,
+		db:                      db,
+		taskPublisherSubscriber: config.TaskPublisherSubscriber,
+		modules:                 config.Modules,
+		checkInterval:           config.CheckInterval,
+		log:                     log2.With().Str("role", "dispatcher").Caller().Logger(),
+		jitter:                  config.Jitter,
 	}, nil
 }
 
@@ -117,7 +122,7 @@ func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, in
 		return errors.Wrap(err, "cannot marshal task input")
 	}
 
-	err = g.taskPublisher.Publish(ctx, bytes)
+	err = g.taskPublisherSubscriber.Publish(ctx, bytes)
 	if err != nil {
 		return errors.Wrap(err, "cannot publish task")
 	}

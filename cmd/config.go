@@ -13,6 +13,11 @@ type config struct {
 	Observer   observerConfig
 	Module     moduleConfig
 	Lotus      lotusConfig
+	W3S        w3sConfig
+	Database   databaseConfig
+	Trust      trustConfig
+	Topic      topicConfig
+	DealStates dealStatesConfig
 }
 
 type logConfig struct {
@@ -20,41 +25,50 @@ type logConfig struct {
 	Level  string
 }
 
+type databaseConfig struct {
+	ConnectionString string
+}
+
+type topicConfig struct {
+	TopicName string
+}
+
+type trustConfig struct {
+	TrustedPeers  []string
+	RetryInterval time.Duration
+	PollInterval  time.Duration
+}
+
 type dispatcherConfig struct {
-	Enabled                  bool
-	DatabaseConnectionString string
-	PrivateKey               string
-	APIAddress               string
-	ListenAddr               string
-	TopicName                string
-	CheckInterval            time.Duration
-	AuthenticationTokens     []string
-	Jitter                   time.Duration
+	Enabled              bool
+	PrivateKey           string
+	APIAddress           string
+	ListenAddr           string
+	CheckInterval        time.Duration
+	AuthenticationTokens []string
+	Jitter               time.Duration
 }
 
 type auditorConfig struct {
-	Enabled      bool
-	TrustedPeers []string
-	PrivateKey   string
-	ListenAddr   string
-	TopicNames   []string
-	W3S          w3sConfig
+	Enabled     bool
+	PrivateKey  string
+	ListenAddr  string
+	BiddingWait time.Duration
 }
 
 type w3sConfig struct {
-	Token        string
-	RetryWait    time.Duration
-	RetryWaitMax time.Duration
-	RetryCount   int
+	Token                   string
+	ClientRetryWait         time.Duration
+	ClientRetryWaitMax      time.Duration
+	ClientRetryCount        int
+	SubscriberRetryInterval time.Duration
+	SubscriberPollInterval  time.Duration
 }
 
 type observerConfig struct {
-	Enabled                  bool
-	DatabaseConnectionString string
-	TrustedPeers             []string
-	RetryInterval            time.Duration
-	PollInterval             time.Duration
-	W3S                      w3sConfig
+	Enabled       bool
+	RetryInterval time.Duration
+	PollInterval  time.Duration
 }
 
 type moduleConfig struct {
@@ -91,9 +105,12 @@ type retrievalConfig struct {
 }
 
 type lotusConfig struct {
-	URL                             string
-	Token                           string
-	StateMarketDealsURL             string
-	StateMarketDealsRefreshInterval time.Duration
-	SQLInsertBatchSize              int
+	URL   string
+	Token string
+}
+
+type dealStatesConfig struct {
+	DownloadURL        string
+	RefreshInterval    time.Duration
+	SQLInsertBatchSize int
 }

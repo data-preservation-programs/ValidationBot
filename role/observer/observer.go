@@ -3,8 +3,8 @@ package observer
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/role/trust"
 
@@ -19,30 +19,27 @@ import (
 )
 
 type Observer struct {
-	db                      *gorm.DB
-	trustedPeers            []peer.ID
-	trustedAuditorPeers     map[peer.ID]struct{}
-	trustedAuditorPeersLock sync.RWMutex
-	resultSubscriber        store.ResultSubscriber
-	log                     zerolog.Logger
+	db               *gorm.DB
+	trustManager     *trust.Manager
+	resultSubscriber store.Subscriber
+	log              zerolog.Logger
 }
 
 func NewObserver(
 	db *gorm.DB,
-	resultSubscriber store.ResultSubscriber,
-	peers []peer.ID,
+	trustManager *trust.Manager,
+	resultSubscriber store.Subscriber,
 ) (*Observer, error) {
 	err := db.AutoMigrate(&module.ValidationResultModel{})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to migrate types")
+		return nil, errors.Wrapf(err, "failed to migrate validation result model")
 	}
+
 	return &Observer{
-		db:                      db,
-		trustedPeers:            peers,
-		trustedAuditorPeers:     make(map[peer.ID]struct{}),
-		trustedAuditorPeersLock: sync.RWMutex{},
-		resultSubscriber:        resultSubscriber,
-		log:                     log2.With().Str("role", "observer").Caller().Logger(),
+		db:               db,
+		trustManager:     trustManager,
+		resultSubscriber: resultSubscriber,
+		log:              log2.With().Str("role", "observer").Caller().Logger(),
 	}, nil
 }
 
@@ -66,54 +63,24 @@ func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 }
 
 func (o *Observer) Start(ctx context.Context) {
-	go o.downloadListOfAuditorPeers(ctx)
-}
+	o.trustManager.Start(ctx)
 
-func (o *Observer) downloadListOfAuditorPeers(ctx context.Context) {
-	for {
-		newAuditorPeers := make(map[peer.ID]struct{})
+	currentTrustees := map[peer.ID]struct{}{}
 
-		for _, peerID := range o.trustedPeers {
-			log := o.log.With().Str("peer", peerID.String()).Logger()
-
-			log.Debug().Msg("start downloading list of auditor peers")
-
-			peers, err := trust.ListPeers(ctx, o.resultSubscriber, peerID)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to list peers")
-				time.Sleep(time.Minute)
-				continue
-			}
-
-			log.Debug().Int("peers", len(peers)).Msg("received list of auditor peers")
-
-			for peerID, valid := range peers {
-				if valid {
-					newAuditorPeers[peerID] = struct{}{}
+	go func() {
+		for {
+			newTrustees := o.trustManager.Trustees()
+			for peerID := range newTrustees {
+				if _, ok := currentTrustees[peerID]; !ok {
+					go o.downloadEntriesForAuditorPeer(ctx, peerID)
 				}
 			}
+
+			currentTrustees = newTrustees
+
+			time.Sleep(time.Second)
 		}
-
-		diff := make(map[peer.ID]struct{})
-
-		o.trustedAuditorPeersLock.Lock()
-
-		for peerID := range newAuditorPeers {
-			if _, ok := o.trustedAuditorPeers[peerID]; !ok {
-				diff[peerID] = struct{}{}
-			}
-		}
-
-		o.trustedAuditorPeers = newAuditorPeers
-		o.trustedAuditorPeersLock.Unlock()
-		o.log.Debug().Int("peers", len(diff)).Msg("new auditor peers")
-
-		for peerID := range diff {
-			go o.downloadEntriesForAuditorPeer(ctx, peerID)
-		}
-
-		time.Sleep(time.Minute)
-	}
+	}()
 }
 
 func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID peer.ID) {
@@ -127,24 +94,14 @@ func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID pee
 
 	log.Info().Interface("lastCid", last).Msg("start listening to subscription")
 
-	entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last, false)
+	entries, err := o.resultSubscriber.Subscribe(ctx, peerID, last)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to receive next message")
 		return
 	}
 
 	for {
-		stillValid := false
-
-		o.trustedAuditorPeersLock.RLock()
-
-		if _, ok := o.trustedAuditorPeers[peerID]; ok {
-			stillValid = true
-		}
-
-		o.trustedAuditorPeersLock.RUnlock()
-
-		if !stillValid {
+		if !o.trustManager.IsTrusted(peerID) {
 			log.Warn().Msg("peer has been revoked")
 			return
 		}

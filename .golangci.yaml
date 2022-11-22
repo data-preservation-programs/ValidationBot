@@ -96,3 +96,5 @@ linters-settings:
       - 'module\.ValidationResult'
       - 'module\.ClientAddressModel'
       - 'module\.DealStateModel'
+      - '.*Result'
+      - '.*Params'

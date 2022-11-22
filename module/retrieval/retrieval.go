@@ -10,6 +10,7 @@ import (
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
+	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -36,6 +37,10 @@ func genRandNumber(max int) int {
 	}
 
 	return int(n.Int64())
+}
+
+func (Dispatcher) Type() task.Type {
+	return task.Retrieval
 }
 
 func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput, error) {
@@ -113,6 +118,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 			Tag:          definition.Tag,
+			TaskID:       uuid.New(),
 		},
 		Input: jsonb,
 	}
@@ -147,6 +153,10 @@ type Auditor struct {
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
 	locationResolver *module.GeoLite2Resolver
+}
+
+func (Auditor) Type() task.Type {
+	return task.Retrieval
 }
 
 func NewAuditor(

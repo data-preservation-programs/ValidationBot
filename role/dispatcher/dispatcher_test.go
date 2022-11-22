@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,14 +18,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher) {
+func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisherSubscriber) {
 	assert := assert.New(t)
 	db, err := gorm.Open(postgres.Open(helper.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
 	db.Exec("DELETE FROM definitions")
 
-	mockPublisher := &task.MockPublisher{}
+	mockPublisher := &task.MockPublisherSubscriber{}
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
 	dper, err := NewDispatcher(
@@ -33,9 +34,9 @@ func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisher)
 			Modules: map[string]module.DispatcherModule{
 				task.Echo: echo.Dispatcher{},
 			},
-			TaskPublisher: mockPublisher,
-			CheckInterval: 1 * time.Minute,
-			Jitter:        time.Millisecond * 10,
+			TaskPublisherSubscriber: mockPublisher,
+			CheckInterval:           1 * time.Minute,
+			Jitter:                  time.Millisecond * 10,
 		},
 	)
 	assert.Nil(err)
@@ -137,7 +138,11 @@ func TestDispatcher_CreateOneoffTask(t *testing.T) {
 		t,
 		"Publish",
 		mock.Anything,
-		[]byte(`{"type":"echo","definitionId":"`+tsk.ID.String()+`","target":"target","input":{"message":"hello world"}}`),
+		mock.MatchedBy(
+			func(msg []byte) bool {
+				return strings.Contains(string(msg), `"input":{"message":"hello world"}`)
+			},
+		),
 	)
 }
 

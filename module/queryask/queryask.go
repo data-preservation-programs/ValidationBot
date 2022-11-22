@@ -4,12 +4,14 @@ import (
 	"context"
 	"time"
 
+	"validation-bot/role"
+	"validation-bot/task"
+
 	"validation-bot/module"
 
 	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/filecoin-project/go-fil-markets/storagemarket/network"
 	"github.com/filecoin-project/lotus/api"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -21,16 +23,22 @@ type Dispatcher struct {
 	module.NoopValidator
 }
 
+func (Dispatcher) Type() task.Type {
+	return task.QueryAsk
+}
+
 type Auditor struct {
 	log      zerolog.Logger
 	lotusAPI api.Gateway
-	libp2p   *host.Host
 }
 
-func NewAuditor(libp2p *host.Host, lotusAPI api.Gateway) Auditor {
+func (Auditor) Type() task.Type {
+	return task.QueryAsk
+}
+
+func NewAuditor(lotusAPI api.Gateway) Auditor {
 	return Auditor{
 		log:      log.With().Str("role", "query_ask_auditor").Caller().Logger(),
-		libp2p:   libp2p,
 		lotusAPI: lotusAPI,
 	}
 }
@@ -60,6 +68,13 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 
 //nolint:nilerr,funlen,cyclop
 func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultContent, error) {
+	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create libp2p host")
+	}
+
+	defer libp2p.Close()
+
 	q.log.Debug().Str("provider", provider).Msg("querying miner info")
 
 	minerInfoResult, err := module.GetMinerInfo(ctx, q.lotusAPI, provider)
@@ -86,7 +101,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		Addrs: minerInfoResult.MultiAddrs,
 	}
 	now := time.Now()
-	err = (*q.libp2p).Connect(ctx, addrInfo)
+	err = libp2p.Connect(ctx, addrInfo)
 
 	if err != nil {
 		return &ResultContent{
@@ -97,7 +112,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 
 	q.log.Debug().Str("provider", provider).Msg("sending stream to /fil/storage/ask/1.1.0")
 
-	stream, err := (*q.libp2p).NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
+	stream, err := libp2p.NewStream(ctx, addrInfo.ID, "/fil/storage/ask/1.1.0")
 	if err != nil {
 		return &ResultContent{
 			Status:       StreamFailure,
@@ -105,10 +120,10 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		}, nil
 	}
 
-	(*q.libp2p).ConnManager().Protect(stream.Conn().RemotePeer(), "GetAsk")
+	libp2p.ConnManager().Protect(stream.Conn().RemotePeer(), "GetAsk")
 
 	defer func() {
-		(*q.libp2p).ConnManager().Unprotect(stream.Conn().RemotePeer(), "GetAsk")
+		libp2p.ConnManager().Unprotect(stream.Conn().RemotePeer(), "GetAsk")
 		stream.Close()
 	}()
 

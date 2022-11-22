@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"validation-bot/role/trust"
+
 	"validation-bot/helper"
 	"validation-bot/module"
 	"validation-bot/store"
@@ -13,7 +15,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -25,56 +26,57 @@ const (
 
 func TestObserverStart(t *testing.T) {
 	assert := assert.New(t)
-	_, _, testPeerId1 := helper.GeneratePeerID(t)
-	_, _, testPeerId2 := helper.GeneratePeerID(t)
+	trustStore := store.InMemoryStore{
+		Storage: [][]byte{},
+	}
+	resultStore := store.InMemoryStore{
+		Storage: [][]byte{},
+	}
+
+	_, _, trustor := helper.GeneratePeerID(t)
+	_, _, newPeer1 := helper.GeneratePeerID(t)
+	err := trust.ModifyPeers(
+		context.Background(),
+		&trustStore,
+		&trustStore,
+		trust.Create,
+		trustor,
+		[]peer.ID{newPeer1},
+		time.Second,
+	)
+	assert.NoError(err)
 	testDefinitionUUID, err := uuid.NewUUID()
 	assert.Nil(err)
 	testDefinitionId := testDefinitionUUID.String()
 	db, err := gorm.Open(postgres.Open(helper.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
-
-	subscriber := new(store.MockSubscriber)
 	err = db.AutoMigrate(&module.ValidationResultModel{})
 	assert.Nil(err)
+	manager := trust.NewManager([]peer.ID{trustor}, &trustStore, time.Second, time.Second)
+
 	db.Create(
 		&module.ValidationResultModel{
 			Cid:    testCid,
-			PeerID: testPeerId1.String(),
+			PeerID: newPeer1.String(),
 		},
 	)
 	obs, err := NewObserver(
-		db, subscriber, []peer.ID{
-			testPeerId1,
-			testPeerId2,
-		},
+		db, manager, &resultStore,
 	)
 	assert.Nil(err)
 	assert.NotNil(obs)
-
-	mockChan := make(chan store.Entry)
-	var writeOnly <-chan store.Entry = mockChan
-	subscriber.On(
-		"Subscribe",
-		mock.Anything,
-		mock.Anything,
-		mock.Anything,
-		mock.Anything,
-	).Return(writeOnly, nil)
+	ctx := context.TODO()
 	testOutput := uuid.New().String()
-	go func() {
-		mockChan <- store.Entry{
-			Previous: nil,
-			Message: []byte(fmt.Sprintf(
-				`{"type":"echo","definitionId":"%s","target":"%s", "result": {"message": "%s"}}`,
-				testDefinitionId, testTarget, testOutput,
-			)),
-		}
-	}()
-	obs.trustedAuditorPeers[testPeerId1] = struct{}{}
-	obs.trustedAuditorPeers[testPeerId2] = struct{}{}
-	go obs.downloadEntriesForAuditorPeer(context.Background(), testPeerId1)
-	go obs.downloadEntriesForAuditorPeer(context.Background(), testPeerId2)
+	err = resultStore.Publish(
+		ctx, []byte(fmt.Sprintf(
+			`{"type":"echo","definitionId":"%s","target":"%s", "result": {"message": "%s"}}`,
+			testDefinitionId, testTarget, testOutput,
+		)),
+	)
+	assert.Nil(err)
+
+	obs.Start(ctx)
 	time.Sleep(2 * time.Second)
 
 	var found []module.ValidationResult

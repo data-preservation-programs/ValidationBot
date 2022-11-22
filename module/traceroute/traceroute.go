@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os/exec"
 
+	"validation-bot/task"
+
 	"validation-bot/module"
 
 	"github.com/filecoin-project/lotus/api"
@@ -20,10 +22,18 @@ type Dispatcher struct {
 	module.NoopValidator
 }
 
+func (Dispatcher) Type() task.Type {
+	return task.Traceroute
+}
+
 type Auditor struct {
 	log      zerolog.Logger
 	lotusAPI api.Gateway
 	useSudo  bool
+}
+
+func (Auditor) Type() task.Type {
+	return task.Traceroute
 }
 
 func NewAuditor(lotusAPI api.Gateway, useSudo bool) Auditor {

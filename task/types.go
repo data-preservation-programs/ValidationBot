@@ -18,9 +18,10 @@ const (
 )
 
 type Task struct {
-	Type         Type      `json:"type"`
+	Type         Type      `json:"type" gorm:"index:idx_createdAt_type_target"`
 	DefinitionID uuid.UUID `json:"definitionId"`
-	Target       string    `json:"target"`
+	Target       string    `json:"target" gorm:"index:idx_createdAt_type_target"`
+	TaskID       uuid.UUID `json:"taskId"`
 	Tag          string    `json:"tag,omitempty"`
 }
 
