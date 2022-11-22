@@ -448,51 +448,36 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide auditor Libp2p host")
 	}
 
-	// DI: task.Publisher - for dispatcher
-	type DispatcherTaskPublisherParams struct {
+	// DI: task.PublisherSubscriber - for dispatcher
+	type DispatcherTaskPublisherSubscriberParams struct {
 		dig.In
 		Libp2p host.Host `name:"dispatcher_libp2p"`
 	}
 
 	err = container.Provide(
-		func(params DispatcherTaskPublisherParams) (task.Publisher, error) {
-			return task.NewLibp2pTaskPublisher(ctx, params.Libp2p, cfg.Topic.TopicName)
+		func(params DispatcherTaskPublisherSubscriberParams) (task.PublisherSubscriber, error) {
+			return task.NewLibp2pPublisherSubscriber(ctx, params.Libp2p, cfg.Topic.TopicName)
 		},
-		dig.Name("dispatcher_task_publisher"),
+		dig.Name("dispatcher_task_publisher_subscriber"),
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide dispatcher task publisher")
+		log.Fatal().Err(err).Msg("cannot provide dispatcher task publisher subscriber")
 	}
 
-	// DI: task.Publisher - for auditor
-	type AuditorTaskPublisherParams struct {
+	// DI: task.PublisherSubscriber - for auditor
+	type AuditorTaskPublisherSubscriberParams struct {
 		dig.In
 		Libp2p host.Host `name:"auditor_libp2p"`
 	}
 
 	err = container.Provide(
-		func(params AuditorTaskPublisherParams) (task.Publisher, error) {
-			return task.NewLibp2pTaskPublisher(ctx, params.Libp2p, cfg.Topic.TopicName)
+		func(params AuditorTaskPublisherSubscriberParams) (task.PublisherSubscriber, error) {
+			return task.NewLibp2pPublisherSubscriber(ctx, params.Libp2p, cfg.Topic.TopicName)
 		},
-		dig.Name("auditor_task_publisher"),
+		dig.Name("auditor_task_publisher_subscriber"),
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide auditor task publisher")
-	}
-
-	// DI: task.Subscriber - for auditor
-	type AuditorTaskSubscriberParams struct {
-		dig.In
-		Libp2p host.Host `name:"auditor_libp2p"`
-	}
-
-	err = container.Provide(
-		func(params AuditorTaskSubscriberParams) (task.Subscriber, error) {
-			return task.NewLibp2pTaskSubscriber(ctx, params.Libp2p, cfg.Topic.TopicName)
-		},
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide auditor task subscriber")
+		log.Fatal().Err(err).Msg("cannot provide auditor task publisher subscriber")
 	}
 
 	// DI: store.Publisher - for auditor
@@ -704,9 +689,9 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: dispatcher.Dispatcher
 	type DispatcherParams struct {
 		dig.In
-		DB            *gorm.DB
-		TaskPublisher task.Publisher            `name:"dispatcher_task_publisher"`
-		Modules       []module.DispatcherModule `group:"dispatcher_module"`
+		DB                      *gorm.DB
+		TaskPublisherSubscriber task.PublisherSubscriber  `name:"dispatcher_task_publisher_subscriber"`
+		Modules                 []module.DispatcherModule `group:"dispatcher_module"`
 	}
 
 	err = container.Provide(
@@ -717,11 +702,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 			}
 
 			dispatcherConfig := dispatcher.Config{
-				DB:            params.DB,
-				TaskPublisher: params.TaskPublisher,
-				CheckInterval: cfg.Dispatcher.CheckInterval,
-				Modules:       modules,
-				Jitter:        cfg.Dispatcher.Jitter,
+				DB:                      params.DB,
+				TaskPublisherSubscriber: params.TaskPublisherSubscriber,
+				CheckInterval:           cfg.Dispatcher.CheckInterval,
+				Modules:                 modules,
+				Jitter:                  cfg.Dispatcher.Jitter,
 			}
 
 			return dispatcher.NewDispatcher(dispatcherConfig)
@@ -765,12 +750,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In
-		Modules         []module.AuditorModule `group:"auditor_module"`
-		Libp2p          host.Host              `name:"auditor_libp2p"`
-		TrustManager    *trust.Manager
-		ResultPublisher store.Publisher
-		TaskSubscriber  task.Subscriber
-		TaskPublisher   task.Publisher `name:"auditor_task_publisher"`
+		Modules                 []module.AuditorModule `group:"auditor_module"`
+		Libp2p                  host.Host              `name:"auditor_libp2p"`
+		TrustManager            *trust.Manager
+		ResultPublisher         store.Publisher
+		TaskPublisherSubscriber task.PublisherSubscriber `name:"auditor_task_publisher_subscriber"`
 	}
 
 	err = container.Provide(
@@ -794,14 +778,13 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 			return auditor.NewAuditor(
 				auditor.Config{
-					PeerID:                 params.Libp2p.ID(),
-					TrustedDispatcherPeers: peers,
-					TrustManager:           params.TrustManager,
-					ResultPublisher:        params.ResultPublisher,
-					TaskSubscriber:         params.TaskSubscriber,
-					TaskPublisher:          params.TaskPublisher,
-					Modules:                modules,
-					BiddingWait:            cfg.Auditor.BiddingWait,
+					PeerID:                  params.Libp2p.ID(),
+					TrustedDispatcherPeers:  peers,
+					TrustManager:            params.TrustManager,
+					ResultPublisher:         params.ResultPublisher,
+					TaskPublisherSubscriber: params.TaskPublisherSubscriber,
+					Modules:                 modules,
+					BiddingWait:             cfg.Auditor.BiddingWait,
 				},
 			)
 		},

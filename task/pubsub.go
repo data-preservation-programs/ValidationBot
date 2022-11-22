@@ -19,30 +19,28 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type Publisher interface {
+type PublisherSubscriber interface {
 	Publish(ctx context.Context, task []byte) error
-}
-
-type Subscriber interface {
 	Next(ctx context.Context) (*peer.ID, []byte, error)
 }
 
-type Libp2pTaskSubscriber struct {
+type Libp2pPublisherSubscriber struct {
 	addrInfo peer.AddrInfo
 	msgChan  chan *pubsub.Message
 	log      zerolog.Logger
 	libp2p   host.Host
+	topic    *pubsub.Topic
 }
 
-func (s Libp2pTaskSubscriber) AddrInfo() peer.AddrInfo {
-	return s.addrInfo
+func (l Libp2pPublisherSubscriber) AddrInfo() peer.AddrInfo {
+	return l.addrInfo
 }
 
-func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName string) (
-	*Libp2pTaskSubscriber,
+func NewLibp2pPublisherSubscriber(ctx context.Context, libp2p host.Host, topicName string) (
+	*Libp2pPublisherSubscriber,
 	error,
 ) {
-	log := log2.With().Str("role", "task_subscriber").Caller().Logger()
+	log := log2.With().Str("role", "publisher_subscriber").Caller().Logger()
 
 	discovery, err := getTopicDiscovery(ctx, libp2p)
 	if err != nil {
@@ -78,7 +76,9 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName st
 	go func() {
 		for {
 			time.Sleep(time.Minute)
-			log.Debug().Int("peers", len(topic.ListPeers())).Str("topic", topicName).
+			log.Debug().Str("peer", libp2p.ID().String()).
+				Int("peers", len(topic.ListPeers())).
+				Str("topic", topicName).
 				Msg("connected to peers in the topic")
 		}
 	}()
@@ -95,94 +95,42 @@ func NewLibp2pTaskSubscriber(ctx context.Context, libp2p host.Host, topicName st
 		}
 	}()
 
-	return &Libp2pTaskSubscriber{
+	return &Libp2pPublisherSubscriber{
 		libp2p:   libp2p,
 		msgChan:  msgChan,
 		addrInfo: addrInfo,
 		log:      log,
+		topic:    topic,
 	}, nil
 }
 
-func (s Libp2pTaskSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
+func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
 	select {
 	case <-ctx.Done():
 		return nil, nil, errors.Wrap(ctx.Err(), "context is done")
-	case msg := <-s.msgChan:
+	case msg := <-l.msgChan:
 		from := msg.GetFrom()
-		s.log.Info().Str("from", from.String()).Bytes("data", msg.Data).Msg("received message")
+		l.log.Info().Str("from", from.String()).Bytes("data", msg.Data).Msg("received message")
 		return &from, msg.Data, nil
 	}
 }
 
-type Libp2pTaskPublisher struct {
-	topic  *pubsub.Topic
-	libp2p host.Host
-	log    zerolog.Logger
-}
-
-func (l Libp2pTaskPublisher) Publish(ctx context.Context, task []byte) error {
+func (l Libp2pPublisherSubscriber) Publish(ctx context.Context, task []byte) error {
 	l.log.Debug().Bytes("task", task).Caller().Msg("publishing message")
 	return errors.Wrap(l.topic.Publish(ctx, task), "cannot publish message")
 }
 
-func NewLibp2pTaskPublisher(ctx context.Context, libp2p host.Host, topicName string) (*Libp2pTaskPublisher, error) {
-	log := log2.With().Str("role", "task_publisher").Caller().Logger()
-
-	discovery, err := getTopicDiscovery(ctx, libp2p)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create topic discovery")
-	}
-
-	gossipSub, err := pubsub.NewGossipSub(ctx, libp2p, pubsub.WithDiscovery(discovery))
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create new gossip sub")
-	}
-
-	log.Info().Str("topic_name", topicName).Msg("joining pubsub topic")
-
-	topic, err := gossipSub.Join(topicName)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot join TopicName")
-	}
-
-	_, err = topic.Subscribe()
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot subscribe to TopicName")
-	}
-
-	addrInfo := peer.AddrInfo{
-		ID:    libp2p.ID(),
-		Addrs: libp2p.Addrs(),
-	}
-
-	log.Info().Str("addr", addrInfo.String()).Msg("listening on")
-
-	go func() {
-		for {
-			time.Sleep(time.Minute)
-			log.Debug().Int("peers", len(topic.ListPeers())).Str("topic", topicName).
-				Msg("connected to peers in the topic")
-		}
-	}()
-
-	return &Libp2pTaskPublisher{topic: topic, libp2p: libp2p, log: log}, nil
-}
-
-type MockPublisher struct {
+type MockPublisherSubscriber struct {
 	mock.Mock
 }
 
-func (m *MockPublisher) Publish(ctx context.Context, task []byte) error {
+func (m *MockPublisherSubscriber) Publish(ctx context.Context, task []byte) error {
 	args := m.Called(ctx, task)
 	return args.Error(0)
 }
 
-type MockSubscriber struct {
-	mock.Mock
-}
-
 //nolint:all
-func (m *MockSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
+func (m *MockPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
 	args := m.Called(ctx)
 	return args.Get(0).(*peer.ID), args.Get(1).([]byte), args.Error(2)
 }

@@ -26,28 +26,26 @@ import (
 )
 
 type Auditor struct {
-	peerID                 peer.ID
-	modules                map[task.Type]module.AuditorModule
-	trustedDispatcherPeers []peer.ID
-	trustManager           *trust.Manager
-	resultPublisher        store.Publisher
-	taskSubscriber         task.Subscriber
-	taskPublisher          task.Publisher
-	log                    zerolog.Logger
-	bidding                map[uuid.UUID]map[peer.ID]uint64
-	biddingLock            sync.RWMutex
-	biddingWait            time.Duration
+	peerID                  peer.ID
+	modules                 map[task.Type]module.AuditorModule
+	trustedDispatcherPeers  []peer.ID
+	trustManager            *trust.Manager
+	resultPublisher         store.Publisher
+	taskPublisherSubscriber task.PublisherSubscriber
+	log                     zerolog.Logger
+	bidding                 map[uuid.UUID]map[peer.ID]uint64
+	biddingLock             sync.RWMutex
+	biddingWait             time.Duration
 }
 
 type Config struct {
-	PeerID                 peer.ID
-	TrustedDispatcherPeers []peer.ID
-	TrustManager           *trust.Manager
-	ResultPublisher        store.Publisher
-	TaskSubscriber         task.Subscriber
-	TaskPublisher          task.Publisher
-	Modules                map[task.Type]module.AuditorModule
-	BiddingWait            time.Duration
+	PeerID                  peer.ID
+	TrustedDispatcherPeers  []peer.ID
+	TrustManager            *trust.Manager
+	ResultPublisher         store.Publisher
+	TaskPublisherSubscriber task.PublisherSubscriber
+	Modules                 map[task.Type]module.AuditorModule
+	BiddingWait             time.Duration
 }
 
 type Bidding struct {
@@ -60,17 +58,16 @@ func NewAuditor(config Config) (*Auditor, error) {
 	log := log2.With().Str("role", "auditor").Caller().Logger()
 
 	auditor := Auditor{
-		peerID:                 config.PeerID,
-		modules:                config.Modules,
-		trustedDispatcherPeers: config.TrustedDispatcherPeers,
-		trustManager:           config.TrustManager,
-		resultPublisher:        config.ResultPublisher,
-		taskSubscriber:         config.TaskSubscriber,
-		taskPublisher:          config.TaskPublisher,
-		log:                    log,
-		bidding:                make(map[uuid.UUID]map[peer.ID]uint64),
-		biddingLock:            sync.RWMutex{},
-		biddingWait:            config.BiddingWait,
+		peerID:                  config.PeerID,
+		modules:                 config.Modules,
+		trustedDispatcherPeers:  config.TrustedDispatcherPeers,
+		trustManager:            config.TrustManager,
+		resultPublisher:         config.ResultPublisher,
+		taskPublisherSubscriber: config.TaskPublisherSubscriber,
+		log:                     log,
+		bidding:                 make(map[uuid.UUID]map[peer.ID]uint64),
+		biddingLock:             sync.RWMutex{},
+		biddingWait:             config.BiddingWait,
 	}
 
 	return &auditor, nil
@@ -95,7 +92,7 @@ func (a *Auditor) Start(ctx context.Context) {
 		for {
 			log.Debug().Msg("waiting for task")
 
-			from, task, err := a.taskSubscriber.Next(ctx)
+			from, task, err := a.taskPublisherSubscriber.Next(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get next task")
 				time.Sleep(time.Minute)
@@ -264,7 +261,7 @@ func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput
 	a.bidding[bidding.TaskID][a.peerID] = bidding.Value
 	a.biddingLock.Unlock()
 
-	err = a.taskPublisher.Publish(ctx, biddingStr)
+	err = a.taskPublisherSubscriber.Publish(ctx, biddingStr)
 	if err != nil {
 		return errors.Wrap(err, "failed to publish bidding")
 	}
