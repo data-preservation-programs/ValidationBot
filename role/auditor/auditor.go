@@ -72,15 +72,6 @@ func NewAuditor(config Config) (*Auditor, error) {
 func (a *Auditor) Start(ctx context.Context) {
 	a.trustManager.Start(ctx)
 
-	for {
-		if len(a.trustManager.Trustees()) > 0 {
-			a.log.Info().Msg("trustees for bidding have been found")
-			break
-		}
-
-		time.Sleep(time.Second)
-	}
-
 	log := a.log
 	log.Info().Msg("start listening to subscription")
 

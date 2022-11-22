@@ -65,6 +65,10 @@ func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 func (o *Observer) Start(ctx context.Context) {
 	o.trustManager.Start(ctx)
 
+	for _, trustor := range o.trustManager.Trustors {
+		go o.downloadEntriesForAuditorPeer(ctx, trustor)
+	}
+
 	currentTrustees := map[peer.ID]struct{}{}
 
 	go func() {
