@@ -403,6 +403,23 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide dispatcher database")
 	}
 
+	// DI: module.DealStatesResolver
+	err = container.Provide(
+		func(db *gorm.DB, lotusAPI api.Gateway) (module.DealStatesResolver, error) {
+			return module.NewGlifDealStatesResolver(
+				ctx,
+				db,
+				lotusAPI,
+				cfg.DealStates.DownloadURL,
+				cfg.DealStates.RefreshInterval,
+				cfg.DealStates.SQLInsertBatchSize,
+			)
+		},
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide deal states resolver")
+	}
+
 	// DI: host.Host - for dispatcher
 	err = container.Provide(
 		func() (host.Host, error) {
@@ -410,10 +427,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 				cfg.Dispatcher.PrivateKey,
 				cfg.Dispatcher.ListenAddr,
 			)
-		}, dig.Name("dispatcher_libp2p"),
+		},
+		dig.Name("dispatcher_libp2p"),
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide dispatcher libp2p host")
+		log.Fatal().Err(err).Msg("cannot provide dispatcher Libp2p host")
 	}
 
 	// DI: host.Host - for auditor
@@ -423,21 +441,22 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 				cfg.Auditor.PrivateKey,
 				cfg.Auditor.ListenAddr,
 			)
-		}, dig.Name("auditor_libp2p"),
+		},
+		dig.Name("auditor_libp2p"),
 	)
 	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide auditor libp2p host")
+		log.Fatal().Err(err).Msg("cannot provide auditor Libp2p host")
 	}
 
 	// DI: task.Publisher - for dispatcher
 	type DispatcherTaskPublisherParams struct {
 		dig.In
-		libp2p host.Host `name:"dispatcher_libp2p"`
+		Libp2p host.Host `name:"dispatcher_libp2p"`
 	}
 
 	err = container.Provide(
 		func(params DispatcherTaskPublisherParams) (task.Publisher, error) {
-			return task.NewLibp2pTaskPublisher(ctx, params.libp2p, cfg.Topic.TopicName)
+			return task.NewLibp2pTaskPublisher(ctx, params.Libp2p, cfg.Topic.TopicName)
 		},
 		dig.Name("dispatcher_task_publisher"),
 	)
@@ -448,12 +467,12 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: task.Publisher - for auditor
 	type AuditorTaskPublisherParams struct {
 		dig.In
-		libp2p host.Host `name:"auditor_libp2p"`
+		Libp2p host.Host `name:"auditor_libp2p"`
 	}
 
 	err = container.Provide(
 		func(params AuditorTaskPublisherParams) (task.Publisher, error) {
-			return task.NewLibp2pTaskPublisher(ctx, params.libp2p, cfg.Topic.TopicName)
+			return task.NewLibp2pTaskPublisher(ctx, params.Libp2p, cfg.Topic.TopicName)
 		},
 		dig.Name("auditor_task_publisher"),
 	)
@@ -464,12 +483,12 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: task.Subscriber - for auditor
 	type AuditorTaskSubscriberParams struct {
 		dig.In
-		libp2p host.Host `name:"auditor_libp2p"`
+		Libp2p host.Host `name:"auditor_libp2p"`
 	}
 
 	err = container.Provide(
 		func(params AuditorTaskSubscriberParams) (task.Subscriber, error) {
-			return task.NewLibp2pTaskSubscriber(ctx, params.libp2p, cfg.Topic.TopicName)
+			return task.NewLibp2pTaskSubscriber(ctx, params.Libp2p, cfg.Topic.TopicName)
 		},
 	)
 	if err != nil {
@@ -481,7 +500,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		func() (store.Publisher, error) {
 			token := cfg.W3S.Token
 			if token == "" {
-				return nil, errors.New("auditor.w3s_token is empty")
+				return nil, errors.New("W3S token is empty")
 			}
 
 			config := store.W3StorePublisherConfig{
@@ -519,28 +538,6 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cannot provide store subscriber")
-	}
-
-	// DI: module.DealStatesResolver
-	type DealStatesResolverParams struct {
-		dig.In
-		db *gorm.DB `name:"dispatcher_db"`
-	}
-
-	err = container.Provide(
-		func(params DealStatesResolverParams, cfg *config, lotusAPI api.Gateway) (module.DealStatesResolver, error) {
-			return module.NewGlifDealStatesResolver(
-				ctx,
-				params.db,
-				lotusAPI,
-				cfg.DealStates.DownloadURL,
-				cfg.DealStates.RefreshInterval,
-				cfg.DealStates.SQLInsertBatchSize,
-			)
-		},
-	)
-	if err != nil {
-		log.Fatal().Err(err).Msg("cannot provide deal states resolver")
 	}
 
 	// Modules
@@ -707,21 +704,21 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: dispatcher.Dispatcher
 	type DispatcherParams struct {
 		dig.In
-		db            *gorm.DB                  `name:"dispatcher_db"`
-		taskPublisher task.Publisher            `name:"dispatcher_task_publisher"`
-		modules       []module.DispatcherModule `group:"dispatcher_module"`
+		DB            *gorm.DB
+		TaskPublisher task.Publisher            `name:"dispatcher_task_publisher"`
+		Modules       []module.DispatcherModule `group:"dispatcher_module"`
 	}
 
 	err = container.Provide(
 		func(params DispatcherParams) (*dispatcher.Dispatcher, error) {
 			modules := make(map[string]module.DispatcherModule)
-			for _, m := range params.modules {
+			for _, m := range params.Modules {
 				modules[m.Type()] = m
 			}
 
 			dispatcherConfig := dispatcher.Config{
-				DB:            params.db,
-				TaskPublisher: params.taskPublisher,
+				DB:            params.DB,
+				TaskPublisher: params.TaskPublisher,
 				CheckInterval: cfg.Dispatcher.CheckInterval,
 				Modules:       modules,
 				Jitter:        cfg.Dispatcher.Jitter,
@@ -768,12 +765,12 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In
-		modules         []module.AuditorModule `group:"auditor_module"`
-		libp2p          host.Host              `name:"auditor_libp2p"`
-		trustManager    *trust.Manager
-		resultPublisher store.Publisher
-		taskSubscriber  task.Subscriber
-		taskPublisher   task.Publisher `name:"auditor_task_publisher"`
+		Modules         []module.AuditorModule `group:"auditor_module"`
+		Libp2p          host.Host              `name:"auditor_libp2p"`
+		TrustManager    *trust.Manager
+		ResultPublisher store.Publisher
+		TaskSubscriber  task.Subscriber
+		TaskPublisher   task.Publisher `name:"auditor_task_publisher"`
 	}
 
 	err = container.Provide(
@@ -791,18 +788,18 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 			}
 
 			modules := make(map[string]module.AuditorModule)
-			for _, m := range params.modules {
+			for _, m := range params.Modules {
 				modules[m.Type()] = m
 			}
 
 			return auditor.NewAuditor(
 				auditor.Config{
-					PeerID:                 params.libp2p.ID(),
+					PeerID:                 params.Libp2p.ID(),
 					TrustedDispatcherPeers: peers,
-					TrustManager:           params.trustManager,
-					ResultPublisher:        params.resultPublisher,
-					TaskSubscriber:         params.taskSubscriber,
-					TaskPublisher:          params.taskPublisher,
+					TrustManager:           params.TrustManager,
+					ResultPublisher:        params.ResultPublisher,
+					TaskSubscriber:         params.TaskSubscriber,
+					TaskPublisher:          params.TaskPublisher,
 					Modules:                modules,
 					BiddingWait:            cfg.Auditor.BiddingWait,
 				},
