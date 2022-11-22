@@ -22,13 +22,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
-	"golang.org/x/exp/slices"
 )
 
 type Auditor struct {
 	peerID                  peer.ID
 	modules                 map[task.Type]module.AuditorModule
-	trustedDispatcherPeers  []peer.ID
 	trustManager            *trust.Manager
 	resultPublisher         store.Publisher
 	taskPublisherSubscriber task.PublisherSubscriber
@@ -40,7 +38,6 @@ type Auditor struct {
 
 type Config struct {
 	PeerID                  peer.ID
-	TrustedDispatcherPeers  []peer.ID
 	TrustManager            *trust.Manager
 	ResultPublisher         store.Publisher
 	TaskPublisherSubscriber task.PublisherSubscriber
@@ -60,7 +57,6 @@ func NewAuditor(config Config) (*Auditor, error) {
 	auditor := Auditor{
 		peerID:                  config.PeerID,
 		modules:                 config.Modules,
-		trustedDispatcherPeers:  config.TrustedDispatcherPeers,
 		trustManager:            config.TrustManager,
 		resultPublisher:         config.ResultPublisher,
 		taskPublisherSubscriber: config.TaskPublisherSubscriber,
@@ -100,6 +96,10 @@ func (a *Auditor) Start(ctx context.Context) {
 			}
 
 			log.Info().Str("from", from.String()).Bytes("message", task).Msg("received a new message")
+			if !a.trustManager.IsTrusted(*from) {
+				a.log.Debug().Str("from", from.String()).Msg("received message from untrusted peer")
+				return
+			}
 
 			// If the message is a bidding message
 			bidding := new(Bidding)
@@ -112,12 +112,6 @@ func (a *Auditor) Start(ctx context.Context) {
 
 			if bidding.Type == "bidding" {
 				a.handleBiddingMessage(bidding, from)
-				continue
-			}
-
-			// If the message is a task message
-			if !slices.Contains(a.trustedDispatcherPeers, *from) {
-				log.Debug().Str("from", from.String()).Msg("received task from untrusted peer")
 				continue
 			}
 
@@ -215,11 +209,6 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 }
 
 func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
-	if !a.trustManager.IsTrusted(*from) {
-		a.log.Debug().Str("from", from.String()).Msg("received bidding message from untrusted peer")
-		return
-	}
-
 	a.biddingLock.Lock()
 	if _, ok := a.bidding[bidding.TaskID]; !ok {
 		a.log.Debug().Str(

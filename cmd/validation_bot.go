@@ -84,7 +84,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			ConnectionString: defaultConnectionString,
 		},
 		Trust: trustConfig{
-			TrustedPeers:  []string{},
+			Trustors:      []string{},
 			RetryInterval: 10 * time.Second,
 			PollInterval:  time.Minute,
 		},
@@ -169,7 +169,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 
 		cfg.Auditor.PrivateKey = auditorKey
 		cfg.Dispatcher.PrivateKey = dispatcherKey
-		cfg.Trust.TrustedPeers = []string{dispatcherPeer.String()}
+		cfg.Trust.Trustors = []string{dispatcherPeer.String()}
 
 		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
 			log.Warn().Msg("AUDITOR_W3S_TOKEN env variable is not set, skip publishing auditor peer to w3s")
@@ -719,7 +719,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: trusted dispatcher peers
 	err = container.Provide(
 		func() ([]peer.ID, error) {
-			trustedPeers := cfg.Trust.TrustedPeers
+			trustedPeers := cfg.Trust.Trustors
 			peers := make([]peer.ID, len(trustedPeers))
 
 			for i, trustedPeer := range trustedPeers {
@@ -759,7 +759,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 	err = container.Provide(
 		func(params AuditorParams, resultSubscriber store.Subscriber) (*auditor.Auditor, error) {
-			trustedPeers := cfg.Trust.TrustedPeers
+			trustedPeers := cfg.Trust.Trustors
 			peers := make([]peer.ID, len(trustedPeers))
 
 			for i, trustedPeer := range trustedPeers {
@@ -779,7 +779,6 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 			return auditor.NewAuditor(
 				auditor.Config{
 					PeerID:                  params.Libp2p.ID(),
-					TrustedDispatcherPeers:  peers,
 					TrustManager:            params.TrustManager,
 					ResultPublisher:         params.ResultPublisher,
 					TaskPublisherSubscriber: params.TaskPublisherSubscriber,

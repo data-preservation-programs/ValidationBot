@@ -34,7 +34,7 @@ type topicConfig struct {
 }
 
 type trustConfig struct {
-	TrustedPeers  []string
+	Trustors      []string
 	RetryInterval time.Duration
 	PollInterval  time.Duration
 }

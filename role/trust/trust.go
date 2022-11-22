@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 )
 
 type (
@@ -174,7 +175,11 @@ func (m *Manager) Trustees() map[peer.ID]struct{} {
 
 func (m *Manager) IsTrusted(peerID peer.ID) bool {
 	_, ok := (*m.trustees)[peerID]
-	return ok
+	if ok {
+		return true
+	}
+
+	return slices.Contains(m.trustors, peerID)
 }
 
 func (m *Manager) Start(ctx context.Context) {
