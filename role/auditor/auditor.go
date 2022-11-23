@@ -201,15 +201,18 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 }
 
 func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
-	a.biddingLock.Lock()
+	a.biddingLock.RLock()
 	if _, ok := a.bidding[bidding.TaskID]; !ok {
 		a.log.Debug().Str(
 			"from",
 			from.String(),
 		).Msg("received bidding message but the bidding has already been resolved")
+		a.biddingLock.RUnlock()
 		return
 	}
 
+	a.biddingLock.RUnlock()
+	a.biddingLock.Lock()
 	a.bidding[bidding.TaskID][*from] = bidding.Value
 	a.biddingLock.Unlock()
 	a.log.Debug().Str("taskId", bidding.TaskID.String()).Str("from", from.String()).Uint64(
