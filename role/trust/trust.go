@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 )
 
 type (
@@ -140,7 +141,7 @@ func ListPeers(ctx context.Context, subscriber store.Subscriber, trustor peer.ID
 }
 
 type Manager struct {
-	trustors         []peer.ID
+	Trustors         []peer.ID
 	trustees         *map[peer.ID]struct{}
 	resultSubscriber store.Subscriber
 	log              zerolog.Logger
@@ -157,7 +158,7 @@ func NewManager(
 	pollInterval time.Duration,
 ) *Manager {
 	return &Manager{
-		trustors:         trustors,
+		Trustors:         trustors,
 		trustees:         &map[peer.ID]struct{}{},
 		resultSubscriber: resultSubscriber,
 		log:              log2.With().Str("component", "trust-manager").Caller().Logger(),
@@ -174,7 +175,11 @@ func (m *Manager) Trustees() map[peer.ID]struct{} {
 
 func (m *Manager) IsTrusted(peerID peer.ID) bool {
 	_, ok := (*m.trustees)[peerID]
-	return ok
+	if ok {
+		return true
+	}
+
+	return slices.Contains(m.Trustors, peerID)
 }
 
 func (m *Manager) Start(ctx context.Context) {
@@ -189,7 +194,7 @@ func (m *Manager) Start(ctx context.Context) {
 		for {
 			newTrustees := make(map[peer.ID]struct{})
 
-			for _, peerID := range m.trustors {
+			for _, peerID := range m.Trustors {
 				log := m.log.With().Str("peerID", peerID.String()).Logger()
 
 				log.Debug().Msg("start downloading list of trustee peers")

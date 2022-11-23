@@ -50,7 +50,6 @@ func TestAuditor_Start(t *testing.T) {
 	adt, err := NewAuditor(
 		Config{
 			PeerID:                  auditorPeerID,
-			TrustedDispatcherPeers:  []peer.ID{dispatcherPeerID},
 			TrustManager:            trustManager,
 			ResultPublisher:         mockResultPublisher,
 			TaskPublisherSubscriber: mockPublisherSubscriber,
