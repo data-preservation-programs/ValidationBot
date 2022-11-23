@@ -87,6 +87,7 @@ func (a *Auditor) Start(ctx context.Context) {
 			}
 
 			log.Info().Str("from", from.String()).Bytes("message", task).Msg("received a new message")
+
 			if !a.trustManager.IsTrusted(*from) {
 				a.log.Debug().Str("from", from.String()).Msg("received message from untrusted peer")
 				return
