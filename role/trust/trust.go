@@ -161,7 +161,7 @@ func NewManager(
 		Trustors:         trustors,
 		trustees:         &map[peer.ID]struct{}{},
 		resultSubscriber: resultSubscriber,
-		log:              log2.With().Str("component", "trust-manager").Caller().Logger(),
+		log:              log2.With().Str("role", "trust_manager").Caller().Logger(),
 		started:          false,
 		startedLock:      sync.Mutex{},
 		retryInterval:    retryInterval,
@@ -188,6 +188,8 @@ func (m *Manager) Start(ctx context.Context) {
 		m.startedLock.Unlock()
 		return
 	}
+
+	m.started = true
 	m.startedLock.Unlock()
 
 	go func() {

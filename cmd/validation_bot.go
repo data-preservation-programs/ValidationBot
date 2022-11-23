@@ -155,64 +155,67 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 	//nolint:nestif
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		log.Warn().Str("config_path", configPath).Msg("config file does not exist, creating new one")
-		log.Info().Msg("generating new peers for dispatcher and auditor as default")
 
-		auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot generate auditor key")
-		}
+		if os.Getenv("DISPATCHER_PRIVATEKEY") == "" && os.Getenv("AUDITOR_PRIVATEKEY") == "" {
+			log.Info().Msg("generating new peers for dispatcher and auditor as default")
 
-		dispatcherKey, _, dispatcherPeer, err := role.GenerateNewPeer()
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot generate dispatcher key")
-		}
-
-		cfg.Auditor.PrivateKey = auditorKey
-		cfg.Dispatcher.PrivateKey = dispatcherKey
-		cfg.Trust.Trustors = []string{dispatcherPeer.String()}
-
-		if os.Getenv("AUDITOR_W3S_TOKEN") == "" {
-			log.Warn().Msg("AUDITOR_W3S_TOKEN env variable is not set, skip publishing auditor peer to w3s")
-			log.Warn().Msgf(
-				"To fix this, run validation-bot add-trusted-peer -k %s -p %s -k <W3S_TOKEN>",
-				dispatcherKey,
-				auditorPeer.String(),
-			)
-		} else {
-			publisher, err := store.NewW3StorePublisher(
-				ctx, store.W3StorePublisherConfig{
-					Token:        os.Getenv("AUDITOR_W3S_TOKEN"),
-					PrivateKey:   dispatcherKey,
-					RetryWait:    time.Second,
-					RetryWaitMax: time.Minute,
-					RetryCount:   10,
-				},
-			)
+			auditorKey, _, auditorPeer, err := role.GenerateNewPeer()
 			if err != nil {
-				return nil, errors.Wrap(err, "cannot create publisher")
+				return nil, errors.Wrap(err, "cannot generate auditor key")
 			}
 
-			subscriber := store.NewW3StoreSubscriber(
-				store.W3StoreSubscriberConfig{
-					RetryInterval: time.Second,
-					PollInterval:  time.Second,
-					RetryWait:     time.Second,
-					RetryWaitMax:  time.Second,
-					RetryCount:    3,
-				},
-			)
-
-			err = trust.ModifyPeers(
-				ctx,
-				publisher,
-				subscriber,
-				trust.Create,
-				dispatcherPeer,
-				[]peer.ID{auditorPeer},
-				time.Second,
-			)
+			dispatcherKey, _, dispatcherPeer, err := role.GenerateNewPeer()
 			if err != nil {
-				return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
+				return nil, errors.Wrap(err, "cannot generate dispatcher key")
+			}
+
+			cfg.Auditor.PrivateKey = auditorKey
+			cfg.Dispatcher.PrivateKey = dispatcherKey
+			cfg.Trust.Trustors = []string{dispatcherPeer.String()}
+
+			if os.Getenv("W3S_TOKEN") == "" {
+				log.Warn().Msg("W3S_TOKEN env variable is not set, skip publishing auditor peer to w3s")
+				log.Warn().Msgf(
+					"To fix this, run validation-bot add-trusted-peer -k %s -p %s -k <W3S_TOKEN>",
+					dispatcherKey,
+					auditorPeer.String(),
+				)
+			} else {
+				publisher, err := store.NewW3StorePublisher(
+					ctx, store.W3StorePublisherConfig{
+						Token:        os.Getenv("W3S_TOKEN"),
+						PrivateKey:   dispatcherKey,
+						RetryWait:    time.Second,
+						RetryWaitMax: time.Minute,
+						RetryCount:   10,
+					},
+				)
+				if err != nil {
+					return nil, errors.Wrap(err, "cannot create publisher")
+				}
+
+				subscriber := store.NewW3StoreSubscriber(
+					store.W3StoreSubscriberConfig{
+						RetryInterval: time.Second,
+						PollInterval:  time.Second,
+						RetryWait:     time.Second,
+						RetryWaitMax:  time.Second,
+						RetryCount:    3,
+					},
+				)
+
+				err = trust.ModifyPeers(
+					ctx,
+					publisher,
+					subscriber,
+					trust.Create,
+					dispatcherPeer,
+					[]peer.ID{auditorPeer},
+					time.Second,
+				)
+				if err != nil {
+					return nil, errors.Wrap(err, "cannot add auditor peer as a trusted peer")
+				}
 			}
 		}
 
@@ -911,6 +914,28 @@ func main() {
 						fmt.Println("public key:  ", publicStr)
 						fmt.Println("private key: ", privateStr)
 					}
+					return nil
+				},
+			},
+			{
+				Name:  "get-peer-id-from-private-key",
+				Usage: "get peer id from private key",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "key",
+						Aliases:     []string{"k"},
+						Usage:       "private key",
+						Destination: &privateKey,
+						Required:    true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					trustorPeerID, err := role.GetPeerIDFromPrivateKeyStr(privateKey)
+					if err != nil {
+						return errors.Wrap(err, "cannot get peer id from private key")
+					}
+
+					fmt.Println("peer id: ", trustorPeerID.String())
 					return nil
 				},
 			},
