@@ -194,6 +194,8 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 			"task",
 			task,
 		).Msg("validation not performed because we did not win the bidding")
+
+		won = false
 	}
 
 	a.biddingLock.RUnlock()
