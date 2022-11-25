@@ -202,6 +202,29 @@ func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
 	return false
 }
 
+func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInput) (bool, error) {
+	provider := input.Target
+
+	q.log.Debug().Str("provider", provider).Msg("retrieving miner info")
+
+	minerInfoResult, err := module.GetMinerInfo(ctx, q.lotusAPI, provider)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get miner info")
+	}
+
+	// We still want to validate the provider so the error can be recorded
+	if minerInfoResult.ErrorCode != "" || len(minerInfoResult.MultiAddrs) == 0 {
+		return true, nil
+	}
+
+	if !q.matchLocation(minerInfoResult) {
+		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
+		return false, nil
+	}
+
+	return true, nil
+}
+
 //nolint:cyclop
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,

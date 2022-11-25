@@ -179,3 +179,7 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bo
 
 	return output.Hops, nil
 }
+
+func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInput) (bool, error) {
+	return true, nil
+}

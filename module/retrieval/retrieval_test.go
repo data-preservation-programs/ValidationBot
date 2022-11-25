@@ -235,6 +235,76 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	assert.Contains(out.ErrorMessage, "key not found")
 }
 
+func TestAuditor_ShouldValidate_NoIfMinerNotMatchingLocationFilter(t *testing.T) {
+	assert := assert.New(t)
+	ctx := context.Background()
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	defer closer()
+	assert.NoError(err)
+
+	graphsync := GraphSyncRetrieverBuilderImpl{
+		LotusAPI: api,
+		BaseDir:  "/tmp",
+	}
+	auditor, err := NewAuditor(
+		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+			Continent: []string{"AAA"},
+		},
+	)
+	assert.NoError(err)
+	in := Input{
+		ProtocolPreference: []Protocol{GraphSync},
+		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
+	}
+	input, err := module.NewJSONB(in)
+	assert.NoError(err)
+	result, err := auditor.ShouldValidate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f03223",
+			},
+			Input: input,
+		},
+	)
+	assert.NoError(err)
+	assert.False(result)
+}
+
+func TestAuditor_ShouldValidate_YesIfMinerDoesNotHaveMultiAddr(t *testing.T) {
+	assert := assert.New(t)
+	ctx := context.Background()
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	defer closer()
+	assert.NoError(err)
+
+	graphsync := GraphSyncRetrieverBuilderImpl{
+		LotusAPI: api,
+		BaseDir:  "/tmp",
+	}
+	auditor, err := NewAuditor(
+		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+			Continent: []string{"AAA"},
+		},
+	)
+	assert.NoError(err)
+	in := Input{
+		ProtocolPreference: []Protocol{GraphSync},
+		DataCid:            "bafykbzacedjicdbqxgmeznb3n2uloccudvsyddlnt2w33iy4wmaafaebugrwa",
+	}
+	input, err := module.NewJSONB(in)
+	assert.NoError(err)
+	result, err := auditor.ShouldValidate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f01173170",
+			},
+			Input: input,
+		},
+	)
+	assert.NoError(err)
+	assert.True(result)
+}
+
 func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()

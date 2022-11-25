@@ -121,6 +121,17 @@ func (a *Auditor) Start(ctx context.Context) {
 				continue
 			}
 
+			shouldValidate, err := mod.ShouldValidate(ctx, *input)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to check if we should validate")
+				continue
+			}
+
+			if !shouldValidate {
+				log.Debug().Msg("validation not performed because shouldValidate returned false")
+				continue
+			}
+
 			// Make bidding
 			err = a.makeBidding(ctx, input)
 			if err != nil {
