@@ -128,3 +128,7 @@ func (q Auditor) Enabled(ctx context.Context, provider string) (*ResultContent, 
 		RootCid: rootCid.String(),
 	}, nil
 }
+
+func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInput) (bool, error) {
+	return true, nil
+}

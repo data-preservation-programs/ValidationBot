@@ -17,6 +17,8 @@ type AuditorModule interface {
 	Validate(ctx context.Context, input ValidationInput) (*ValidationResult, error)
 
 	Type() task.Type
+
+	ShouldValidate(ctx context.Context, input ValidationInput) (bool, error)
 }
 
 type DispatcherModule interface {

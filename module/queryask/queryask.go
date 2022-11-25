@@ -172,3 +172,7 @@ func (q Auditor) QueryMiner(ctx context.Context, provider string) (*ResultConten
 		Latency:       latency,
 	}, nil
 }
+
+func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInput) (bool, error) {
+	return true, nil
+}

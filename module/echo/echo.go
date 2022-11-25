@@ -43,3 +43,7 @@ func (e Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 	}
 	return &output, nil
 }
+
+func (e Auditor) ShouldValidate(ctx context.Context, input module.ValidationInput) (bool, error) {
+	return true, nil
+}
