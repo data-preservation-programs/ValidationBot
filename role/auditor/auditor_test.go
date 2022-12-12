@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+	mock2 "validation-bot/store/mock"
+	mock3 "validation-bot/task/mock"
 
 	"validation-bot/role/trust"
 
@@ -26,8 +28,8 @@ func TestAuditor_Start(t *testing.T) {
 	assert := assert.New(t)
 	_, _, dispatcherPeerID := helper.GeneratePeerID(t)
 	_, _, auditorPeerID := helper.GeneratePeerID(t)
-	mockResultPublisher := &store.MockPublisher{}
-	mockPublisherSubscriber := &task.MockPublisherSubscriber{}
+	mockResultPublisher := &mock2.MockPublisher{}
+	mockPublisherSubscriber := &mock3.MockPublisherSubscriber{}
 	inmemoryStore := store.InMemoryStore{
 		Storage: make([][]byte, 0),
 	}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	mock2 "validation-bot/cmd/mock"
 
 	"validation-bot/task"
 
@@ -29,7 +30,7 @@ const (
 func TestDeleteTaskHandler(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	mockTaskRemover := new(MockTaskRemover)
+	mockTaskRemover := new(mock2.MockTaskRemover)
 	mockTaskRemover.On("Remove", mock.Anything, mock.Anything).Return(nil)
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodDelete, "/task/"+testUuid, nil)
@@ -49,7 +50,7 @@ func TestPostTaskHandler(t *testing.T) {
 	defer viper.Reset()
 	taskDef := task.Definition{}
 	taskDef.Definition.Set(`{"helper": "helper"}`)
-	mockTaskCreator := new(MockTaskCreator)
+	mockTaskCreator := new(mock2.MockTaskCreator)
 	mockTaskCreator.On("Create", mock.Anything, mock.Anything).Return(nil)
 	e := echo.New()
 	buf := bytes.NewBuffer([]byte(`{"definition":{"helper": "helper"}}`))
@@ -67,7 +68,7 @@ func TestPostTaskHandler(t *testing.T) {
 func TestListTaskHandler(t *testing.T) {
 	assert := assert.New(t)
 	defer viper.Reset()
-	mockTaskCreator := new(MockTaskCreator)
+	mockTaskCreator := new(mock2.MockTaskCreator)
 	taskDef := task.Definition{}
 	taskDef.Definition.Set(`{"helper": "helper"}`)
 	taskDefs := []task.Definition{

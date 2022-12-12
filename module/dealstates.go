@@ -13,7 +13,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"github.com/stretchr/testify/mock"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -47,22 +46,6 @@ type DealState struct {
 type DealStatesResolver interface {
 	DealsByProvider(provider string) ([]DealStateModel, error)
 	DealsByProviderClients(provider string, clients []string) ([]DealStateModel, error)
-}
-
-type MockDealStatesResolver struct {
-	mock.Mock
-}
-
-//nolint:all
-func (m *MockDealStatesResolver) DealsByProvider(provider string) ([]DealStateModel, error) {
-	args := m.Called(provider)
-	return args.Get(0).([]DealStateModel), args.Error(1)
-}
-
-//nolint:all
-func (m *MockDealStatesResolver) DealsByProviderClients(provider string, clients []string) ([]DealStateModel, error) {
-	args := m.Called(provider, clients)
-	return args.Get(0).([]DealStateModel), args.Error(1)
 }
 
 type DealStateModel struct {

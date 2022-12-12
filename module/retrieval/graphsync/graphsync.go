@@ -1,10 +1,11 @@
-package retrieval
+package graphsync
 
 import (
 	"context"
 	"os"
 	"path/filepath"
 	"time"
+	"validation-bot/module/retrieval"
 
 	"validation-bot/role"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
-	"github.com/stretchr/testify/mock"
 	"golang.org/x/exp/slices"
 )
 
@@ -42,31 +42,8 @@ type GraphSyncRetriever interface {
 	) (*ResultContent, error)
 }
 
-type MockGraphSyncRetriever struct {
-	mock.Mock
-}
-
-//nolint:forcetypeassert
-func (m *MockGraphSyncRetriever) Retrieve(
-	parent context.Context,
-	minerAddress address.Address,
-	dataCid cid.Cid,
-	timeout time.Duration,
-) (*ResultContent, error) {
-	args := m.Called(parent, minerAddress, dataCid, timeout)
-	return args.Get(0).(*ResultContent), args.Error(1)
-}
-
 type GraphSyncRetrieverBuilder interface {
 	Build() (GraphSyncRetriever, Cleanup, error)
-}
-
-type MockGraphSyncRetrieverBuilder struct {
-	Retriever *MockGraphSyncRetriever
-}
-
-func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, error) {
-	return m.Retriever, func() {}, nil
 }
 
 type GraphSyncRetrieverImpl struct {
@@ -129,13 +106,13 @@ type CalculatedStats struct {
 }
 
 type ResultContent struct {
-	Status       ResultStatus `json:"status"`
-	ErrorMessage string       `json:"errorMessage,omitempty"`
-	Protocol     Protocol     `json:"protocol"`
+	Status       retrieval.ResultStatus `json:"status"`
+	ErrorMessage string                 `json:"errorMessage,omitempty"`
+	Protocol     retrieval.Protocol     `json:"protocol"`
 	CalculatedStats
 }
 
-func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {
+func (r *retrievalStats) NewResultContent(status retrieval.ResultStatus, errorMessage string) *ResultContent {
 	r.log.Debug().Str("status", string(status)).Str("errorMessage", errorMessage).Msg("calculate stats for new result")
 	var bytesDownloaded uint64
 	var startTime time.Time
@@ -182,7 +159,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 			TimeElapsed:        lastEventTime.Sub(startTime),
 			TimeToFirstByte:    timeToFirstByte,
 		},
-		Protocol: GraphSync,
+		Protocol: retrieval.GraphSync,
 	}
 }
 
@@ -344,7 +321,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		query, err := filClient.RetrievalQuery(ctx, minerAddress, dataCid)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       QueryFailure,
+				Status:       retrieval.QueryFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -352,13 +329,13 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 
 		if query.Status == retrievalmarket.QueryResponseUnavailable {
 			stats.done <- ResultContent{
-				Status:       QueryResponseUnavailable,
+				Status:       retrieval.QueryResponseUnavailable,
 				ErrorMessage: query.Message,
 			}
 			return
 		} else if query.Status == retrievalmarket.QueryResponseError {
 			stats.done <- ResultContent{
-				Status:       QueryResponseError,
+				Status:       retrieval.QueryResponseError,
 				ErrorMessage: query.Message,
 			}
 			return
@@ -367,7 +344,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		proposal, err := retrievehelper.RetrievalProposalForAsk(query, dataCid, nil)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       ProposalFailure,
+				Status:       retrieval.ProposalFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -381,7 +358,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		_, err = filClient.RetrieveContent(ctx, minerAddress, proposal)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       RetrieveFailure,
+				Status:       retrieval.RetrieveFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -389,19 +366,19 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	}()
 	select {
 	case <-ctx.Done():
-		return stats.NewResultContent(RetrieveTimeout, ""), nil
+		return stats.NewResultContent(retrieval.RetrieveTimeout, ""), nil
 	case result := <-stats.done:
 		switch result := result.(type) {
 		case ResultContent:
 			return stats.NewResultContent(result.Status, result.ErrorMessage), nil
 		case rep.RetrievalEvent:
 			if result.Code() == rep.SuccessCode {
-				return stats.NewResultContent(Success, string(result.Phase())), nil
+				return stats.NewResultContent(retrieval.Success, string(result.Phase())), nil
 			}
 
-			return stats.NewResultContent(RetrieveFailure, string(result.Phase())), nil
+			return stats.NewResultContent(retrieval.RetrieveFailure, string(result.Phase())), nil
 		case datatransfer.Event:
-			return stats.NewResultContent(DataTransferFailure, result.Message), nil
+			return stats.NewResultContent(retrieval.DataTransferFailure, result.Message), nil
 		default:
 			return nil, errors.New("unknown result type")
 		}

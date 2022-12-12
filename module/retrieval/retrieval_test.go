@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+	mock2 "validation-bot/module/mock"
+	graphsync2 "validation-bot/module/retrieval/graphsync"
 
 	"validation-bot/module"
 	"validation-bot/task"
@@ -37,7 +39,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -64,7 +66,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -92,7 +94,7 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	resolver := new(module.MockDealStatesResolver)
+	resolver := new(mock2.MockDealStatesResolver)
 	dispatcher := NewDispatcher(resolver)
 	resolver.On("DealsByProviderClients", "provider", []string{"client1"}).Return(
 		[]module.DealStateModel{
@@ -132,7 +134,7 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
@@ -153,7 +155,7 @@ func TestRetrieval_Dispatcher_Validate_IntervalTooShort(t *testing.T) {
 		Type:            task.Retrieval,
 		IntervalSeconds: 1800,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
@@ -166,7 +168,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := GraphSyncRetrieverBuilderImpl{
+	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -204,7 +206,7 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := GraphSyncRetrieverBuilderImpl{
+	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -242,7 +244,7 @@ func TestAuditor_ShouldValidate_NoIfMinerNotMatchingLocationFilter(t *testing.T)
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := GraphSyncRetrieverBuilderImpl{
+	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -277,7 +279,7 @@ func TestAuditor_ShouldValidate_YesIfMinerDoesNotHaveMultiAddr(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := GraphSyncRetrieverBuilderImpl{
+	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -312,7 +314,7 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := GraphSyncRetrieverBuilderImpl{
+	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -355,10 +357,10 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	}
 	input, err := module.NewJSONB(in)
 	assert.NoError(err)
-	resultContent := &ResultContent{
+	resultContent := &graphsync2.ResultContent{
 		Status:   Success,
 		Protocol: GraphSync,
-		CalculatedStats: CalculatedStats{
+		CalculatedStats: graphsync2.CalculatedStats{
 			BytesDownloaded:    100,
 			AverageSpeedPerSec: 10.0,
 			TimeElapsed:        1 * time.Second,

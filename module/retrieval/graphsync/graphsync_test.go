@@ -1,4 +1,4 @@
-package retrieval
+package graphsync
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 	"time"
+	"validation-bot/module/retrieval"
 
 	"validation-bot/module"
 
@@ -56,8 +57,8 @@ func TestGraphSync_Retrieve_NotAvailable(t *testing.T) {
 	assert.NoError(err)
 
 	fmt.Printf("%+v\n", result)
-	assert.Equal(QueryResponseError, result.Status)
-	assert.Equal(GraphSync, result.Protocol)
+	assert.Equal(retrieval.QueryResponseError, result.Status)
+	assert.Equal(retrieval.GraphSync, result.Protocol)
 	assert.Contains(result.ErrorMessage, "key not found")
 	assert.EqualValues(0, result.BytesDownloaded)
 	assert.EqualValues(0, result.TimeToFirstByte.Seconds())
@@ -79,7 +80,7 @@ func TestGraphSync_Retrieve_Timeout(t *testing.T) {
 	assert.NoError(err)
 
 	fmt.Printf("%+v\n", result)
-	assert.Equal(RetrieveTimeout, result.Status)
+	assert.Equal(retrieval.RetrieveTimeout, result.Status)
 	assert.Greater(result.BytesDownloaded, uint64(0))
 	assert.Greater(result.AverageSpeedPerSec, float64(0))
 	assert.Greater(result.TimeElapsed.Seconds(), float64(0))
@@ -94,7 +95,7 @@ func TestRetrievalStats_NewResultContent(t *testing.T) {
 		events: []TimeEventPair{},
 	}
 	stats.events = append(stats.events, TimeEventPair{})
-	result := stats.NewResultContent(QueryFailure, "query failed")
-	assert.Equal(QueryFailure, result.Status)
+	result := stats.NewResultContent(retrieval.QueryFailure, "query failed")
+	assert.Equal(retrieval.QueryFailure, result.Status)
 	assert.Equal("query failed", result.ErrorMessage)
 }

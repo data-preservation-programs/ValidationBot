@@ -3,6 +3,7 @@ package queryask
 import (
 	"context"
 	"testing"
+	mock2 "validation-bot/module/mock"
 
 	"validation-bot/module"
 	"validation-bot/task"
@@ -16,7 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func getModule(t *testing.T, mockGateway *module.MockGateway) Auditor {
+func getModule(t *testing.T, mockGateway *mock2.MockGateway) Auditor {
 	assert := assert.New(t)
 	ctx := context.Background()
 	var queryAsk Auditor
@@ -55,7 +56,7 @@ func TestQueryAsk_QueryMiner_NotMinerAddress(t *testing.T) {
 
 func TestQueryAsk_QueryMiner_NoPeerId(t *testing.T) {
 	assert := assert.New(t)
-	mockGateway := new(module.MockGateway)
+	mockGateway := new(mock2.MockGateway)
 	mockGateway.On("StateMinerInfo", mock.Anything, mock.Anything, mock.Anything).
 		Return(
 			api.MinerInfo{
@@ -73,7 +74,7 @@ func TestQueryAsk_QueryMiner_NoPeerId(t *testing.T) {
 
 func TestQueryAsk_QueryMiner_InvalidMultiAddress(t *testing.T) {
 	assert := assert.New(t)
-	mockGateway := new(module.MockGateway)
+	mockGateway := new(mock2.MockGateway)
 	mockGateway.On("StateMinerInfo", mock.Anything, mock.Anything, mock.Anything).
 		Return(
 			api.MinerInfo{

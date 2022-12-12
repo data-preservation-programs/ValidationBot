@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
-	"github.com/stretchr/testify/mock"
 )
 
 type PublisherSubscriber interface {
@@ -118,21 +117,6 @@ func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, 
 func (l Libp2pPublisherSubscriber) Publish(ctx context.Context, task []byte) error {
 	l.log.Debug().Bytes("task", task).Caller().Msg("publishing message")
 	return errors.Wrap(l.topic.Publish(ctx, task), "cannot publish message")
-}
-
-type MockPublisherSubscriber struct {
-	mock.Mock
-}
-
-func (m *MockPublisherSubscriber) Publish(ctx context.Context, task []byte) error {
-	args := m.Called(ctx, task)
-	return args.Error(0)
-}
-
-//nolint:all
-func (m *MockPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(*peer.ID), args.Get(1).([]byte), args.Error(2)
 }
 
 func getTopicDiscovery(ctx context.Context, h host.Host) (discovery.Discovery, error) {

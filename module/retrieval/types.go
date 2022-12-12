@@ -1,6 +1,9 @@
 package retrieval
 
-import "time"
+import (
+	"time"
+	"validation-bot/module/retrieval/graphsync"
+)
 
 type Protocol string
 
@@ -35,10 +38,10 @@ type Input struct {
 type ResultStatus string
 
 type Result struct {
-	Status                ResultStatus             `json:"status"`
-	ErrorMessage          string                   `json:"errorMessage,omitempty"`
-	TotalBytesDownloaded  uint64                   `json:"totalBytesDownloaded"`
-	MaxAverageSpeedPerSec float64                  `json:"maxAverageSpeedPerSec"`
-	MinTimeToFirstByte    time.Duration            `json:"minTimeToFirstByte"`
-	Results               map[string]ResultContent `json:"results"`
+	Status                ResultStatus                       `json:"status"`
+	ErrorMessage          string                             `json:"errorMessage,omitempty"`
+	TotalBytesDownloaded  uint64                             `json:"totalBytesDownloaded"`
+	MaxAverageSpeedPerSec float64                            `json:"maxAverageSpeedPerSec"`
+	MinTimeToFirstByte    time.Duration                      `json:"minTimeToFirstByte"`
+	Results               map[string]graphsync.ResultContent `json:"results"`
 }
