@@ -44,6 +44,13 @@ linters:
     - gocognit
 
 linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+        disabled: false
+        arguments:
+          - "disableStutteringCheck"
   wsl:
     allow-cuddle-declarations: true
     force-err-cuddling: true

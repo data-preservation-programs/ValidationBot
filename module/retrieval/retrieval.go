@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"math/big"
 	"time"
-	graphsync2 "validation-bot/module/retrieval/graphsync"
-
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -150,7 +148,7 @@ type Auditor struct {
 	lotusAPI         api.Gateway
 	log              zerolog.Logger
 	timeout          time.Duration
-	graphsync        graphsync2.GraphSyncRetrieverBuilder
+	graphsync        GraphSyncRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
 	locationResolver *module.GeoLite2Resolver
@@ -162,7 +160,7 @@ func (Auditor) Type() task.Type {
 
 func NewAuditor(
 	lotusAPI api.Gateway,
-	graphsync graphsync2.GraphSyncRetrieverBuilder,
+	graphsync GraphSyncRetrieverBuilder,
 	timeout time.Duration,
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
@@ -250,7 +248,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to unmarshal validationInput")
 	}
 
-	results := make(map[string]graphsync2.ResultContent)
+	results := make(map[string]ResultContent)
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)

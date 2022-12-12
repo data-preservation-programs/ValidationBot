@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"validation-bot/module/retrieval/graphsync"
-
 	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
 	"validation-bot/role/trust"
@@ -667,7 +665,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 			func(lotusAPI api.Gateway) (AuditorModuleResult, error) {
 				auditor, err := retrieval.NewAuditor(
 					lotusAPI,
-					graphsync.GraphSyncRetrieverBuilderImpl{
+					retrieval.GraphSyncRetrieverBuilderImpl{
 						LotusAPI: lotusAPI,
 						BaseDir:  cfg.Module.Retrieval.TmpDir,
 					},

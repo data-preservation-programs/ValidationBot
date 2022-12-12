@@ -1,12 +1,10 @@
-package graphsync
+package retrieval
 
 import (
 	"context"
 	"os"
 	"path/filepath"
 	"time"
-	"validation-bot/module/retrieval"
-
 	"validation-bot/role"
 
 	"github.com/application-research/filclient"
@@ -106,13 +104,13 @@ type CalculatedStats struct {
 }
 
 type ResultContent struct {
-	Status       retrieval.ResultStatus `json:"status"`
-	ErrorMessage string                 `json:"errorMessage,omitempty"`
-	Protocol     retrieval.Protocol     `json:"protocol"`
+	Status       ResultStatus `json:"status"`
+	ErrorMessage string       `json:"errorMessage,omitempty"`
+	Protocol     Protocol     `json:"protocol"`
 	CalculatedStats
 }
 
-func (r *retrievalStats) NewResultContent(status retrieval.ResultStatus, errorMessage string) *ResultContent {
+func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {
 	r.log.Debug().Str("status", string(status)).Str("errorMessage", errorMessage).Msg("calculate stats for new result")
 	var bytesDownloaded uint64
 	var startTime time.Time
@@ -159,7 +157,7 @@ func (r *retrievalStats) NewResultContent(status retrieval.ResultStatus, errorMe
 			TimeElapsed:        lastEventTime.Sub(startTime),
 			TimeToFirstByte:    timeToFirstByte,
 		},
-		Protocol: retrieval.GraphSync,
+		Protocol: GraphSync,
 	}
 }
 
@@ -321,7 +319,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		query, err := filClient.RetrievalQuery(ctx, minerAddress, dataCid)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       retrieval.QueryFailure,
+				Status:       QueryFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -329,13 +327,13 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 
 		if query.Status == retrievalmarket.QueryResponseUnavailable {
 			stats.done <- ResultContent{
-				Status:       retrieval.QueryResponseUnavailable,
+				Status:       QueryResponseUnavailable,
 				ErrorMessage: query.Message,
 			}
 			return
 		} else if query.Status == retrievalmarket.QueryResponseError {
 			stats.done <- ResultContent{
-				Status:       retrieval.QueryResponseError,
+				Status:       QueryResponseError,
 				ErrorMessage: query.Message,
 			}
 			return
@@ -344,7 +342,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		proposal, err := retrievehelper.RetrievalProposalForAsk(query, dataCid, nil)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       retrieval.ProposalFailure,
+				Status:       ProposalFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -358,7 +356,7 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 		_, err = filClient.RetrieveContent(ctx, minerAddress, proposal)
 		if err != nil {
 			stats.done <- ResultContent{
-				Status:       retrieval.RetrieveFailure,
+				Status:       RetrieveFailure,
 				ErrorMessage: err.Error(),
 			}
 			return
@@ -366,19 +364,19 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	}()
 	select {
 	case <-ctx.Done():
-		return stats.NewResultContent(retrieval.RetrieveTimeout, ""), nil
+		return stats.NewResultContent(RetrieveTimeout, ""), nil
 	case result := <-stats.done:
 		switch result := result.(type) {
 		case ResultContent:
 			return stats.NewResultContent(result.Status, result.ErrorMessage), nil
 		case rep.RetrievalEvent:
 			if result.Code() == rep.SuccessCode {
-				return stats.NewResultContent(retrieval.Success, string(result.Phase())), nil
+				return stats.NewResultContent(Success, string(result.Phase())), nil
 			}
 
-			return stats.NewResultContent(retrieval.RetrieveFailure, string(result.Phase())), nil
+			return stats.NewResultContent(RetrieveFailure, string(result.Phase())), nil
 		case datatransfer.Event:
-			return stats.NewResultContent(retrieval.DataTransferFailure, result.Message), nil
+			return stats.NewResultContent(DataTransferFailure, result.Message), nil
 		default:
 			return nil, errors.New("unknown result type")
 		}

@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
-	mock2 "validation-bot/module/mock"
-	graphsync2 "validation-bot/module/retrieval/graphsync"
-
 	"validation-bot/module"
+	mock2 "validation-bot/module/mock"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api/client"
@@ -168,7 +166,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
+	graphsync := GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -206,7 +204,7 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
+	graphsync := GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -244,7 +242,7 @@ func TestAuditor_ShouldValidate_NoIfMinerNotMatchingLocationFilter(t *testing.T)
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
+	graphsync := GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -279,7 +277,7 @@ func TestAuditor_ShouldValidate_YesIfMinerDoesNotHaveMultiAddr(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
+	graphsync := GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -314,7 +312,7 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 	defer closer()
 	assert.NoError(err)
 
-	graphsync := graphsync2.GraphSyncRetrieverBuilderImpl{
+	graphsync := GraphSyncRetrieverBuilderImpl{
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
@@ -357,10 +355,10 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	}
 	input, err := module.NewJSONB(in)
 	assert.NoError(err)
-	resultContent := &graphsync2.ResultContent{
+	resultContent := &ResultContent{
 		Status:   Success,
 		Protocol: GraphSync,
-		CalculatedStats: graphsync2.CalculatedStats{
+		CalculatedStats: CalculatedStats{
 			BytesDownloaded:    100,
 			AverageSpeedPerSec: 10.0,
 			TimeElapsed:        1 * time.Second,
