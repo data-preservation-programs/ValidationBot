@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	mock2 "validation-bot/task/mock"
 
 	"validation-bot/helper"
 	"validation-bot/module"
@@ -18,14 +19,14 @@ import (
 	"gorm.io/gorm"
 )
 
-func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *task.MockPublisherSubscriber) {
+func createDispatcher(t *testing.T) (*gorm.DB, *Dispatcher, *mock2.MockPublisherSubscriber) {
 	assert := assert.New(t)
 	db, err := gorm.Open(postgres.Open(helper.PostgresConnectionString), &gorm.Config{})
 	assert.Nil(err)
 	assert.NotNil(db)
 	db.Exec("DELETE FROM definitions")
 
-	mockPublisher := &task.MockPublisherSubscriber{}
+	mockPublisher := &mock2.MockPublisherSubscriber{}
 	mockPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 
 	dper, err := NewDispatcher(

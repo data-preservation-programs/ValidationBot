@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
 	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
 	"validation-bot/role/trust"
@@ -39,7 +38,6 @@ import (
 	"github.com/rs/zerolog"
 	log3 "github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
-	"github.com/stretchr/testify/mock"
 	"github.com/urfave/cli/v2"
 	"github.com/ziflex/lecho/v3"
 	"go.uber.org/dig"
@@ -1076,32 +1074,4 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-}
-
-type MockTaskRemover struct {
-	mock.Mock
-}
-
-func (m *MockTaskRemover) Remove(ctx context.Context, id uuid.UUID) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-type MockTaskCreator struct {
-	mock.Mock
-}
-
-func (m *MockTaskCreator) Create(ctx context.Context, taskDef *task.Definition) error {
-	args := m.Called(ctx, taskDef)
-	return args.Error(0)
-}
-
-type MockTaskLister struct {
-	mock.Mock
-}
-
-//nolint:all
-func (m *MockTaskCreator) List(ctx context.Context) ([]task.Definition, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]task.Definition), args.Error(1)
 }

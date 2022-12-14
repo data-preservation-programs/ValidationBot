@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
 	"validation-bot/module"
+	mock2 "validation-bot/module/mock"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api/client"
@@ -37,7 +37,7 @@ func TestRetrieval_GetTask_DataCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -64,7 +64,7 @@ func TestRetrieval_GetTask_PieceCidsProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	input, err := dispatcher.GetTask(taskDef)
 	assert.NoError(err)
 	assert.Equal(taskDef.ID, input.DefinitionID)
@@ -92,7 +92,7 @@ func TestRetrieval_GetTask_ClientIdProvided(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	resolver := new(module.MockDealStatesResolver)
+	resolver := new(mock2.MockDealStatesResolver)
 	dispatcher := NewDispatcher(resolver)
 	resolver.On("DealsByProviderClients", "provider", []string{"client1"}).Return(
 		[]module.DealStateModel{
@@ -132,7 +132,7 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 		ID:         uuid.New(),
 		Type:       task.Retrieval,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
@@ -153,7 +153,7 @@ func TestRetrieval_Dispatcher_Validate_IntervalTooShort(t *testing.T) {
 		Type:            task.Retrieval,
 		IntervalSeconds: 1800,
 	}
-	dispatcher := NewDispatcher(new(module.MockDealStatesResolver))
+	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
 	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }

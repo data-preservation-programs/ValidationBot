@@ -5,7 +5,6 @@ import (
 
 	"github.com/ipfs/go-cid"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/stretchr/testify/mock"
 )
 
 type Publisher interface {
@@ -22,26 +21,4 @@ type Subscriber interface {
 	Head(ctx context.Context, peerID peer.ID) (*Entry, error)
 
 	Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid) (<-chan *Entry, error)
-}
-
-type MockSubscriber struct {
-	mock.Mock
-}
-
-//nolint:all
-func (m *MockSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *cid.Cid, oneOff bool) (
-	<-chan Entry,
-	error,
-) {
-	args := m.Called(ctx, peerID, last, oneOff)
-	return args.Get(0).(<-chan Entry), args.Error(1)
-}
-
-type MockPublisher struct {
-	mock.Mock
-}
-
-func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
-	args := m.Called(ctx, input)
-	return args.Error(0)
 }

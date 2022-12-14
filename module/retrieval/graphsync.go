@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
 	"validation-bot/role"
 
 	"github.com/application-research/filclient"
@@ -27,7 +26,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
-	"github.com/stretchr/testify/mock"
 	"golang.org/x/exp/slices"
 )
 
@@ -42,31 +40,8 @@ type GraphSyncRetriever interface {
 	) (*ResultContent, error)
 }
 
-type MockGraphSyncRetriever struct {
-	mock.Mock
-}
-
-//nolint:forcetypeassert
-func (m *MockGraphSyncRetriever) Retrieve(
-	parent context.Context,
-	minerAddress address.Address,
-	dataCid cid.Cid,
-	timeout time.Duration,
-) (*ResultContent, error) {
-	args := m.Called(parent, minerAddress, dataCid, timeout)
-	return args.Get(0).(*ResultContent), args.Error(1)
-}
-
 type GraphSyncRetrieverBuilder interface {
 	Build() (GraphSyncRetriever, Cleanup, error)
-}
-
-type MockGraphSyncRetrieverBuilder struct {
-	Retriever *MockGraphSyncRetriever
-}
-
-func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, error) {
-	return m.Retriever, func() {}, nil
 }
 
 type GraphSyncRetrieverImpl struct {

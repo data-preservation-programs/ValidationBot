@@ -1,6 +1,8 @@
 package retrieval
 
-import "time"
+import (
+	"time"
+)
 
 type Protocol string
 
