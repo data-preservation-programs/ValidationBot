@@ -1,9 +1,13 @@
+.DS_Store
 # Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+
+# dotenv
+.env
 
 # Test binary, built with `go module -c`
 *.test
