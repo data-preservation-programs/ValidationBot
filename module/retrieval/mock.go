@@ -1,9 +1,8 @@
-package mock
+package retrieval
 
 import (
 	"context"
 	"time"
-	"validation-bot/module/retrieval"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
@@ -20,15 +19,15 @@ func (m *MockGraphSyncRetriever) Retrieve(
 	minerAddress address.Address,
 	dataCid cid.Cid,
 	timeout time.Duration,
-) (*retrieval.ResultContent, error) {
+) (*ResultContent, error) {
 	args := m.Called(parent, minerAddress, dataCid, timeout)
-	return args.Get(0).(*retrieval.ResultContent), args.Error(1)
+	return args.Get(0).(*ResultContent), args.Error(1)
 }
 
 type MockGraphSyncRetrieverBuilder struct {
 	Retriever *MockGraphSyncRetriever
 }
 
-func (m *MockGraphSyncRetrieverBuilder) Build() (retrieval.GraphSyncRetriever, retrieval.Cleanup, error) {
+func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, error) {
 	return m.Retriever, func() {}, nil
 }

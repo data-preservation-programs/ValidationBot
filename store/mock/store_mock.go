@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+
 	"validation-bot/store"
 
 	"github.com/ipfs/go-cid"
@@ -26,7 +27,7 @@ type MockPublisher struct {
 	mock.Mock
 }
 
-func (m *MockPublisher) Publish(ctx context.Context, input []byte) error {
+func (m *MockPublisher) Publish(ctx context.Context, input store.MessagePayload) error {
 	args := m.Called(ctx, input)
 	return args.Error(0)
 }

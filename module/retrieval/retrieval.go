@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"math/big"
 	"time"
+
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -248,7 +249,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to unmarshal validationInput")
 	}
 
-	results := make(map[string]ResultContent)
+	results := make(map[Protocol]ResultContent)
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
@@ -323,7 +324,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				cleanup()
 
 				result.Protocol = GraphSync
-				results[string(GraphSync)] = *result
+				results[GraphSync] = *result
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
 				totalBytes += result.BytesDownloaded

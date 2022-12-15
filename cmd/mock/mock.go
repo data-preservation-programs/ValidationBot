@@ -2,9 +2,9 @@ package mock
 
 import (
 	"context"
+
 	"validation-bot/task"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -12,7 +12,7 @@ type MockTaskRemover struct {
 	mock.Mock
 }
 
-func (m *MockTaskRemover) Remove(ctx context.Context, id uuid.UUID) error {
+func (m *MockTaskRemover) Remove(ctx context.Context, id task.DefinitionID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
 }
