@@ -746,7 +746,9 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: trust.Manager
 	err = container.Provide(
 		func(trustedPeers []peer.ID, resultSubscriber store.Subscriber) *trust.Manager {
-			return trust.NewManager(trustedPeers, resultSubscriber, cfg.Trust.RetryInterval, cfg.Trust.PollInterval)
+			manager := trust.NewManager(trustedPeers, resultSubscriber, cfg.Trust.RetryInterval, cfg.Trust.PollInterval)
+			manager.Start(context.Background())
+			return manager
 		},
 	)
 	if err != nil {

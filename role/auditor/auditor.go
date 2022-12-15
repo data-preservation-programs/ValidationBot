@@ -69,8 +69,6 @@ func NewAuditor(config Config) (*Auditor, error) {
 }
 
 func (a *Auditor) Start(ctx context.Context) {
-	a.trustManager.Start(ctx)
-
 	log := a.log
 	log.Info().Msg("start listening to subscription")
 

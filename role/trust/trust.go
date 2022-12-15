@@ -3,7 +3,6 @@ package trust
 import (
 	"context"
 	"encoding/json"
-	"sync"
 	"time"
 
 	"validation-bot/store"
@@ -145,8 +144,6 @@ type Manager struct {
 	trustees         *map[peer.ID]struct{}
 	resultSubscriber store.Subscriber
 	log              zerolog.Logger
-	started          bool
-	startedLock      sync.Mutex
 	retryInterval    time.Duration
 	pollInterval     time.Duration
 }
@@ -162,8 +159,6 @@ func NewManager(
 		trustees:         &map[peer.ID]struct{}{},
 		resultSubscriber: resultSubscriber,
 		log:              log2.With().Str("role", "trust_manager").Caller().Logger(),
-		started:          false,
-		startedLock:      sync.Mutex{},
 		retryInterval:    retryInterval,
 		pollInterval:     pollInterval,
 	}
@@ -183,15 +178,6 @@ func (m *Manager) IsTrusted(peerID peer.ID) bool {
 }
 
 func (m *Manager) Start(ctx context.Context) {
-	m.startedLock.Lock()
-	if m.started {
-		m.startedLock.Unlock()
-		return
-	}
-
-	m.started = true
-	m.startedLock.Unlock()
-
 	go func() {
 		for {
 			newTrustees := make(map[peer.ID]struct{})
