@@ -87,7 +87,7 @@ func (a *Auditor) Start(ctx context.Context) {
 
 			if !a.trustManager.IsTrusted(*from) {
 				a.log.Debug().Str("from", from.String()).Msg("received message from untrusted peer")
-				return
+				continue
 			}
 
 			// If the message is a bidding message
@@ -187,7 +187,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 
 	maxBid := uint64(0)
 
-	a.biddingLock.RLock()
+	a.biddingLock.Lock()
 
 	for _, bid := range a.bidding[bidding.InstanceID] {
 		if bid > maxBid {
@@ -206,7 +206,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 		won = false
 	}
 
-	a.biddingLock.RUnlock()
+	a.biddingLock.Unlock()
 	return won
 }
 
