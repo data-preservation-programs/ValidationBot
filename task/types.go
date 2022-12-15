@@ -25,8 +25,10 @@ type Task struct {
 	Tag          string       `json:"tag,omitempty"`
 }
 
-type DefinitionID = uuid.UUID
-type InstanceID = uuid.UUID
+type (
+	DefinitionID = uuid.UUID
+	InstanceID   = uuid.UUID
+)
 
 type Definition struct {
 	ID              DefinitionID `json:"id" gorm:"primarykey;type:uuid;default:gen_random_uuid()"`

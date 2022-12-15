@@ -47,7 +47,7 @@ type Config struct {
 type Bidding struct {
 	Type       string          `json:"type"`
 	Value      uint64          `json:"value"`
-	InstanceID task.InstanceID `json:"instance_id"`
+	InstanceID task.InstanceID `json:"instanceId"`
 }
 
 func NewAuditor(config Config) (*Auditor, error) {

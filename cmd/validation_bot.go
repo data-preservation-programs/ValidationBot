@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+
 	"validation-bot/module/indexprovider"
 	"validation-bot/module/traceroute"
 	"validation-bot/role/trust"
