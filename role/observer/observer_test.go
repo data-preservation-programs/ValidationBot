@@ -54,6 +54,7 @@ func TestObserverStart(t *testing.T) {
 	err = db.AutoMigrate(&module.ValidationResultModel{})
 	assert.Nil(err)
 	manager := trust.NewManager([]peer.ID{trustor}, &trustStore, time.Second, time.Second)
+	manager.Start(context.Background())
 
 	db.Create(
 		&module.ValidationResultModel{

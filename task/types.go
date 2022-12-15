@@ -21,13 +21,13 @@ type Task struct {
 	Type         Type         `json:"type" gorm:"index:idx_createdAt_type_target"`
 	DefinitionID DefinitionID `json:"definitionId"`
 	Target       string       `json:"target" gorm:"index:idx_createdAt_type_target"`
-	InstanceID   InstanceID   `json:"taskId"`
+	TaskID       TaskID       `json:"taskId"`
 	Tag          string       `json:"tag,omitempty"`
 }
 
 type (
 	DefinitionID = uuid.UUID
-	InstanceID   = uuid.UUID
+	TaskID       = uuid.UUID
 )
 
 type Definition struct {

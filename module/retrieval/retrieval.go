@@ -118,7 +118,7 @@ func (d Dispatcher) GetTask(definition task.Definition) (*module.ValidationInput
 			DefinitionID: definition.ID,
 			Target:       definition.Target,
 			Tag:          definition.Tag,
-			InstanceID:   uuid.New(),
+			TaskID:       uuid.New(),
 		},
 		Input: jsonb,
 	}
