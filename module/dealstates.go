@@ -73,10 +73,11 @@ type ClientAddressModel struct {
 }
 
 type GlifDealStatesResolver struct {
-	url       string
-	lotusAPI  api.Gateway
-	db        *gorm.DB
-	batchSize int
+	url             string
+	lotusAPI        api.Gateway
+	db              *gorm.DB
+	batchSize       int
+	refreshInterval time.Duration
 }
 
 type ActorID = string
@@ -281,7 +282,6 @@ func (s *GlifDealStatesResolver) refresh(ctx context.Context) error {
 }
 
 func NewGlifDealStatesResolver(
-	ctx context.Context,
 	db *gorm.DB,
 	lotusAPI api.Gateway,
 	url string,
@@ -292,10 +292,11 @@ func NewGlifDealStatesResolver(
 	error,
 ) {
 	dealStates := GlifDealStatesResolver{
-		url:       url,
-		lotusAPI:  lotusAPI,
-		db:        db,
-		batchSize: batchSize,
+		url:             url,
+		lotusAPI:        lotusAPI,
+		db:              db,
+		batchSize:       batchSize,
+		refreshInterval: refreshInterval,
 	}
 
 	err := db.AutoMigrate(&DealStateModel{})
@@ -308,11 +309,15 @@ func NewGlifDealStatesResolver(
 		return nil, errors.Wrap(err, "failed to migrate client address model")
 	}
 
+	return &dealStates, nil
+}
+
+func (s *GlifDealStatesResolver) Start(ctx context.Context) {
 	go func() {
 		log := log.With().Str("module", "dealstates").Caller().Logger()
 
 		for {
-			err := dealStates.refresh(ctx)
+			err := s.refresh(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to refresh deal states")
 			}
@@ -320,10 +325,8 @@ func NewGlifDealStatesResolver(
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(refreshInterval):
+			case <-time.After(s.refreshInterval):
 			}
 		}
 	}()
-
-	return &dealStates, nil
 }

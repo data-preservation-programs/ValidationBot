@@ -408,14 +408,18 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: module.DealStatesResolver
 	err = container.Provide(
 		func(db *gorm.DB, lotusAPI api.Gateway) (module.DealStatesResolver, error) {
-			return module.NewGlifDealStatesResolver(
-				ctx,
+			resolver, err := module.NewGlifDealStatesResolver(
 				db,
 				lotusAPI,
 				cfg.DealStates.DownloadURL,
 				cfg.DealStates.RefreshInterval,
 				cfg.DealStates.SQLInsertBatchSize,
 			)
+			if err != nil {
+				resolver.Start(context.Background())
+			}
+
+			return resolver, err
 		},
 	)
 	if err != nil {
