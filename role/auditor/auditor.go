@@ -45,9 +45,9 @@ type Config struct {
 }
 
 type Bidding struct {
-	Type   string            `json:"type"`
-	Value  uint64            `json:"value"`
-	TaskID task.DefinitionID `json:"taskId"`
+	Type       string          `json:"type"`
+	Value      uint64          `json:"value"`
+	InstanceID task.InstanceID `json:"instance_id"`
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
@@ -183,7 +183,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 
 	defer func() {
 		a.biddingLock.Lock()
-		delete(a.bidding, bidding.TaskID)
+		delete(a.bidding, bidding.InstanceID)
 		a.biddingLock.Unlock()
 	}()
 
@@ -191,7 +191,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 
 	a.biddingLock.RLock()
 
-	for _, bid := range a.bidding[bidding.TaskID] {
+	for _, bid := range a.bidding[bidding.InstanceID] {
 		if bid > maxBid {
 			maxBid = bid
 		}
@@ -199,7 +199,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 
 	won := true
 
-	if maxBid != a.bidding[bidding.TaskID][a.peerID] {
+	if maxBid != a.bidding[bidding.InstanceID][a.peerID] {
 		log.Debug().Bytes(
 			"task",
 			task,
@@ -214,7 +214,7 @@ func (a *Auditor) resolveBidding(task []byte, bidding *Bidding) bool {
 
 func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
 	a.biddingLock.RLock()
-	if _, ok := a.bidding[bidding.TaskID]; !ok {
+	if _, ok := a.bidding[bidding.InstanceID]; !ok {
 		a.log.Debug().Str(
 			"from",
 			from.String(),
@@ -225,9 +225,9 @@ func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
 
 	a.biddingLock.RUnlock()
 	a.biddingLock.Lock()
-	a.bidding[bidding.TaskID][*from] = bidding.Value
+	a.bidding[bidding.InstanceID][*from] = bidding.Value
 	a.biddingLock.Unlock()
-	a.log.Debug().Str("taskId", bidding.TaskID.String()).Str("from", from.String()).Uint64(
+	a.log.Debug().Str("instanceId", bidding.InstanceID.String()).Str("from", from.String()).Uint64(
 		"bid",
 		bidding.Value,
 	).Msg("received bidding")
@@ -242,9 +242,9 @@ func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput
 	}
 
 	bidding := &Bidding{
-		Type:   "bidding",
-		Value:  randomNumber.Uint64(),
-		TaskID: input.InstanceID,
+		Type:       "bidding",
+		Value:      randomNumber.Uint64(),
+		InstanceID: input.InstanceID,
 	}
 
 	biddingStr, err := json.Marshal(bidding)
@@ -253,8 +253,8 @@ func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput
 	}
 
 	a.biddingLock.Lock()
-	a.bidding[bidding.TaskID] = make(map[peer.ID]uint64)
-	a.bidding[bidding.TaskID][a.peerID] = bidding.Value
+	a.bidding[bidding.InstanceID] = make(map[peer.ID]uint64)
+	a.bidding[bidding.InstanceID][a.peerID] = bidding.Value
 	a.biddingLock.Unlock()
 
 	err = a.taskPublisherSubscriber.Publish(ctx, biddingStr)
