@@ -151,7 +151,7 @@ type Auditor struct {
 	graphsync        GraphSyncRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
-	locationResolver *module.IpInfoResolver
+	locationResolver module.IpInfoResolver
 }
 
 func (Auditor) Type() task.Type {
@@ -165,7 +165,11 @@ func NewAuditor(
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
 ) (*Auditor, error) {
-	ipInfoResolver := &module.IpInfoResolver{}
+	ipInfoResolver, err := module.NewIpInfoResolver()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create ipInfoResolver")
+	}
 
 	return &Auditor{
 		lotusAPI:         lotusAPI,
@@ -180,19 +184,20 @@ func NewAuditor(
 
 func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
 	for _, addr := range minerInfo.MultiAddrs {
-		country, err := q.locationResolver.ResolveMultiAddr(addr)
+		countryCode, err := q.locationResolver.ResolveMultiAddr(addr)
+
 		if err != nil {
-			q.log.Error().Err(err).Msg("failed to resolve multiaddr with geolite2")
+			q.log.Error().Err(err).Msg("failed to resolve multiaddr with ipinfo.io")
 			continue
 		}
 
-		continent, err := q.locationResolver.ResolveContinent(*country)
+		continentCode := q.locationResolver.Continents[countryCode]
 
 		q.log.Debug().Str("provider", minerInfo.MinerAddress.String()).
-			Str("continent", *continent).Str("country", *country).
+			Str("continent", continentCode).Str("country", countryCode).
 			Msg("trying to match the provider with location filter")
 
-		if q.locationFilter.Match(country, continent) {
+		if q.locationFilter.Match(countryCode, continentCode) {
 			return true
 		}
 	}
