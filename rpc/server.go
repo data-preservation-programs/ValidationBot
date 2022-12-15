@@ -1,4 +1,4 @@
-package main
+package rpc
 
 import (
 	"errors"
@@ -32,13 +32,16 @@ func (t *Arith) Divide(args *Args, quo *Quotient) error {
 	return nil
 }
 
-func main() {
-
+func NewRpcServer() (*net.TCPAddr, error) {
 	arith := new(Arith)
 	rpc.Register(arith)
 	rpc.HandleHTTP()
 
 	listener, _ := net.Listen("tcp", ":0")
+
 	fmt.Println("Using port:", listener.Addr().(*net.TCPAddr).Port)
+
 	http.Serve(listener, nil)
+
+	return listener.Addr().(*net.TCPAddr), nil
 }
