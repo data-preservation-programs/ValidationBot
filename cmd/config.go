@@ -18,11 +18,16 @@ type config struct {
 	Trust      trustConfig
 	Topic      topicConfig
 	DealStates dealStatesConfig
+	IPInfo     ipInfoConfig
 }
 
 type logConfig struct {
 	Pretty bool
 	Level  string
+}
+
+type ipInfoConfig struct {
+	Token string
 }
 
 type databaseConfig struct {

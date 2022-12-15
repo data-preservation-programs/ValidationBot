@@ -9,7 +9,7 @@ import (
 
 func TestLocationFilterConfig_Match(t *testing.T) {
 	assert := assert.New(t)
-	resolver, err := NewIPInfoResolver()
+	resolver, err := NewIPInfoResolver("")
 	assert.Nil(err)
 	countryCode, err := resolver.ResolveIPStr(context.TODO(), "66.66.66.66")
 	assert.Nil(err)

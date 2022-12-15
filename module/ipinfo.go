@@ -16,9 +16,10 @@ import (
 
 type IPInfoResolver struct {
 	Continents map[string]string
+	token      string
 }
 
-func NewIPInfoResolver() (IPInfoResolver, error) {
+func NewIPInfoResolver(token string) (IPInfoResolver, error) {
 	payload := make(map[string]string)
 
 	if err := json.Unmarshal(resources.CountryToContinentJSON, &payload); err != nil {
@@ -27,6 +28,7 @@ func NewIPInfoResolver() (IPInfoResolver, error) {
 
 	return IPInfoResolver{
 		Continents: payload,
+		token:      token,
 	}, nil
 }
 

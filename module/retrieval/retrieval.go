@@ -165,13 +165,8 @@ func NewAuditor(
 	timeout time.Duration,
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
+	locationResolver module.IPInfoResolver,
 ) (*Auditor, error) {
-	iPInfoResolver, err := module.NewIPInfoResolver()
-
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create iPInfoResolver")
-	}
-
 	return &Auditor{
 		lotusAPI:         lotusAPI,
 		log:              log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
@@ -179,7 +174,7 @@ func NewAuditor(
 		graphsync:        graphsync,
 		sem:              semaphore.NewWeighted(maxJobs),
 		locationFilter:   locationFilter,
-		locationResolver: iPInfoResolver,
+		locationResolver: locationResolver,
 	}, nil
 }
 
