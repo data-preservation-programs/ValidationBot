@@ -21,7 +21,7 @@ type Task struct {
 	Type         Type         `json:"type" gorm:"index:idx_createdAt_type_target"`
 	DefinitionID DefinitionID `json:"definitionId"`
 	Target       string       `json:"target" gorm:"index:idx_createdAt_type_target"`
-	InstanceID   InstanceID   `json:"instanceId"`
+	InstanceID   InstanceID   `json:"taskId"`
 	Tag          string       `json:"tag,omitempty"`
 }
 
