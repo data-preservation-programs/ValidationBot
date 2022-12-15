@@ -6,9 +6,6 @@
 *.so
 *.dylib
 
-# dotenv
-.env
-
 # Test binary, built with `go module -c`
 *.test
 

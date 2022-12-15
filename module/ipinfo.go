@@ -13,11 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type (
-	Country   string
-	Continent string
-)
-
 type IpInfoResolver struct {
 	Continents map[string]string
 }
@@ -66,8 +61,8 @@ func (i IpInfoResolver) ResolveIP(ip net.IP) (string, error) {
 		return "", errors.Wrap(err, "ipinfo: failed to unmarshal response")
 	}
 
-	if country, ok := payload["country"]; ok {
-		return country.(string), nil
+	if countryCode, ok := payload["country"]; ok {
+		return countryCode.(string), nil
 	}
 
 	return "", nil
@@ -79,13 +74,13 @@ func (i IpInfoResolver) ResolveIPStr(ip string) (string, error) {
 		return "", errors.Errorf("failed to parse IP address %s", ip)
 	}
 
-	country, err := i.ResolveIP(parsed)
+	countryCode, err := i.ResolveIP(parsed)
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to resolve IP")
 	}
 
-	return country, nil
+	return countryCode, nil
 }
 
 func (i IpInfoResolver) ResolveMultiAddr(addr multiaddr.Multiaddr) (string, error) {

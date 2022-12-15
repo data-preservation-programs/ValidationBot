@@ -9,12 +9,12 @@ type LocationFilterConfig struct {
 	Country   []string
 }
 
-func (l LocationFilterConfig) Match(continent string, country string) bool {
-	if len(l.Continent) > 0 && !slices.Contains(l.Continent, continent) {
+func (l LocationFilterConfig) Match(countryCode string, continentCode string) bool {
+	if len(l.Continent) > 0 && !slices.Contains(l.Continent, continentCode) {
 		return false
 	}
 
-	if len(l.Country) > 0 && !slices.Contains(l.Country, country) {
+	if len(l.Country) > 0 && !slices.Contains(l.Country, countryCode) {
 		return false
 	}
 
