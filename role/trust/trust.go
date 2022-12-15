@@ -105,7 +105,11 @@ func ModifyPeers(
 			break
 		} else {
 			log2.Debug().Msgf("detected conflict. retrying to modify peers")
-			time.Sleep(conflictRetryInterval)
+			select {
+			case <-ctx.Done():
+				return errors.Wrapf(ctx.Err(), "context cancelled")
+			case <-time.After(conflictRetryInterval):
+			}
 		}
 	}
 
