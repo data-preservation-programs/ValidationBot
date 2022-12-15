@@ -132,6 +132,9 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 				Enabled: true,
 			},
 		},
+		IPInfo: ipInfoConfig{
+			Token: "",
+		},
 		Lotus: lotusConfig{
 			URL:   "https://api.node.glif.io/",
 			Token: "",
@@ -645,6 +648,17 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		}
 	}
 
+	// DI: ipinfo resolver module
+	err = container.Provide(
+		func() (module.IPInfoResolver, error) {
+			return module.NewIPInfoResolver(cfg.IPInfo.Token)
+		},
+	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide ipinfo resolver module")
+	}
+
 	// DI: retrieval module
 	if cfg.Module.Retrieval.Enabled {
 		err = container.Provide(
@@ -659,7 +673,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		}
 
 		err = container.Provide(
-			func(lotusAPI api.Gateway) (AuditorModuleResult, error) {
+			func(lotusAPI api.Gateway, ipinfoResolver module.IPInfoResolver) (AuditorModuleResult, error) {
 				auditor, err := retrieval.NewAuditor(
 					lotusAPI,
 					retrieval.GraphSyncRetrieverBuilderImpl{
@@ -669,6 +683,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 					cfg.Module.Retrieval.Timeout,
 					cfg.Module.Retrieval.MaxJobs,
 					cfg.Module.Retrieval.LocationFilter,
+					ipinfoResolver,
 				)
 				if err != nil {
 					return AuditorModuleResult{}, err

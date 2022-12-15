@@ -152,7 +152,7 @@ type Auditor struct {
 	graphsync        GraphSyncRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
-	locationResolver *module.GeoLite2Resolver
+	locationResolver module.IPInfoResolver
 }
 
 func (Auditor) Type() task.Type {
@@ -165,12 +165,8 @@ func NewAuditor(
 	timeout time.Duration,
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
+	locationResolver module.IPInfoResolver,
 ) (*Auditor, error) {
-	geolite2Resolver, err := module.NewGeoLite2Resolver()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create geolite2 resolver")
-	}
-
 	return &Auditor{
 		lotusAPI:         lotusAPI,
 		log:              log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
@@ -178,23 +174,26 @@ func NewAuditor(
 		graphsync:        graphsync,
 		sem:              semaphore.NewWeighted(maxJobs),
 		locationFilter:   locationFilter,
-		locationResolver: geolite2Resolver,
+		locationResolver: locationResolver,
 	}, nil
 }
 
-func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
+func (q Auditor) matchLocation(ctx context.Context, minerInfo *module.MinerInfoResult) bool {
 	for _, addr := range minerInfo.MultiAddrs {
-		city, err := q.locationResolver.ResolveMultiAddr(addr)
+		countryCode, err := q.locationResolver.ResolveMultiAddr(ctx, addr)
+
 		if err != nil {
-			q.log.Error().Err(err).Msg("failed to resolve multiaddr with geolite2")
+			q.log.Error().Err(err).Msg("failed to resolve multiaddr with ipinfo.io")
 			continue
 		}
 
+		continentCode := q.locationResolver.Continents[countryCode]
+
 		q.log.Debug().Str("provider", minerInfo.MinerAddress.String()).
-			Str("continent", city.Continent.Code).Str("country", city.Country.IsoCode).
+			Str("continent", continentCode).Str("country", countryCode).
 			Msg("trying to match the provider with location filter")
 
-		if q.locationFilter.Match(city) {
+		if q.locationFilter.Match(countryCode, continentCode) {
 			return true
 		}
 	}
@@ -217,7 +216,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 		return true, nil
 	}
 
-	if !q.matchLocation(minerInfoResult) {
+	if !q.matchLocation(ctx, minerInfoResult) {
 		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
 		return false, nil
 	}
@@ -270,7 +269,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		lastErrorMessage = minerInfoResult.ErrorMessage
 	case len(minerInfoResult.MultiAddrs) == 0:
 		lastStatus = module.NoMultiAddress
-	case !q.matchLocation(minerInfoResult):
+	case !q.matchLocation(ctx, minerInfoResult):
 		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
 		return nil, nil
 	default:

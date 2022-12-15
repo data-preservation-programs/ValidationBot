@@ -171,7 +171,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{})
+	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -209,7 +209,7 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{})
+	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -251,6 +251,7 @@ func TestAuditor_ShouldValidate_NoIfMinerNotMatchingLocationFilter(t *testing.T)
 		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
+		module.IPInfoResolver{},
 	)
 	assert.NoError(err)
 	in := Input{
@@ -286,6 +287,7 @@ func TestAuditor_ShouldValidate_YesIfMinerDoesNotHaveMultiAddr(t *testing.T) {
 		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
+		module.IPInfoResolver{},
 	)
 	assert.NoError(err)
 	in := Input{
@@ -321,6 +323,7 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
+		module.IPInfoResolver{},
 	)
 	assert.NoError(err)
 	in := Input{
@@ -348,7 +351,7 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	defer closer()
 	mockRetriever := new(MockGraphSyncRetriever)
 	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
-	auditor, err := NewAuditor(api, &mockRetrieverBuilder, 10*time.Second, 1, module.LocationFilterConfig{})
+	auditor, err := NewAuditor(api, &mockRetrieverBuilder, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
