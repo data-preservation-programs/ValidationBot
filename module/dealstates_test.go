@@ -22,7 +22,6 @@ func TestDealStates(t *testing.T) {
 	assert.NoError(err)
 	defer closer()
 	dealStates, err := NewGlifDealStatesResolver(
-		context.Background(),
 		db,
 		lotusAPI,
 		"https://market-deal-importer.s3.us-west-2.amazonaws.com/test.json",

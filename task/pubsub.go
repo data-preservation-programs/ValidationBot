@@ -18,9 +18,11 @@ import (
 	log2 "github.com/rs/zerolog/log"
 )
 
+type Payload = []byte
+
 type PublisherSubscriber interface {
-	Publish(ctx context.Context, task []byte) error
-	Next(ctx context.Context) (*peer.ID, []byte, error)
+	Publish(ctx context.Context, task Payload) error
+	Next(ctx context.Context) (*peer.ID, Payload, error)
 }
 
 type Libp2pPublisherSubscriber struct {
@@ -103,7 +105,7 @@ func NewLibp2pPublisherSubscriber(ctx context.Context, libp2p host.Host, topicNa
 	}, nil
 }
 
-func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, error) {
+func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, Payload, error) {
 	select {
 	case <-ctx.Done():
 		return nil, nil, errors.Wrap(ctx.Err(), "context is done")
@@ -114,7 +116,7 @@ func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, []byte, 
 	}
 }
 
-func (l Libp2pPublisherSubscriber) Publish(ctx context.Context, task []byte) error {
+func (l Libp2pPublisherSubscriber) Publish(ctx context.Context, task Payload) error {
 	l.log.Debug().Bytes("task", task).Caller().Msg("publishing message")
 	return errors.Wrap(l.topic.Publish(ctx, task), "cannot publish message")
 }
