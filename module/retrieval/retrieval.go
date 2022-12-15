@@ -152,7 +152,7 @@ type Auditor struct {
 	graphsync        GraphSyncRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
-	locationResolver module.IpInfoResolver
+	locationResolver module.IPInfoResolver
 }
 
 func (Auditor) Type() task.Type {
@@ -166,10 +166,10 @@ func NewAuditor(
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
 ) (*Auditor, error) {
-	ipInfoResolver, err := module.NewIpInfoResolver()
+	iPInfoResolver, err := module.NewIPInfoResolver()
 
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create ipInfoResolver")
+		return nil, errors.Wrap(err, "failed to create iPInfoResolver")
 	}
 
 	return &Auditor{
@@ -179,13 +179,13 @@ func NewAuditor(
 		graphsync:        graphsync,
 		sem:              semaphore.NewWeighted(maxJobs),
 		locationFilter:   locationFilter,
-		locationResolver: ipInfoResolver,
+		locationResolver: iPInfoResolver,
 	}, nil
 }
 
-func (q Auditor) matchLocation(minerInfo *module.MinerInfoResult) bool {
+func (q Auditor) matchLocation(ctx context.Context, minerInfo *module.MinerInfoResult) bool {
 	for _, addr := range minerInfo.MultiAddrs {
-		countryCode, err := q.locationResolver.ResolveMultiAddr(addr)
+		countryCode, err := q.locationResolver.ResolveMultiAddr(ctx, addr)
 
 		if err != nil {
 			q.log.Error().Err(err).Msg("failed to resolve multiaddr with ipinfo.io")
@@ -221,7 +221,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 		return true, nil
 	}
 
-	if !q.matchLocation(minerInfoResult) {
+	if !q.matchLocation(ctx, minerInfoResult) {
 		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
 		return false, nil
 	}
@@ -274,7 +274,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		lastErrorMessage = minerInfoResult.ErrorMessage
 	case len(minerInfoResult.MultiAddrs) == 0:
 		lastStatus = module.NoMultiAddress
-	case !q.matchLocation(minerInfoResult):
+	case !q.matchLocation(ctx, minerInfoResult):
 		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
 		return nil, nil
 	default:

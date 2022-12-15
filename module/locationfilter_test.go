@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,9 +9,9 @@ import (
 
 func TestLocationFilterConfig_Match(t *testing.T) {
 	assert := assert.New(t)
-	resolver, err := NewIpInfoResolver()
+	resolver, err := NewIPInfoResolver()
 	assert.Nil(err)
-	countryCode, err := resolver.ResolveIPStr("66.66.66.66")
+	countryCode, err := resolver.ResolveIPStr(context.TODO(), "66.66.66.66")
 	assert.Nil(err)
 	continentCode := resolver.Continents[countryCode]
 

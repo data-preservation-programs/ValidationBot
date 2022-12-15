@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,29 +14,29 @@ import (
 	"github.com/pkg/errors"
 )
 
-type IpInfoResolver struct {
+type IPInfoResolver struct {
 	Continents map[string]string
 }
 
-func NewIpInfoResolver() (IpInfoResolver, error) {
+func NewIPInfoResolver() (IPInfoResolver, error) {
 	payload := make(map[string]string)
 
-	if err := json.Unmarshal(resources.CountryToContinentJson, &payload); err != nil {
-		return IpInfoResolver{}, err
+	if err := json.Unmarshal(resources.CountryToContinentJSON, &payload); err != nil {
+		return IPInfoResolver{}, errors.Wrap(err, "ipinfo: failed to unmarshal continents")
 	}
 
-	return IpInfoResolver{
+	return IPInfoResolver{
 		Continents: payload,
 	}, nil
 }
 
-func (i IpInfoResolver) ResolveIP(ip net.IP) (string, error) {
+func (i IPInfoResolver) ResolveIP(ctx context.Context, ip net.IP) (string, error) {
 	url := fmt.Sprintf("https://ipinfo.io/%s?token=%s", ip, os.Getenv("IPINFO_TOKEN"))
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	if err != nil {
-		errors.Wrap(err, "failed to create http request")
+		return "", errors.Wrap(err, "failed to create http request")
 	}
 
 	req.Header.Set("Accept", "application/json")
@@ -62,19 +63,21 @@ func (i IpInfoResolver) ResolveIP(ip net.IP) (string, error) {
 	}
 
 	if countryCode, ok := payload["country"]; ok {
-		return countryCode.(string), nil
+		if countryCodeStr, ok := countryCode.(string); ok {
+			return countryCodeStr, nil
+		}
 	}
 
 	return "", nil
 }
 
-func (i IpInfoResolver) ResolveIPStr(ip string) (string, error) {
+func (i IPInfoResolver) ResolveIPStr(ctx context.Context, ip string) (string, error) {
 	parsed := net.ParseIP(ip)
 	if parsed == nil {
 		return "", errors.Errorf("failed to parse IP address %s", ip)
 	}
 
-	countryCode, err := i.ResolveIP(parsed)
+	countryCode, err := i.ResolveIP(ctx, parsed)
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to resolve IP")
@@ -83,7 +86,7 @@ func (i IpInfoResolver) ResolveIPStr(ip string) (string, error) {
 	return countryCode, nil
 }
 
-func (i IpInfoResolver) ResolveMultiAddr(addr multiaddr.Multiaddr) (string, error) {
+func (i IPInfoResolver) ResolveMultiAddr(ctx context.Context, addr multiaddr.Multiaddr) (string, error) {
 	host, isHostName, _, err := ResolveHostAndIP(addr)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to resolve host and port")
@@ -98,5 +101,5 @@ func (i IpInfoResolver) ResolveMultiAddr(addr multiaddr.Multiaddr) (string, erro
 		host = ips[0].String()
 	}
 
-	return i.ResolveIPStr(host)
+	return i.ResolveIPStr(ctx, host)
 }

@@ -6,4 +6,4 @@ import _ "embed"
 var GeoLite2CityMmdb []byte
 
 //go:embed country-to-continent.json
-var CountryToContinentJson []byte
+var CountryToContinentJSON []byte
