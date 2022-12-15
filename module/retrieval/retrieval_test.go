@@ -7,6 +7,7 @@ import (
 	"time"
 	"validation-bot/module"
 	mock2 "validation-bot/module/mock"
+	mock3 "validation-bot/module/retrieval/mock"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api/client"
@@ -345,8 +346,8 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	ctx := context.Background()
 	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
 	defer closer()
-	mockRetriever := new(MockGraphSyncRetriever)
-	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
+	mockRetriever := new(mock3.MockGraphSyncRetriever)
+	mockRetrieverBuilder := mock3.MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
 	auditor, err := NewAuditor(api, &mockRetrieverBuilder, 10*time.Second, 1, module.LocationFilterConfig{})
 	assert.NoError(err)
 	in := Input{

@@ -62,7 +62,7 @@ type taskCreator interface {
 }
 
 type taskRemover interface {
-	Remove(ctx context.Context, id uuid.UUID) error
+	Remove(ctx context.Context, id task.DefinitionID) error
 }
 
 //nolint:gomnd,funlen,cyclop

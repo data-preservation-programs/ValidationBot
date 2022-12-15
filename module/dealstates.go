@@ -79,7 +79,9 @@ type GlifDealStatesResolver struct {
 	batchSize int
 }
 
-func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (string, error) {
+type ActorID = string
+
+func (s *GlifDealStatesResolver) getAddressID(clientAddress string) (ActorID, error) {
 	switch {
 	case strings.HasPrefix(clientAddress, "f0"):
 		return clientAddress, nil
@@ -151,7 +153,7 @@ func (s *GlifDealStatesResolver) DealsByProvider(provider string) ([]DealStateMo
 
 func (s *GlifDealStatesResolver) DealsByProviderClients(provider string, clients []string) ([]DealStateModel, error) {
 	deals := make([]DealStateModel, 0)
-	ids := make([]string, 0)
+	ids := make([]ActorID, 0)
 
 	for _, client := range clients {
 		id, err := s.getAddressID(client)

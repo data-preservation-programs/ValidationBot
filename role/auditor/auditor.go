@@ -17,7 +17,6 @@ import (
 
 	"validation-bot/store"
 
-	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -31,7 +30,7 @@ type Auditor struct {
 	resultPublisher         store.Publisher
 	taskPublisherSubscriber task.PublisherSubscriber
 	log                     zerolog.Logger
-	bidding                 map[uuid.UUID]map[peer.ID]uint64
+	bidding                 map[task.DefinitionID]map[peer.ID]uint64
 	biddingLock             sync.RWMutex
 	biddingWait             time.Duration
 }
@@ -46,9 +45,9 @@ type Config struct {
 }
 
 type Bidding struct {
-	Type   string    `json:"type"`
-	Value  uint64    `json:"value"`
-	TaskID uuid.UUID `json:"taskId"`
+	Type   string            `json:"type"`
+	Value  uint64            `json:"value"`
+	TaskID task.DefinitionID `json:"taskId"`
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
@@ -61,7 +60,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		resultPublisher:         config.ResultPublisher,
 		taskPublisherSubscriber: config.TaskPublisherSubscriber,
 		log:                     log,
-		bidding:                 make(map[uuid.UUID]map[peer.ID]uint64),
+		bidding:                 make(map[task.DefinitionID]map[peer.ID]uint64),
 		biddingLock:             sync.RWMutex{},
 		biddingWait:             config.BiddingWait,
 	}
@@ -236,7 +235,7 @@ func (a *Auditor) handleBiddingMessage(bidding *Bidding, from *peer.ID) {
 
 func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput) error {
 	randomNumber, err := rand.Int(rand.Reader, big.NewInt(math.MaxUint32))
-	a.log.Debug().Str("task_id", input.TaskID.String()).Uint64("bid", randomNumber.Uint64()).Msg("making bidding")
+	a.log.Debug().Str("task_id", input.InstanceID.String()).Uint64("bid", randomNumber.Uint64()).Msg("making bidding")
 
 	if err != nil {
 		return errors.Wrap(err, "failed to generate random number")
@@ -245,7 +244,7 @@ func (a *Auditor) makeBidding(ctx context.Context, input *module.ValidationInput
 	bidding := &Bidding{
 		Type:   "bidding",
 		Value:  randomNumber.Uint64(),
-		TaskID: input.TaskID,
+		TaskID: input.InstanceID,
 	}
 
 	biddingStr, err := json.Marshal(bidding)

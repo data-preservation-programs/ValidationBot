@@ -122,7 +122,13 @@ func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID pee
 	}
 }
 
-func (o *Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {
+func (o *Observer) storeResult(
+	ctx context.Context,
+	data store.MessagePayload,
+	cid cid.Cid,
+	peerID peer.ID,
+	previous *cid.Cid,
+) error {
 	result := &module.ValidationResult{}
 
 	err := json.Unmarshal(data, result)
