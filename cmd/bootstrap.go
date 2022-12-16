@@ -765,6 +765,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In
+		// TODO --- here mapped modules should be used
 		Modules                 []module.AuditorModule `group:"auditor_module"`
 		Libp2p                  host.Host              `name:"auditor_libp2p"`
 		TrustManager            *trust.Manager

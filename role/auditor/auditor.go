@@ -144,6 +144,7 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
+				// TODO - call client.Call("Validate()", input, result)
 				result, err := mod.Validate(ctx, *input)
 				if err != nil {
 					log.Error().Bytes("task", task).Err(err).Msg("failed to validate")
