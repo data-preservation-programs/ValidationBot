@@ -762,6 +762,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide trust manager")
 	}
 
+	// TODO --- here mapped modules should be used
+	// type RPCAuditor struct {
+	// 	Modules map[task.Type]module.AuditorModule
+	// }
+
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In

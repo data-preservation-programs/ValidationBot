@@ -137,6 +137,13 @@ func (a *Auditor) Start(ctx context.Context) {
 			}
 
 			go func() {
+				// ask Xinon
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error().Err(errors.Errorf("%v", r)).Msg("panic")
+					}
+				}()
+
 				won := a.resolveBidding(task, bidding)
 				if !won {
 					return
@@ -144,8 +151,12 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
-				// TODO - result, err := client.Call("Validate()", input, result)
-				result, err := mod.Validate(ctx, *input)
+				client := NewRPCClient()
+
+				// create ctx, cancel := context.WithTimeout that timesout after 5 minutes
+				// result, err := mod.Validate(ctx, *input)
+				result, err := client.Call(ctx, *input)
+
 				if err != nil {
 					log.Error().Bytes("task", task).Err(err).Msg("failed to validate")
 					return

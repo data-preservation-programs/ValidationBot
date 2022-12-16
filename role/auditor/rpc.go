@@ -21,12 +21,19 @@ type Validator interface {
 	Call(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error)
 }
 
-type RpcClient struct {
+type RPCClient struct {
 	log     zerolog.Logger
 	baseDir string
 }
 
-func (r *RpcClient) Call(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
+func NewRPCClient() *RPCClient {
+	return &RPCClient{
+		log:     zerolog.New(os.Stdout).With().Timestamp().Logger(),
+		baseDir: "/tmp/rpcv",
+	}
+}
+
+func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	uuidStr, err := uuid.NewUUID()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate uuid")
@@ -41,7 +48,7 @@ func (r *RpcClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 
 	defer os.RemoveAll(dirPath)
 
-	cmd := exec.CommandContext(ctx, "validation-server", dirPath)
+	cmd := exec.CommandContext(ctx, "validation-rpc", dirPath)
 	stdout, _ := cmd.StdoutPipe()
 
 	defer stdout.Close()
@@ -72,9 +79,9 @@ func (r *RpcClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 
 	var reply module.ValidationResult
 
-	err = client.Call("RpcAuditor.Validate", input, &reply)
+	err = client.Call("RPCAuditor.Validate", input, &reply)
 	if err != nil {
-		errors.Wrap(err, "failed to call RPC server")
+		return nil, errors.Wrap(err, "failed to call RPC server")
 	}
 
 	return &reply, nil

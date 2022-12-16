@@ -63,7 +63,4 @@ maxmind:
 	mv GeoLite2-City_*/GeoLite2-City.mmdb resources/
 	rm -rf GeoLite2-City_*
 
-validation_server:
-	go build -o validation_server ./rpc
-
 .PHONY: build run clean test maxmind
