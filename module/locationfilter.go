@@ -1,7 +1,6 @@
 package module
 
 import (
-	"github.com/oschwald/geoip2-golang"
 	"golang.org/x/exp/slices"
 )
 
@@ -10,12 +9,12 @@ type LocationFilterConfig struct {
 	Country   []string
 }
 
-func (l LocationFilterConfig) Match(city *geoip2.City) bool {
-	if len(l.Continent) > 0 && !slices.Contains(l.Continent, city.Continent.Code) {
+func (l LocationFilterConfig) Match(countryCode string, continentCode string) bool {
+	if len(l.Continent) > 0 && !slices.Contains(l.Continent, continentCode) {
 		return false
 	}
 
-	if len(l.Country) > 0 && !slices.Contains(l.Country, city.Country.IsoCode) {
+	if len(l.Country) > 0 && !slices.Contains(l.Country, countryCode) {
 		return false
 	}
 

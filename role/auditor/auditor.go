@@ -17,7 +17,6 @@ import (
 
 	"validation-bot/store"
 
-	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -31,7 +30,7 @@ type Auditor struct {
 	resultPublisher         store.Publisher
 	taskPublisherSubscriber task.PublisherSubscriber
 	log                     zerolog.Logger
-	bidding                 map[uuid.UUID]map[peer.ID]uint64
+	bidding                 map[task.DefinitionID]map[peer.ID]uint64
 	biddingLock             sync.RWMutex
 	biddingWait             time.Duration
 }
@@ -46,9 +45,9 @@ type Config struct {
 }
 
 type Bidding struct {
-	Type   string    `json:"type"`
-	Value  uint64    `json:"value"`
-	TaskID uuid.UUID `json:"taskId"`
+	Type   string      `json:"type"`
+	Value  uint64      `json:"value"`
+	TaskID task.TaskID `json:"taskId"`
 }
 
 func NewAuditor(config Config) (*Auditor, error) {
@@ -61,7 +60,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		resultPublisher:         config.ResultPublisher,
 		taskPublisherSubscriber: config.TaskPublisherSubscriber,
 		log:                     log,
-		bidding:                 make(map[uuid.UUID]map[peer.ID]uint64),
+		bidding:                 make(map[task.DefinitionID]map[peer.ID]uint64),
 		biddingLock:             sync.RWMutex{},
 		biddingWait:             config.BiddingWait,
 	}
@@ -70,8 +69,6 @@ func NewAuditor(config Config) (*Auditor, error) {
 }
 
 func (a *Auditor) Start(ctx context.Context) {
-	a.trustManager.Start(ctx)
-
 	log := a.log
 	log.Info().Msg("start listening to subscription")
 

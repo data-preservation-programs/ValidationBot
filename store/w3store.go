@@ -479,7 +479,7 @@ func getLastRecord(
 	return record, nil
 }
 
-func (s *W3StorePublisher) Publish(ctx context.Context, data []byte) error {
+func (s *W3StorePublisher) Publish(ctx context.Context, data MessagePayload) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

@@ -7,12 +7,14 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+type MessagePayload = []byte
+
 type Publisher interface {
-	Publish(ctx context.Context, input []byte) error
+	Publish(ctx context.Context, input MessagePayload) error
 }
 
 type Entry struct {
-	Message  []byte
+	Message  MessagePayload
 	Previous *cid.Cid
 	CID      cid.Cid
 }

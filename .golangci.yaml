@@ -42,6 +42,7 @@ linters:
     - sqlclosecheck
     - wastedassign
     - gocognit
+    - wsl
 
 linters-settings:
   revive:
@@ -105,3 +106,4 @@ linters-settings:
       - 'module\.DealStateModel'
       - '.*Result'
       - '.*Params'
+      - 'http\.Client'

@@ -8,7 +8,7 @@ import (
 )
 
 type InMemoryStore struct {
-	Storage [][]byte
+	Storage []MessagePayload
 }
 
 //nolint:all
@@ -35,7 +35,7 @@ func (i *InMemoryStore) Subscribe(ctx context.Context, peerID peer.ID, last *cid
 }
 
 //nolint:all
-func (i *InMemoryStore) Publish(ctx context.Context, input []byte) error {
+func (i *InMemoryStore) Publish(ctx context.Context, input MessagePayload) error {
 	i.Storage = append(i.Storage, input)
 	return nil
 }

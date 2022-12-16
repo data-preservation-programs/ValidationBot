@@ -63,8 +63,6 @@ func (o *Observer) lastCidFromDB(peer peer.ID) (*cid.Cid, error) {
 }
 
 func (o *Observer) Start(ctx context.Context) {
-	o.trustManager.Start(ctx)
-
 	currentTrustees := map[peer.ID]struct{}{}
 
 	go func() {
@@ -122,7 +120,13 @@ func (o *Observer) downloadEntriesForAuditorPeer(ctx context.Context, peerID pee
 	}
 }
 
-func (o *Observer) storeResult(ctx context.Context, data []byte, cid cid.Cid, peerID peer.ID, previous *cid.Cid) error {
+func (o *Observer) storeResult(
+	ctx context.Context,
+	data store.MessagePayload,
+	cid cid.Cid,
+	peerID peer.ID,
+	previous *cid.Cid,
+) error {
 	result := &module.ValidationResult{}
 
 	err := json.Unmarshal(data, result)

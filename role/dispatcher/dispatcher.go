@@ -11,7 +11,6 @@ import (
 
 	"validation-bot/task"
 
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
@@ -113,7 +112,11 @@ func (g Dispatcher) additionalJitter() time.Duration {
 	return time.Duration(rnd.Int64()) * time.Nanosecond
 }
 
-func (g Dispatcher) dispatchOnce(ctx context.Context, definitionID uuid.UUID, input module.ValidationInput) error {
+func (g Dispatcher) dispatchOnce(
+	ctx context.Context,
+	definitionID task.DefinitionID,
+	input module.ValidationInput,
+) error {
 	g.log.Info().Str("moduleName", input.Task.Type).
 		Str("id", definitionID.String()).Interface("task", input).Msg("dispatching task")
 
@@ -185,7 +188,7 @@ func (g Dispatcher) Create(ctx context.Context, taskDef *task.Definition) error 
 	return nil
 }
 
-func (g Dispatcher) Remove(ctx context.Context, id uuid.UUID) error {
+func (g Dispatcher) Remove(ctx context.Context, id task.DefinitionID) error {
 	err := g.db.WithContext(ctx).Delete(&task.Definition{}, id).Error
 	if err != nil {
 		return errors.Wrap(err, "cannot delete task definition from the database")
