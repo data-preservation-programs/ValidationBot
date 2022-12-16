@@ -1,4 +1,4 @@
-package validation_server
+package rpcv
 
 import (
 	"testing"
@@ -6,9 +6,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRpcServer_NewRpcServer(t *testing.T) {
+func TestRpcServer_NewRPCServer(t *testing.T) {
 	assert := assert.New(t)
-	server, err := NewRpcServer()
+	server, err := NewRPCServer()
 
 	assert.NotNil(server.Port)
 	assert.NotNil(server.IP)

@@ -1,4 +1,4 @@
-package validation_server
+package rpcv
 
 import (
 	"context"
@@ -14,12 +14,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type RpcAuditor struct {
+// TODO configure this
+type RPCValidator struct {
 	log     zerolog.Logger
 	modules map[task.Type]module.AuditorModule
 }
 
-func (ra RpcAuditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
+func (ra RPCValidator) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	ra.log.Info().Msgf("Received validation request for task %s", input.TaskID)
 
 	mod, ok := ra.modules[input.Type]
@@ -36,17 +37,29 @@ func (ra RpcAuditor) Validate(ctx context.Context, input module.ValidationInput)
 	return result, nil
 }
 
-func NewRpcServer() (*net.TCPAddr, error) {
-	rpcAuditor := new(RpcAuditor)
+func NewRPCServer() (*net.TCPAddr, error) {
+	rpcValidator := new(RPCValidator)
 
-	rpc.Register(rpcAuditor)
+	err := rpc.Register(rpcValidator)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to register rpc auditor")
+	}
+
 	rpc.HandleHTTP()
 
 	listener, _ := net.Listen("tcp", ":0")
 
-	fmt.Println("Using port:", listener.Addr().(*net.TCPAddr).Port)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return nil, errors.New("failed to get tcp address")
+	}
 
-	http.Serve(listener, nil)
+	fmt.Println("Using port:", addr.Port)
+
+	err = http.Serve(listener, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to serve http")
+	}
 
 	return listener.Addr().(*net.TCPAddr), nil
 }
