@@ -17,6 +17,7 @@ import (
 	"validation-bot/role/dispatcher"
 	"validation-bot/role/observer"
 	"validation-bot/role/trust"
+	"validation-bot/rpcv"
 	"validation-bot/store"
 	"validation-bot/task"
 
@@ -101,6 +102,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
+			BaseDir:     os.TempDir(),
 		},
 		Observer: observerConfig{
 			Enabled:       true,
@@ -762,15 +764,26 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide trust manager")
 	}
 
-	// TODO --- here mapped modules should be used
-	// type RPCAuditor struct {
-	// 	Modules map[task.Type]module.AuditorModule
-	// }
+	err = container.Provide(
+		func() *auditor.RPCClient {
+			return auditor.NewRPCClient(cfg.Auditor.BaseDir, cfg.Auditor.RPCClientTimeout)
+		},
+	)
+
+	type RPCValidatorParams struct {
+		dig.In
+		Modules []module.AuditorModule `group:"auditor_module"`
+	}
+
+	err = container.Provide(
+		func(params RPCValidatorParams) (*rpcv.RPCValidator, error) {
+			return rpcv.NewRPCValidator(params.Modules), nil
+		},
+	)
 
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In
-		// TODO --- here mapped modules should be used
 		Modules                 []module.AuditorModule `group:"auditor_module"`
 		Libp2p                  host.Host              `name:"auditor_libp2p"`
 		TrustManager            *trust.Manager
