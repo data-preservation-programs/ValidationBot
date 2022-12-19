@@ -59,6 +59,7 @@ type auditorConfig struct {
 	PrivateKey  string
 	ListenAddr  string
 	BiddingWait time.Duration
+	BaseDir     string
 }
 
 type w3sConfig struct {

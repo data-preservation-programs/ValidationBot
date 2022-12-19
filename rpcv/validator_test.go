@@ -8,9 +8,9 @@ import (
 
 func TestRpcServer_NewRPCServer(t *testing.T) {
 	assert := assert.New(t)
-	server, err := NewRPCServer()
+	port, err := NewRPCValidator()
 
-	assert.NotNil(server.Port)
-	assert.NotNil(server.IP)
+	assert.IsType(0, port)
 	assert.Nil(err)
+	// implement client call so server closes
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type Validator interface {
@@ -26,10 +27,10 @@ type RPCClient struct {
 	baseDir string
 }
 
-func NewRPCClient() *RPCClient {
+func NewRPCClient(baseDir string) *RPCClient {
 	return &RPCClient{
-		log:     zerolog.New(os.Stdout).With().Timestamp().Logger(),
-		baseDir: "/tmp/rpcv",
+		log:     log.With().Str("role", "rpc.client").Caller().Logger(),
+		baseDir: baseDir,
 	}
 }
 
@@ -79,10 +80,18 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 
 	var reply module.ValidationResult
 
-	err = client.Call("RPCAuditor.Validate", input, &reply)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to call RPC server")
-	}
+	valid := client.Go("RPCAuditor.Validate", input, &reply, nil)
 
-	return &reply, nil
+	select {
+	case <-ctx.Done():
+		cmd.Process.Kill()
+		return nil, errors.New("context cancelled")
+	case <-valid.Done:
+		if valid.Error != nil {
+			return nil, errors.Wrap(valid.Error, "failed to validate")
+		}
+
+		cmd.Process.Kill()
+		return &reply, nil
+	}
 }
