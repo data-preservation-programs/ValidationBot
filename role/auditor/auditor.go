@@ -33,6 +33,7 @@ type Auditor struct {
 	bidding                 map[task.DefinitionID]map[peer.ID]uint64
 	biddingLock             sync.RWMutex
 	biddingWait             time.Duration
+	rpcClient               RPCClient
 }
 
 type Config struct {
@@ -42,6 +43,7 @@ type Config struct {
 	TaskPublisherSubscriber task.PublisherSubscriber
 	Modules                 map[task.Type]module.AuditorModule
 	BiddingWait             time.Duration
+	RPCClient               RPCClient
 }
 
 type Bidding struct {
@@ -63,6 +65,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		bidding:                 make(map[task.DefinitionID]map[peer.ID]uint64),
 		biddingLock:             sync.RWMutex{},
 		biddingWait:             config.BiddingWait,
+		rpcClient:               config.RPCClient,
 	}
 
 	return &auditor, nil
@@ -137,13 +140,6 @@ func (a *Auditor) Start(ctx context.Context) {
 			}
 
 			go func() {
-				// ask Xinon
-				defer func() {
-					if r := recover(); r != nil {
-						log.Error().Err(errors.Errorf("%v", r)).Msg("panic")
-					}
-				}()
-
 				won := a.resolveBidding(task, bidding)
 				if !won {
 					return
@@ -151,11 +147,8 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
-				client := NewRPCClient()
-
-				// create ctx, cancel := context.WithTimeout that timesout after 5 minutes
-				// result, err := mod.Validate(ctx, *input)
-				result, err := client.Call(ctx, *input)
+				// TODO: auditor has universal client - config loaded from bootstrap.go
+				result, err := a.rpcClient.Call(ctx, *input)
 
 				if err != nil {
 					log.Error().Bytes("task", task).Err(err).Msg("failed to validate")
@@ -182,6 +175,7 @@ func (a *Auditor) Start(ctx context.Context) {
 				}
 			}()
 		}
+
 	}()
 }
 

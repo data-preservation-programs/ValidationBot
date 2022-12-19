@@ -31,6 +31,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	log3 "github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/ziflex/lecho/v3"
@@ -102,7 +103,10 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
-			BaseDir:     os.TempDir(),
+			RPCConfig: rpcClientConfig{
+				Timeout: 5 * time.Minute,
+				BaseDir: os.TempDir(),
+			},
 		},
 		Observer: observerConfig{
 			Enabled:       true,
@@ -533,6 +537,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.Out
 		Module module.DispatcherModule `group:"dispatcher_module"`
 	}
+
 	type AuditorModuleResult struct {
 		dig.Out
 		Module module.AuditorModule `group:"auditor_module"`
@@ -766,9 +771,17 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 	err = container.Provide(
 		func() *auditor.RPCClient {
-			return auditor.NewRPCClient(cfg.Auditor.BaseDir, cfg.Auditor.RPCClientTimeout)
+			return auditor.NewRPCClient(auditor.ClientConfig{
+				BaseDir: cfg.Auditor.RPCConfig.BaseDir,
+				Timeout: cfg.Auditor.RPCConfig.Timeout,
+			})
 		},
+		dig.Name("auditor_rpc_client"),
 	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide rpc client")
+	}
 
 	type RPCValidatorParams struct {
 		dig.In
@@ -777,9 +790,23 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 	err = container.Provide(
 		func(params RPCValidatorParams) (*rpcv.RPCValidator, error) {
-			return rpcv.NewRPCValidator(params.Modules), nil
+
+			modules := make(map[string]module.AuditorModule)
+			for _, m := range params.Modules {
+				modules[m.Type()] = m
+			}
+
+			return rpcv.NewRPCValidator(
+				rpcv.ValidatorConfig{
+					Modules: modules,
+				},
+			), nil
 		},
 	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide rpc validator")
+	}
 
 	// DI: auditor.Auditor
 	type AuditorParams struct {
@@ -789,6 +816,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		TrustManager            *trust.Manager
 		ResultPublisher         store.Publisher
 		TaskPublisherSubscriber task.PublisherSubscriber `name:"auditor_task_publisher_subscriber"`
+		RPCClient               auditor.RPCClient        `name:"auditor_rpc_client"`
 	}
 
 	err = container.Provide(
@@ -818,6 +846,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 					TaskPublisherSubscriber: params.TaskPublisherSubscriber,
 					Modules:                 modules,
 					BiddingWait:             cfg.Auditor.BiddingWait,
+					RPCClient:               params.RPCClient,
 				},
 			)
 		},
@@ -837,6 +866,32 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	}
 
 	return cfg, nil
+}
+
+func runValidator(ctx context.Context, configPath string) error {
+	container := dig.New()
+
+	cfg, err := setupDependencies(ctx, container, configPath)
+	if err != nil {
+		return errors.Wrap(err, "cannot setup dependencies")
+	}
+
+	if cfg.Auditor.Enabled {
+		log.Info().Msg("starting rpc with module")
+
+		err = container.Invoke(
+			func(validator *rpcv.RPCValidator) {
+				validator.Start(ctx)
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, "cannot start auditor")
+		}
+	}
+
+	<-ctx.Done()
+	log.Info().Msg("shutting down")
+	return nil
 }
 
 func run(ctx context.Context, configPath string) error {

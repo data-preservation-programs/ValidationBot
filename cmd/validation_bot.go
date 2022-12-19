@@ -9,7 +9,6 @@ import (
 
 	"validation-bot/role"
 
-	"validation-bot/rpcv"
 	"validation-bot/store"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -52,14 +51,7 @@ func main() {
 				Name:  "validation-rpc",
 				Usage: "start running the rpcv server",
 				Action: func(c *cli.Context) error {
-					_, err := rpcv.NewRPCServer()
-					if err != nil {
-						return errors.Wrap(err, "failed to start rpc server")
-					}
-
-					<-c.Done()
-					log.Info().Msg("shutting down")
-					return nil
+					return runValidator(c.Context, configPath)
 				},
 			},
 			{

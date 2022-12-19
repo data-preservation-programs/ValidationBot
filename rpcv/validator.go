@@ -19,16 +19,16 @@ type RPCValidator struct {
 	Modules map[task.Type]module.AuditorModule
 }
 
-func NewRPCValidator(modules []module.AuditorModule) *RPCValidator {
-	mods := make(map[task.Type]module.AuditorModule)
+type ValidatorConfig struct {
+	Modules map[task.Type]module.AuditorModule
+	// TODO: add special timeout?
+}
 
-	for _, mod := range modules {
-		mods[mod.Type()] = mod
-	}
+func NewRPCValidator(config ValidatorConfig) *RPCValidator {
 
 	return &RPCValidator{
 		log:     log.With().Str("role", "rpcv").Caller().Logger(),
-		Modules: mods,
+		Modules: config.Modules,
 	}
 }
 
@@ -53,7 +53,7 @@ func (ra RPCValidator) Validate(input module.ValidationInput, reply *module.Vali
 
 type portNumber = int
 
-func (ra RPCValidator) Start() (portNumber, error) {
+func (ra RPCValidator) Start(ctx context.Context) (portNumber, error) {
 	rpcValidator := new(RPCValidator)
 
 	err := rpc.Register(rpcValidator)
@@ -76,6 +76,8 @@ func (ra RPCValidator) Start() (portNumber, error) {
 	}
 
 	// cleint process reads 5 bytes (port number) from stdout
+	// QUESTION: wont this be from 1024 to 65535?
+	// only need to handle 1 space here?
 	fmt.Printf("%d     ", addr.Port)
 
 	return addr.Port, nil
