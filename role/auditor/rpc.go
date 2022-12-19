@@ -10,6 +10,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 	"validation-bot/module"
 
 	"github.com/google/uuid"
@@ -25,12 +26,19 @@ type Validator interface {
 type RPCClient struct {
 	log     zerolog.Logger
 	baseDir string
+	timeout time.Duration
 }
 
-func NewRPCClient(baseDir string) *RPCClient {
+type ClientConfig struct {
+	BaseDir string
+	Timeout time.Duration
+}
+
+func NewRPCClient(config ClientConfig) *RPCClient {
 	return &RPCClient{
 		log:     log.With().Str("role", "rpc.client").Caller().Logger(),
-		baseDir: baseDir,
+		baseDir: config.BaseDir,
+		timeout: config.Timeout,
 	}
 }
 
@@ -49,6 +57,7 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 
 	defer os.RemoveAll(dirPath)
 
+	// TODO: ctx.withTimeout?
 	cmd := exec.CommandContext(ctx, "validation-rpc", dirPath)
 	stdout, _ := cmd.StdoutPipe()
 
@@ -59,6 +68,14 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error().Err(errors.Errorf("%v", r)).Msg("panic")
+			cmd.Process.Kill()
+		}
+	}()
+
+	// port to stdout
 	buf := make([]byte, 5)
 
 	_, err = io.ReadAtLeast(stdout, buf, 5)
@@ -87,11 +104,12 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		cmd.Process.Kill()
 		return nil, errors.New("context cancelled")
 	case <-valid.Done:
+		cmd.Process.Kill()
+
 		if valid.Error != nil {
 			return nil, errors.Wrap(valid.Error, "failed to validate")
 		}
 
-		cmd.Process.Kill()
 		return &reply, nil
 	}
 }

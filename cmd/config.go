@@ -54,12 +54,17 @@ type dispatcherConfig struct {
 	Jitter               time.Duration
 }
 
+type rpcClientConfig struct {
+	BaseDir string
+	Timeout time.Duration
+}
+
 type auditorConfig struct {
 	Enabled     bool
 	PrivateKey  string
 	ListenAddr  string
 	BiddingWait time.Duration
-	BaseDir     string
+	RPCConfig   rpcClientConfig
 }
 
 type w3sConfig struct {
