@@ -887,11 +887,10 @@ func runValidator(ctx context.Context, configPath string) error {
 		if err != nil {
 			return errors.Wrap(err, "cannot start auditor")
 		}
+		return nil
+	} else {
+		return errors.New("auditor is not enabled")
 	}
-
-	<-ctx.Done()
-	log.Info().Msg("shutting down")
-	return nil
 }
 
 func run(ctx context.Context, configPath string) error {

@@ -50,6 +50,15 @@ func main() {
 			{
 				Name:  "validation-rpc",
 				Usage: "start running the rpcv server",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						Usage:       "path to the config file",
+						Value:       "./config.yaml",
+						Destination: &configPath,
+					},
+				},
 				Action: func(c *cli.Context) error {
 					return runValidator(c.Context, configPath)
 				},
