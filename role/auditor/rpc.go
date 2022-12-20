@@ -55,12 +55,23 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
 
+	err = exec.CommandContext(ctx, "cp", "../../validation_rpc", dirPath).Run()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to copy validation_rpc")
+	}
+
 	defer os.RemoveAll(dirPath)
 
 	// TODO: ctx.withTimeout?
-	cmd := exec.CommandContext(ctx, "validation-rpc", dirPath)
+	cmd := exec.CommandContext(ctx, "validation_rpc")
+	cmd.Dir = dirPath
 	stdout, _ := cmd.StdoutPipe()
 
+	fmt.Print(cmd.Env)
+	fmt.Print(cmd.Args)
+	fmt.Print(cmd.Path)
+	fmt.Print(cmd.Dir)
+	fmt.Print(cmd)
 	defer stdout.Close()
 
 	err = cmd.Start()
@@ -75,7 +86,7 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		}
 	}()
 
-	// port to stdout
+	// listen for rpc server port from stdout
 	buf := make([]byte, 5)
 
 	_, err = io.ReadAtLeast(stdout, buf, 5)

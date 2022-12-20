@@ -147,8 +147,17 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
-				// TODO: auditor has universal client - config loaded from bootstrap.go
+				// mod.Validate
+				// test run graphSync.Validate in a loop -- watch memory run away
+				// Valgrind can detect a memory leak
+				ctx, cancel := context.WithTimeout(ctx, a.rpcClient.timeout)
+				defer cancel()
+
 				result, err := a.rpcClient.Call(ctx, *input)
+
+				if errors.Is(err, context.DeadlineExceeded) {
+					log.Error().Bytes("task", task).Err(err).Msg("validation timed out")
+				}
 
 				if err != nil {
 					log.Error().Bytes("task", task).Err(err).Msg("failed to validate")

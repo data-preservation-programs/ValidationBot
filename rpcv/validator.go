@@ -21,7 +21,6 @@ type RPCValidator struct {
 
 type ValidatorConfig struct {
 	Modules map[task.Type]module.AuditorModule
-	// TODO: add special timeout?
 }
 
 func NewRPCValidator(config ValidatorConfig) *RPCValidator {
@@ -53,12 +52,12 @@ func (ra RPCValidator) Validate(input module.ValidationInput, reply *module.Vali
 
 type portNumber = int
 
-func (ra RPCValidator) Start(ctx context.Context) (portNumber, error) {
+func (ra RPCValidator) Start(ctx context.Context) error {
 	rpcValidator := new(RPCValidator)
 
 	err := rpc.Register(rpcValidator)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to register rpc auditor")
+		return errors.Wrap(err, "failed to register rpc auditor")
 	}
 
 	rpc.HandleHTTP()
@@ -67,18 +66,23 @@ func (ra RPCValidator) Start(ctx context.Context) (portNumber, error) {
 
 	addr, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {
-		return 0, errors.New("failed to get tcp address")
+		return errors.New("failed to get tcp address")
 	}
 
-	err = http.Serve(listener, nil)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to serve http")
-	}
 
 	// cleint process reads 5 bytes (port number) from stdout
 	// QUESTION: wont this be from 1024 to 65535?
 	// only need to handle 1 space here?
-	fmt.Printf("%d     ", addr.Port)
+	// http.Serve will block until the listener is closed
+	str := fmt.Sprintf("%q", addr.Port)
+	fmt.Print(str)
 
-	return addr.Port, nil
+	err = http.Serve(listener, nil)
+	if err != nil {
+		return errors.Wrap(err, "failed to serve http")
+	}
+
+	<-ctx.Done()
+	log.Info().Msgf("shutting down Validator RPC on port: %q", addr.Port)
+	return nil
 }
