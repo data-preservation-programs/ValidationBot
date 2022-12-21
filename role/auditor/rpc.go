@@ -1,6 +1,7 @@
 package auditor
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 	"validation-bot/module"
 
@@ -55,23 +55,27 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
 
-	err = exec.CommandContext(ctx, "cp", "../../validation_rpc", dirPath).Run()
+	// err = exec.CommandContext(ctx, "cp", "../../validation_rpc", dirPath).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to copy validation_rpc")
 	}
 
 	defer os.RemoveAll(dirPath)
 
-	// TODO: ctx.withTimeout?
-	cmd := exec.CommandContext(ctx, "validation_rpc")
+	// otherwise potentially use realpath somehow?
+	exePath, err := os.Executable()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get executable path")
+	}
+
+	// testdata/someMockSCript -- print out port numbers for tests
+	// ${os.Args[0] => program executing, ie validation_bot binary
+	botPath := path.Join(exePath, os.Args[0])
+	// calls /path/to/ValidationBot/validation_bot validation-rpc
+	cmd := exec.CommandContext(ctx, botPath, "validation-rpc")
 	cmd.Dir = dirPath
 	stdout, _ := cmd.StdoutPipe()
 
-	fmt.Print(cmd.Env)
-	fmt.Print(cmd.Args)
-	fmt.Print(cmd.Path)
-	fmt.Print(cmd.Dir)
-	fmt.Print(cmd)
 	defer stdout.Close()
 
 	err = cmd.Start()
@@ -86,19 +90,36 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		}
 	}()
 
+	reply, err := r.CallValidate(ctx, stdout, input)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call validate")
+	}
+
+	select {
+	case <-ctx.Done():
+		cmd.Process.Kill()
+		return nil, errors.New("context cancelled")
+	default:
+		cmd.Process.Kill()
+
+		return reply, nil
+	}
+}
+
+func (r *RPCClient) CallValidate(ctx context.Context, stdout io.Reader, input module.ValidationInput) (*module.ValidationResult, error) {
 	// listen for rpc server port from stdout
-	buf := make([]byte, 5)
+	scanner := bufio.NewScanner(stdout)
 
-	_, err = io.ReadAtLeast(stdout, buf, 5)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to read from stdout")
+	var port int
+
+	for scanner.Scan() {
+		var err error
+		if port, err = strconv.Atoi(scanner.Text()); err != nil {
+			return nil, errors.Wrap(err, "failed to parse port")
+		}
 	}
 
-	port, err := strconv.Atoi(strings.TrimSpace(string(buf)))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse port")
-	}
-
+	// TODO retry logic to handle weird port things
 	client, err := rpc.DialHTTP("tcp", fmt.Sprintf("%s:%d", "localhost", port))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")
@@ -108,19 +129,28 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 
 	var reply module.ValidationResult
 
-	valid := client.Go("RPCAuditor.Validate", input, &reply, nil)
+	done := make(chan error, 1)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			err := ctx.Err()
+			done <- err
+			client.Close()
+		case <-done:
+		}
+	}()
+
+	err = client.Call("RPCAuditor.Validate", input, &reply)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call rpc")
+	}
 
 	select {
-	case <-ctx.Done():
-		cmd.Process.Kill()
-		return nil, errors.New("context cancelled")
-	case <-valid.Done:
-		cmd.Process.Kill()
-
-		if valid.Error != nil {
-			return nil, errors.Wrap(valid.Error, "failed to validate")
-		}
-
-		return &reply, nil
+	case err = <-done:
+	default:
+		close(done)
 	}
+
+	return &reply, err
 }

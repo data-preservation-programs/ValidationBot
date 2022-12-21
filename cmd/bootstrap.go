@@ -881,7 +881,7 @@ func runValidator(ctx context.Context, configPath string) error {
 
 		err = container.Invoke(
 			func(validator *rpcv.RPCValidator) {
-				validator.Start(ctx)
+				validator.Start(ctx, 0)
 			},
 		)
 		if err != nil {
