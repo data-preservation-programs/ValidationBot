@@ -67,7 +67,7 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to get executable path")
 	}
 
-	// ${os.Args[0] => program executing, ie validation_bot binary
+	// ${os.Args[0] => name of the current program executing, ie validation_bot binary
 	botPath := path.Join(exePath, os.Args[0])
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
 	cmd := exec.CommandContext(ctx, botPath, "validation-rpc")
