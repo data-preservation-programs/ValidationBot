@@ -53,7 +53,8 @@ func (ra RPCValidator) Validate(input module.ValidationInput, reply *module.Vali
 
 type portNumber = int
 
-func (ra RPCValidator) Start(ctx context.Context) error {
+func (ra RPCValidator) Start(ctx context.Context, forcePort int) error {
+	// TODO: why not pass ra into Register?
 	rpcValidator := new(RPCValidator)
 
 	err := rpc.Register(rpcValidator)

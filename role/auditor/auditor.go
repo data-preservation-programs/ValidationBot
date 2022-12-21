@@ -149,7 +149,6 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				// mod.Validate
 				// test run graphSync.Validate in a loop -- watch memory run away
-				// Valgrind can detect a memory leak
 				// TODO which timeout?
 				ctx, cancel := context.WithTimeout(ctx, a.rpcClient.timeout)
 				defer cancel()
