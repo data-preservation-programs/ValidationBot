@@ -71,7 +71,6 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 	botPath := path.Join(exePath, os.Args[0])
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
 	cmd := exec.CommandContext(ctx, botPath, "validation-rpc")
-	cmd.Dir = dirPath
 	stdout, _ := cmd.StdoutPipe()
 
 	defer stdout.Close()

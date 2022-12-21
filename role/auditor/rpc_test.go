@@ -12,6 +12,7 @@ import (
 	"validation-bot/rpcv"
 	"validation-bot/task"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -64,4 +65,30 @@ func TestRPCClient__CallValidate(t *testing.T) {
 	assert.NoError(err)
 
 	fmt.Print("result: ", result)
+}
+
+func TestRPCClient_Call(t *testing.T) {
+	rpcClient := NewRPCClient(
+		ClientConfig{
+			BaseDir: "/tmp",
+			Timeout: 30 * time.Second,
+		})
+
+	id := uuid.New()
+	json, err := module.NewJSONB(`{"hello":"world"}`)
+	assert.NoError(t, err)
+
+	tsk := module.ValidationInput{
+		Task: task.Task{
+			Type:         task.Echo,
+			DefinitionID: id,
+			Target:       "target",
+			Tag:          "tag",
+			TaskID:       id,
+		},
+		Input: json,
+	}
+
+	// TODO mock CallValidate
+	rpcClient.Call(context.Background(), tsk)
 }
