@@ -55,7 +55,6 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
 
-	// err = exec.CommandContext(ctx, "cp", "../../validation_rpc", dirPath).Run()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to copy validation_rpc")
 	}
@@ -68,7 +67,6 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 		return nil, errors.Wrap(err, "failed to get executable path")
 	}
 
-	// testdata/someMockSCript -- print out port numbers for tests
 	// ${os.Args[0] => program executing, ie validation_bot binary
 	botPath := path.Join(exePath, os.Args[0])
 	// calls /path/to/ValidationBot/validation_bot validation-rpc

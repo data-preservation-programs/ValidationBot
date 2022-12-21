@@ -17,8 +17,6 @@ import (
 
 var serveOnce sync.Once
 
-// shell script -
-// testdata/mockExecutable.sh - print port number ---
 func TestRPCClient__CallValidate(t *testing.T) {
 	assert := assert.New(t)
 	rpcServer := rpcv.NewRPCValidator(
