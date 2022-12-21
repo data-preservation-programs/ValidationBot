@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"time"
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -64,18 +65,31 @@ func (ra RPCValidator) Start(ctx context.Context) error {
 
 	listener, _ := net.Listen("tcp", ":0")
 
-	addr, ok := listener.Addr().(*net.TCPAddr)
-	if !ok {
-		return errors.New("failed to get tcp address")
+	addr := listener.Addr().(*net.TCPAddr)
+
+	var port portNumber
+	if forcePort == 0 {
+		port = portNumber(addr.Port)
+	} else {
+		// for testing
+		port = portNumber(forcePort)
 	}
+	// addr, ok := listener.Addr().(*net.TCPAddr)
 
-
+	fmt.Print("testing")
 	// cleint process reads 5 bytes (port number) from stdout
 	// QUESTION: wont this be from 1024 to 65535?
 	// only need to handle 1 space here?
 	// http.Serve will block until the listener is closed
-	str := fmt.Sprintf("%q", addr.Port)
-	fmt.Print(str)
+	// str := fmt.Sprintf("%q", addr.Port)
+	// TODO visit this later
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		fmt.Printf("%d\n", port)
+	}()
+
+	// print port number to stdout
+	fmt.Printf("%d     ", port)
 
 	err = http.Serve(listener, nil)
 	if err != nil {
@@ -83,6 +97,6 @@ func (ra RPCValidator) Start(ctx context.Context) error {
 	}
 
 	<-ctx.Done()
-	log.Info().Msgf("shutting down Validator RPC on port: %q", addr.Port)
+	log.Info().Msgf("shutting down Validator RPC on port: %q", port)
 	return nil
 }

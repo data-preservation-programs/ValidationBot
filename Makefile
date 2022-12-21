@@ -38,7 +38,6 @@ deps: $(BUILD_DEPS)
 
 build:
 	go build -o validation_bot ./cmd
-
 run:
 	go run ./cmd run
 
