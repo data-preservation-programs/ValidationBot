@@ -816,7 +816,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		TrustManager            *trust.Manager
 		ResultPublisher         store.Publisher
 		TaskPublisherSubscriber task.PublisherSubscriber `name:"auditor_task_publisher_subscriber"`
-		RPCClient               auditor.RPCClient        `name:"auditor_rpc_client"`
+		RPCClient               auditor.IRPCClient       `name:"auditor_rpc_client"`
 	}
 
 	err = container.Provide(

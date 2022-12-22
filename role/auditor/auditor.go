@@ -33,7 +33,8 @@ type Auditor struct {
 	bidding                 map[task.DefinitionID]map[peer.ID]uint64
 	biddingLock             sync.RWMutex
 	biddingWait             time.Duration
-	rpcClient               RPCClient
+	rpcClient               IRPCClient
+	RPCTimeout              time.Duration
 }
 
 type Config struct {
@@ -43,7 +44,8 @@ type Config struct {
 	TaskPublisherSubscriber task.PublisherSubscriber
 	Modules                 map[task.Type]module.AuditorModule
 	BiddingWait             time.Duration
-	RPCClient               RPCClient
+	RPCClient               IRPCClient
+	RPCTimeout              time.Duration
 }
 
 type Bidding struct {
@@ -150,7 +152,7 @@ func (a *Auditor) Start(ctx context.Context) {
 				// mod.Validate
 				// test run graphSync.Validate in a loop -- watch memory run away
 				// TODO which timeout?
-				ctx, cancel := context.WithTimeout(ctx, a.rpcClient.timeout)
+				ctx, cancel := context.WithTimeout(ctx, a.RPCTimeout)
 				defer cancel()
 
 				result, err := a.rpcClient.Call(ctx, *input)

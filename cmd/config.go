@@ -109,7 +109,7 @@ type queryAskConfig struct {
 
 type retrievalConfig struct {
 	Enabled        bool
-	TmpDir         string
+	TmpDir         string // this is why we need seperate tmp dirs
 	Timeout        time.Duration
 	MaxJobs        int64
 	LocationFilter module.LocationFilterConfig
