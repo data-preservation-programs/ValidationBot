@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	mock4 "validation-bot/role/auditor/mock"
 	mock2 "validation-bot/store/mock"
 	mock3 "validation-bot/task/mock"
 
@@ -31,6 +32,7 @@ func TestAuditor_Start(t *testing.T) {
 	_, _, auditorPeerID := helper.GeneratePeerID(t)
 	mockResultPublisher := &mock2.MockPublisher{}
 	mockPublisherSubscriber := &mock3.MockPublisherSubscriber{}
+	mockRPCClient := &mock4.MockIRPCClient{}
 	inmemoryStore := store.InMemoryStore{
 		Storage: make([][]byte, 0),
 	}
@@ -50,6 +52,7 @@ func TestAuditor_Start(t *testing.T) {
 		time.Second,
 	)
 	assert.NoError(err)
+
 	adt, err := NewAuditor(
 		Config{
 			PeerID:                  auditorPeerID,
@@ -58,6 +61,7 @@ func TestAuditor_Start(t *testing.T) {
 			TaskPublisherSubscriber: mockPublisherSubscriber,
 			Modules:                 map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
 			BiddingWait:             3 * time.Second,
+			RPCClient:               mockRPCClient,
 		},
 	)
 	assert.Nil(err)
@@ -80,6 +84,24 @@ func TestAuditor_Start(t *testing.T) {
 		[]byte(`{"type":"bidding","taskId":"a4d90653-de5d-4ef4-b4dd-4b0818dd73a3","value":100}`),
 		nil,
 	)
+
+	// validationInput := module.ValidationResult{
+	// 	module.ValidationInput{
+	// 		task.Task{
+	// 			Type:         mock.Anything,
+	// 			DefinitionID: uuid.New(),
+	// 			Target:       mock.Anything,
+	// 			Tag:          mock.Anything,
+	// 			TaskID:       uuid.New(),
+	// 		},
+	// 		Input: module.ValidationInputData{},
+	// 	},
+	// 	Result: "",
+	// }
+
+	// mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
+	// Return(validationInput)
+
 	mockResultPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 	mockPublisherSubscriber.On("Publish", mock.Anything, mock.Anything).Return(nil)
 	adt.Start(context.Background())
