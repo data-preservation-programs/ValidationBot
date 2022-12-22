@@ -31,7 +31,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+
 	log3 "github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/ziflex/lecho/v3"
@@ -64,6 +64,7 @@ type taskRemover interface {
 func setConfig(ctx context.Context, configPath string) (*config, error) {
 	log := log3.With().Str("role", "main").Caller().Logger()
 	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
+	retreivalTimeout := 30 * time.Second
 
 	cfg := config{
 		Log: logConfig{
@@ -103,8 +104,9 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
+			RPCTimeout:  retreivalTimeout + 5*time.Second,
 			RPCConfig: rpcClientConfig{
-				Timeout: 5 * time.Minute,
+				Timeout: retreivalTimeout + 5*time.Second,
 				BaseDir: os.TempDir(),
 			},
 		},
@@ -123,7 +125,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			Retrieval: retrievalConfig{
 				Enabled: true,
 				TmpDir:  os.TempDir(),
-				Timeout: 30 * time.Second,
+				Timeout: retreivalTimeout,
 				MaxJobs: int64(1),
 				LocationFilter: module.LocationFilterConfig{
 					Continent: nil,
@@ -790,7 +792,6 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 	err = container.Provide(
 		func(params RPCValidatorParams) (*rpcv.RPCValidator, error) {
-
 			modules := make(map[string]module.AuditorModule)
 			for _, m := range params.Modules {
 				modules[m.Type()] = m
@@ -847,6 +848,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 					Modules:                 modules,
 					BiddingWait:             cfg.Auditor.BiddingWait,
 					RPCClient:               params.RPCClient,
+					RPCTimeout:              cfg.Auditor.RPCTimeout,
 				},
 			)
 		},
@@ -870,6 +872,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 func runValidator(ctx context.Context, configPath string) error {
 	container := dig.New()
+	log := log3.With().Str("role", "rpc-server").Caller().Logger()
 
 	cfg, err := setupDependencies(ctx, container, configPath)
 	if err != nil {
@@ -881,7 +884,10 @@ func runValidator(ctx context.Context, configPath string) error {
 
 		err = container.Invoke(
 			func(validator *rpcv.RPCValidator) {
-				validator.Start(ctx, 0)
+				err := validator.Start(ctx, 0)
+				if err != nil {
+					log.Fatal().Err(err).Msg("cannot start rpc validator")
+				}
 			},
 		)
 		if err != nil {

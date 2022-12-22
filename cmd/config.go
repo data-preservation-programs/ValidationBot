@@ -65,6 +65,7 @@ type auditorConfig struct {
 	ListenAddr  string
 	BiddingWait time.Duration
 	RPCConfig   rpcClientConfig
+	RPCTimeout  time.Duration
 }
 
 type w3sConfig struct {
@@ -109,7 +110,7 @@ type queryAskConfig struct {
 
 type retrievalConfig struct {
 	Enabled        bool
-	TmpDir         string // this is why we need seperate tmp dirs
+	TmpDir         string // this is why we need separate tmp dirs
 	Timeout        time.Duration
 	MaxJobs        int64
 	LocationFilter module.LocationFilterConfig

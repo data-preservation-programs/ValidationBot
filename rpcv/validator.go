@@ -24,7 +24,6 @@ type ValidatorConfig struct {
 }
 
 func NewRPCValidator(config ValidatorConfig) *RPCValidator {
-
 	return &RPCValidator{
 		log:     log.With().Str("role", "rpcv").Caller().Logger(),
 		Modules: config.Modules,
@@ -42,6 +41,7 @@ func (ra *RPCValidator) Validate(input module.ValidationInput, reply *module.Val
 
 	result, err := mod.Validate(ctx, input)
 	if err != nil {
+		//nolint:forbidigo
 		fmt.Printf("Error validating task %s: %s", input.Type, err)
 		return errors.Wrap(err, "failed validating task")
 	}
@@ -73,13 +73,14 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 	}
 
 	listener, _ := net.Listen("tcp", address)
-	addr := listener.Addr().(*net.TCPAddr)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return errors.New("failed type assertion on listener.Addr to *net.TCPAddr")
+	}
 
-	// cleint process reads 5 bytes (port number) from stdout
-	// QUESTION: wont this be from 1024 to 65535?
-	// only need to handle 1 space here?
 	// print port number to stdout
 	// fmt.Printf("%d     ", port)
+	//nolint:forbidigo
 	fmt.Printf("%d\n", addr.Port)
 
 	done := make(chan struct{})
@@ -118,11 +119,13 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 			return errors.Wrap(err, "failed to accept connection")
 		}
 
-		http.Serve(listener, nil)
-		// if err != nil {
-		// ignore error and close? Serve always returns non nil error
-		// return errors.Wrap(err, "failed to serve http")
-		// }
+		//nolint:gosec
+		err := http.Serve(listener, nil)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to serve http")
+			// ignore error and close? Serve always returns non nil error
+			// return errors.Wrap(err, "failed to serve http")
+		}
 		return nil
 	}
 }
