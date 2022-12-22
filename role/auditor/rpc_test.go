@@ -3,8 +3,8 @@ package auditor
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 	"validation-bot/module"
@@ -15,8 +15,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
-
-var serveOnce sync.Once
 
 func TestRPCClient__CallValidate(t *testing.T) {
 	assert := assert.New(t)
@@ -30,10 +28,17 @@ func TestRPCClient__CallValidate(t *testing.T) {
 	type portNumber = int
 	type stdout = string
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+
 	go func() {
-		ctx := context.Background()
-		serveOnce.Do(func() { rpcServer.Start(ctx, 1234) })
+		defer close(done)
+		err := rpcServer.Start(ctx, 1234)
+		assert.NoError(err)
 	}()
+
+	time.Sleep(1 * time.Second)
 
 	rpcClient := NewRPCClient(
 		ClientConfig{
@@ -44,6 +49,7 @@ func TestRPCClient__CallValidate(t *testing.T) {
 	definition, err := module.NewJSONB(`{"hello":"world"}`)
 	assert.NoError(err)
 
+	// TODO cant find echo module
 	input := module.ValidationInput{
 		Task: task.Task{
 			Type:   task.Echo,
@@ -58,21 +64,21 @@ func TestRPCClient__CallValidate(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(result)
 
-	// mockModule := &mockModule{}
-	// rpcClient.On("Validate", mock.Anything, mock.Anything).Return(&module.ValidationResult{}, nil)
-	// rpcClient := NewRPCClient("localhost:1234", mockModule)
-	// result, err := rpcClient.CallValidate(context.Background(), input)
 	assert.NoError(err)
 
 	fmt.Print("result: ", result)
+
+	cancel()
+	<-done
 }
 
-func TestRPCClient_Call(t *testing.T) {
-	rpcClient := NewRPCClient(
-		ClientConfig{
-			BaseDir: "/tmp",
-			Timeout: 30 * time.Second,
-		})
+func TestRPCClient_Call__startsServer(t *testing.T) {
+	rpcClient := NewRPCClient(ClientConfig{
+		BaseDir: "/tmp",
+		Timeout: 2 * time.Minute,
+	})
+
+	ctx := context.Background()
 
 	id := uuid.New()
 	json, err := module.NewJSONB(`{"hello":"world"}`)
@@ -89,6 +95,13 @@ func TestRPCClient_Call(t *testing.T) {
 		Input: json,
 	}
 
-	// TODO mock CallValidate
-	rpcClient.Call(context.Background(), tsk)
+	// mock call
+	cValidate := func(ctx context.Context, stdout io.Reader, tsk module.ValidationInput) (*module.ValidationResult, error) {
+		return &module.ValidationResult{}, nil
+	}
+
+	rpcClient.call(ctx, tsk, cValidate)
+
+	// mockClient.Call(context.Background(), tsk)
+	// rpcClient.On("CallValidate", mock.Anything, mock.Anything).Return(&module.ValidationResult{}, nil)
 }

@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"time"
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -32,7 +31,7 @@ func NewRPCValidator(config ValidatorConfig) *RPCValidator {
 	}
 }
 
-func (ra RPCValidator) Validate(input module.ValidationInput, reply *module.ValidationResult) error {
+func (ra *RPCValidator) Validate(input module.ValidationInput, reply *module.ValidationResult) error {
 	ctx := context.Background()
 	ra.log.Info().Msgf("Received validation request for task %s", input.TaskID)
 
@@ -53,9 +52,9 @@ func (ra RPCValidator) Validate(input module.ValidationInput, reply *module.Vali
 
 type portNumber = int
 
-func (ra RPCValidator) Start(ctx context.Context, forcePort int) error {
-	// TODO: why not pass ra into Register?
+func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 	rpcValidator := new(RPCValidator)
+	rpcValidator.Modules = ra.Modules
 
 	err := rpc.Register(rpcValidator)
 	if err != nil {
@@ -64,40 +63,66 @@ func (ra RPCValidator) Start(ctx context.Context, forcePort int) error {
 
 	rpc.HandleHTTP()
 
-	listener, _ := net.Listen("tcp", ":0")
+	// fmt.Print(addr.String())
+	var address string
+	if forcePort != 0 {
+		// for testing
+		address = fmt.Sprintf("0.0.0.0:%d", forcePort)
+	} else {
+		address = "0.0.0.0:"
+	}
 
+	listener, _ := net.Listen("tcp", address)
 	addr := listener.Addr().(*net.TCPAddr)
 
-	var port portNumber
-	if forcePort == 0 {
-		port = portNumber(addr.Port)
-	} else {
-		// for testing
-		port = portNumber(forcePort)
-	}
-	// addr, ok := listener.Addr().(*net.TCPAddr)
-
-	fmt.Print("testing")
 	// cleint process reads 5 bytes (port number) from stdout
 	// QUESTION: wont this be from 1024 to 65535?
 	// only need to handle 1 space here?
-	// http.Serve will block until the listener is closed
-	// str := fmt.Sprintf("%q", addr.Port)
-	// TODO visit this later
+	// print port number to stdout
+	// fmt.Printf("%d     ", port)
+	fmt.Printf("%d\n", addr.Port)
+
+	done := make(chan struct{})
+	// ensure listener is closed
+	defer close(done)
+
 	go func() {
-		time.Sleep(100 * time.Millisecond)
-		fmt.Printf("%d\n", port)
+		// conn, err := listener.Accept()
+		// close connection
+		// defer conn.Close()
+		// rpc.DefaultServer.Accept(listener)
+
+		if err != nil {
+			log.Error().Err(err).Msg("failed to accept connection")
+			return
+		}
+
+		select {
+		case <-done:
+			listener.Close()
+		case <-ctx.Done():
+			listener.Close()
+		}
 	}()
 
-	// print port number to stdout
-	fmt.Printf("%d     ", port)
+	select {
+	case <-ctx.Done():
+		log.Info().Msgf("shutting down Validator RPC on port: %q", address)
+		return nil
+	default:
+		// err = errors.New(fmt.Sprintf("Cannot start validator RPC on port: %q", addr.Port))
+		// conn, err :=
+		// fmt.Println("conn: ", conn)
 
-	err = http.Serve(listener, nil)
-	if err != nil {
-		return errors.Wrap(err, "failed to serve http")
+		if err != nil {
+			return errors.Wrap(err, "failed to accept connection")
+		}
+
+		http.Serve(listener, nil)
+		// if err != nil {
+		// ignore error and close? Serve always returns non nil error
+		// return errors.Wrap(err, "failed to serve http")
+		// }
+		return nil
 	}
-
-	<-ctx.Done()
-	log.Info().Msgf("shutting down Validator RPC on port: %q", port)
-	return nil
 }
