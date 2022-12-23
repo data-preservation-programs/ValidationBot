@@ -21,6 +21,7 @@ import (
 
 	"validation-bot/helper"
 
+	"github.com/google/uuid"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -85,22 +86,27 @@ func TestAuditor_Start(t *testing.T) {
 		nil,
 	)
 
-	// validationInput := module.ValidationResult{
-	// 	module.ValidationInput{
-	// 		task.Task{
-	// 			Type:         mock.Anything,
-	// 			DefinitionID: uuid.New(),
-	// 			Target:       mock.Anything,
-	// 			Tag:          mock.Anything,
-	// 			TaskID:       uuid.New(),
-	// 		},
-	// 		Input: module.ValidationInputData{},
-	// 	},
-	// 	Result: "",
-	// }
+	definition, err := module.NewJSONB(`{"result":"hello world"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
-	// Return(validationInput)
+	validationResults := module.ValidationResult{
+		ValidationInput: module.ValidationInput{
+			Task: task.Task{
+				Type:         mock.Anything,
+				DefinitionID: uuid.New(),
+				Target:       mock.Anything,
+				Tag:          mock.Anything,
+				TaskID:       uuid.New(),
+			},
+			Input: definition,
+		},
+		Result: definition,
+	}
+
+	mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
+		Return(&validationResults, nil)
 
 	mockResultPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
 	mockPublisherSubscriber.On("Publish", mock.Anything, mock.Anything).Return(nil)
@@ -108,6 +114,8 @@ func TestAuditor_Start(t *testing.T) {
 	time.Sleep(time.Second * 5)
 
 	mockPublisherSubscriber.AssertCalled(t, "Next", mock.Anything)
+	mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
+		Return(&validationResults, nil)
 	mockResultPublisher.AssertCalled(
 		t,
 		"Publish",

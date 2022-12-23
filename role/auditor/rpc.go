@@ -20,11 +20,9 @@ import (
 
 type IRPCClient interface {
 	Call(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error)
-	CallValidate(ctx context.Context, stdout io.Reader, input module.ValidationInput) (*module.ValidationResult, error)
 }
 
 type RPCClient struct {
-	IRPCClient
 	log     zerolog.Logger
 	baseDir string
 	timeout time.Duration
@@ -47,7 +45,7 @@ func (r *RPCClient) Call(ctx context.Context, input module.ValidationInput) (*mo
 	return r.call(ctx, input, r.CallValidate)
 }
 
-// unexported call with callValidate - replace with anon function for testing purposes
+// unexported call with callValidate - replace with anon function for testing purposes.
 func (r *RPCClient) call(
 	ctx context.Context,
 	input module.ValidationInput,
@@ -68,7 +66,8 @@ func (r *RPCClient) call(
 
 	// ${os.Args[0] => name of the current program executing, ie validation_bot binary
 	botPath := path.Join(exePath, os.Args[0])
-	fmt.Println("botPath: ", botPath)
+
+	// fmt.Println("botPath: ", botPath)
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
 	cmd := exec.CommandContext(ctx, botPath, "validation-rpc")
 	stdout, _ := cmd.StdoutPipe()
@@ -83,7 +82,11 @@ func (r *RPCClient) call(
 	defer func() {
 		if r := recover(); r != nil {
 			log.Error().Err(errors.Errorf("%v", r)).Msg("panic")
-			cmd.Process.Kill()
+
+			err = cmd.Process.Kill()
+			if err != nil {
+				log.Error().Err(err).Msg("failed to kill process")
+			}
 		}
 	}()
 
@@ -94,23 +97,34 @@ func (r *RPCClient) call(
 
 	select {
 	case <-ctx.Done():
-		cmd.Process.Kill()
+		err = cmd.Process.Kill()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to kill process")
+		}
 		return nil, errors.New("context cancelled")
 	default:
-		cmd.Process.Kill()
+		err = cmd.Process.Kill()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to kill process")
+		}
 
 		return reply, nil
 	}
 }
 
-func (r *RPCClient) CallValidate(ctx context.Context, stdout io.Reader, input module.ValidationInput) (*module.ValidationResult, error) {
+func (r *RPCClient) CallValidate(
+	ctx context.Context,
+	stdout io.Reader,
+	input module.ValidationInput,
+) (*module.ValidationResult, error) {
 	// listen for rpc server port from stdout
 	scanner := bufio.NewScanner(stdout)
 
 	var port int
 
 	for scanner.Scan() {
-		fmt.Print("scanner text:", scanner.Text())
+		// nolint:forbidigo
+		fmt.Println("scanner text:", scanner.Text())
 		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
 			return nil, errors.Wrap(err, "failed to parse port")
 		} else {
@@ -118,12 +132,14 @@ func (r *RPCClient) CallValidate(ctx context.Context, stdout io.Reader, input mo
 		}
 	}
 
+	// nolint:forbidigo
 	fmt.Printf("port: %d\n", port)
 
 	// TODO retry logic to handle weird port things
 	// wait 100ms for port to be ready with retry backup
+	// fmt.Printf("conn: %s \n", conn)
 	conn := fmt.Sprintf("%s:%d", "0.0.0.0", port)
-	fmt.Printf("conn: %s \n", conn)
+
 	client, err := rpc.DialHTTP("tcp", conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")

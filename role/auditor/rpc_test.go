@@ -16,6 +16,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRPCClient__Call(t *testing.T) {
+	// TODO:
+}
+
 func TestRPCClient__CallValidate(t *testing.T) {
 	assert := assert.New(t)
 	rpcServer := rpcv.NewRPCValidator(

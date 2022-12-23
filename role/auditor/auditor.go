@@ -68,6 +68,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		biddingLock:             sync.RWMutex{},
 		biddingWait:             config.BiddingWait,
 		rpcClient:               config.RPCClient,
+		RPCTimeout:              config.RPCTimeout,
 	}
 
 	return &auditor, nil
@@ -186,7 +187,6 @@ func (a *Auditor) Start(ctx context.Context) {
 				}
 			}()
 		}
-
 	}()
 }
 
