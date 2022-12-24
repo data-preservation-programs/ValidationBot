@@ -33,7 +33,6 @@ type ClientRPC struct {
 	baseDir  string
 	Timeout  time.Duration
 	execPath string
-	Cmd      *exec.Cmd
 }
 
 type ClientConfig struct {
@@ -53,23 +52,16 @@ func NewClientRPC(config ClientConfig) *ClientRPC {
 		baseDir:  config.BaseDir,
 		Timeout:  config.Timeout,
 		execPath: config.ExecPath,
-		Cmd:      nil,
 	}
-}
-
-func (r *ClientRPC) CallServer(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
-	return r.callServer(ctx, input, r.Validate)
 }
 
 func (r *ClientRPC) GetTimeout() time.Duration {
 	return r.Timeout
 }
 
-// unexported callServer - replace with anon function for testing purposes.
-func (r *ClientRPC) callServer(
+func (r *ClientRPC) CallServer(
 	ctx context.Context,
 	input module.ValidationInput,
-	validate func(context.Context, io.Reader, module.ValidationInput) (*module.ValidationResult, error),
 ) (*module.ValidationResult, error) {
 	dir, err := os.MkdirTemp(r.baseDir, "validation_rpc")
 	if err != nil {
@@ -92,14 +84,14 @@ func (r *ClientRPC) callServer(
 	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
-	r.Cmd = exec.CommandContext(ctx, dir, "validation-rpc")
-	r.Cmd.Dir = absdir
-	r.Cmd.Path = r.execPath + "validation_bot"
-	stdout, _ := r.Cmd.StdoutPipe()
+	cmd := exec.CommandContext(ctx, dir, "validation-rpc")
+	cmd.Dir = absdir
+	cmd.Path = r.execPath + "validation_bot"
+	stdout, _ := cmd.StdoutPipe()
 
 	defer stdout.Close()
 
-	err = r.Cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
@@ -108,27 +100,27 @@ func (r *ClientRPC) callServer(
 		if rec := recover(); rec != nil {
 			log.Error().Err(errors.Errorf("%v", rec)).Msg("panic")
 
-			err = r.Cmd.Process.Kill()
+			err = cmd.Process.Kill()
 			if err != nil {
 				log.Error().Err(err).Msg("failed to kill process")
 			}
 		}
 	}()
 
-	reply, err := validate(ctx, stdout, input)
+	reply, err := r.Validate(ctx, stdout, input)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call validate")
 	}
 
 	select {
 	case <-ctx.Done():
-		err = r.Cmd.Process.Kill()
+		err = cmd.Process.Kill()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to kill process")
 		}
 		return nil, errors.New("context cancelled")
 	default:
-		err = r.Cmd.Process.Kill()
+		err = cmd.Process.Kill()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to kill process")
 		}
@@ -142,11 +134,11 @@ func (r *ClientRPC) Validate(
 	stdout io.Reader,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	// listen for rpc server port from stdout
+	// listen for rpc server port from stdout - fmt.Printf("%d\n", addr.Port)
 	scanner := bufio.NewScanner(stdout)
 
 	var port int
-	scans := 1
+	scans := 0
 
 	for scanner.Scan() {
 		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
@@ -162,20 +154,14 @@ func (r *ClientRPC) Validate(
 	}
 
 	// nolint:forbidigo
-	fmt.Printf("port: %d\n", port)
-
-	// TODO retry logic to handle weird port things
-	// wait 100ms for port to be ready with retry backup
+	fmt.Printf("port detected: %d\n", port)
 	conn := fmt.Sprintf("%s:%d", "0.0.0.0", port)
-
 	client, err := rpc.DialHTTP("tcp", conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")
 	}
 
 	defer client.Close()
-
-	var reply module.ValidationResult
 
 	done := make(chan error, 1)
 
@@ -188,6 +174,8 @@ func (r *ClientRPC) Validate(
 		case <-done:
 		}
 	}()
+
+	var reply module.ValidationResult
 
 	err = client.Call("RPCValidator.Validate", input, &reply)
 	if err != nil {
