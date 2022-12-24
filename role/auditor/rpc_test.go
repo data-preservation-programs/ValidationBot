@@ -67,7 +67,7 @@ func TestRPCClient__Validate(t *testing.T) {
 	assert.NoError(err)
 	assert.NotNil(result)
 
-	fmt.Print("result: ", result)
+	fmt.Printf("result: %v\n", result)
 
 	cancel()
 	<-done
@@ -111,9 +111,9 @@ func TestRPCClient_Call__FeatureTest(t *testing.T) {
 	// 	}, nil
 	// }
 
-	result, err := rpcClient.callServer(ctx, tsk, rpcClient.Validate)
-	fmt.Printf("result: %v", result)
-	fmt.Printf("err: %v", err)
+	result, err := rpcClient.CallServer(ctx, tsk)
+	fmt.Printf("result: %v\n", result)
+	fmt.Printf("err: %v\n", err)
 	assert.NoError(t, err)
 	assert.Equal(t, result.Result, json)
 }
