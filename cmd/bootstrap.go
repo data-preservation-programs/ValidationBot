@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"validation-bot/module"
@@ -104,10 +105,20 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
-			RPCTimeout:  retreivalTimeout + 5*time.Second,
-			RPCConfig: rpcClientConfig{
+			ConfigRPC: rpcClientConfig{
 				Timeout: retreivalTimeout + 5*time.Second,
 				BaseDir: os.TempDir(),
+				ExecPath: func() string {
+					wd, err := os.Getwd()
+					if err != nil {
+						panic(err)
+					}
+					pathing, err := filepath.Abs(filepath.Dir(wd))
+					if err != nil {
+						panic(err)
+					}
+					return pathing
+				}(),
 			},
 		},
 		Observer: observerConfig{
@@ -772,10 +783,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	}
 
 	err = container.Provide(
-		func() *auditor.RPCClient {
-			return auditor.NewRPCClient(auditor.ClientConfig{
-				BaseDir: cfg.Auditor.RPCConfig.BaseDir,
-				Timeout: cfg.Auditor.RPCConfig.Timeout,
+		func() *auditor.ClientRPC {
+			return auditor.NewClientRPC(auditor.ClientConfig{
+				BaseDir:  cfg.Auditor.ConfigRPC.BaseDir,
+				Timeout:  cfg.Auditor.ConfigRPC.Timeout,
+				ExecPath: cfg.Auditor.ConfigRPC.ExecPath,
 			})
 		},
 		dig.Name("auditor_rpc_client"),
@@ -817,7 +829,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		TrustManager            *trust.Manager
 		ResultPublisher         store.Publisher
 		TaskPublisherSubscriber task.PublisherSubscriber `name:"auditor_task_publisher_subscriber"`
-		RPCClient               auditor.IRPCClient       `name:"auditor_rpc_client"`
+		ClientRPC               *auditor.ClientRPC       `name:"auditor_rpc_client"`
 	}
 
 	err = container.Provide(
@@ -847,8 +859,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 					TaskPublisherSubscriber: params.TaskPublisherSubscriber,
 					Modules:                 modules,
 					BiddingWait:             cfg.Auditor.BiddingWait,
-					RPCClient:               params.RPCClient,
-					RPCTimeout:              cfg.Auditor.RPCTimeout,
+					ClientRPC:               params.ClientRPC,
 				},
 			)
 		},

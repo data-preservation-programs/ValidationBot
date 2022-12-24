@@ -55,8 +55,9 @@ type dispatcherConfig struct {
 }
 
 type rpcClientConfig struct {
-	BaseDir string
-	Timeout time.Duration
+	BaseDir  string
+	Timeout  time.Duration
+	ExecPath string
 }
 
 type auditorConfig struct {
@@ -64,8 +65,7 @@ type auditorConfig struct {
 	PrivateKey  string
 	ListenAddr  string
 	BiddingWait time.Duration
-	RPCConfig   rpcClientConfig
-	RPCTimeout  time.Duration
+	ConfigRPC   rpcClientConfig
 }
 
 type w3sConfig struct {

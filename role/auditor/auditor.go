@@ -33,8 +33,7 @@ type Auditor struct {
 	bidding                 map[task.DefinitionID]map[peer.ID]uint64
 	biddingLock             sync.RWMutex
 	biddingWait             time.Duration
-	rpcClient               IRPCClient
-	RPCTimeout              time.Duration
+	clientRPC               IClientRPC
 }
 
 type Config struct {
@@ -44,8 +43,7 @@ type Config struct {
 	TaskPublisherSubscriber task.PublisherSubscriber
 	Modules                 map[task.Type]module.AuditorModule
 	BiddingWait             time.Duration
-	RPCClient               IRPCClient
-	RPCTimeout              time.Duration
+	ClientRPC               IClientRPC
 }
 
 type Bidding struct {
@@ -67,8 +65,7 @@ func NewAuditor(config Config) (*Auditor, error) {
 		bidding:                 make(map[task.DefinitionID]map[peer.ID]uint64),
 		biddingLock:             sync.RWMutex{},
 		biddingWait:             config.BiddingWait,
-		rpcClient:               config.RPCClient,
-		RPCTimeout:              config.RPCTimeout,
+		clientRPC:               config.ClientRPC,
 	}
 
 	return &auditor, nil
@@ -150,13 +147,11 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
-				// mod.Validate
 				// test run graphSync.Validate in a loop -- watch memory run away
-				// TODO which timeout?
-				ctx, cancel := context.WithTimeout(ctx, a.RPCTimeout)
+				ctx, cancel := context.WithTimeout(ctx, a.clientRPC.GetTimeout())
 				defer cancel()
 
-				result, err := a.rpcClient.Call(ctx, *input)
+				result, err := a.clientRPC.CallServer(ctx, *input)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Bytes("task", task).Err(err).Msg("validation timed out")
