@@ -63,10 +63,8 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 
 	rpc.HandleHTTP()
 
-	// fmt.Print(addr.String())
 	var address string
 	if forcePort != 0 {
-		// for testing
 		address = fmt.Sprintf("0.0.0.0:%d", forcePort)
 	} else {
 		address = "0.0.0.0:"
@@ -79,7 +77,6 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 	}
 
 	// print port number to stdout
-	// fmt.Printf("%d     ", port)
 	//nolint:forbidigo
 	fmt.Printf("%d\n", addr.Port)
 
@@ -88,11 +85,6 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 	defer close(done)
 
 	go func() {
-		// conn, err := listener.Accept()
-		// close connection
-		// defer conn.Close()
-		// rpc.DefaultServer.Accept(listener)
-
 		if err != nil {
 			log.Error().Err(err).Msg("failed to accept connection")
 			return
@@ -111,21 +103,13 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 		log.Info().Msgf("shutting down Validator RPC on port: %q", address)
 		return nil
 	default:
-		// err = errors.New(fmt.Sprintf("Cannot start validator RPC on port: %q", addr.Port))
-		// conn, err :=
-		// fmt.Println("conn: ", conn)
-
 		if err != nil {
 			return errors.Wrap(err, "failed to accept connection")
 		}
 
-		//nolint:gosec
-		err := http.Serve(listener, nil)
-		if err != nil {
-			log.Error().Err(err).Msg("failed to serve http")
-			// ignore error and close? Serve always returns non nil error
-			// return errors.Wrap(err, "failed to serve http")
-		}
+		// http.Serve always returns non-nil error when closing: ignore
+		_ = http.Serve(listener, nil)
+
 		return nil
 	}
 }

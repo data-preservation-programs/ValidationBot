@@ -33,7 +33,7 @@ func TestAuditor_Start(t *testing.T) {
 	_, _, auditorPeerID := helper.GeneratePeerID(t)
 	mockResultPublisher := &mock2.MockPublisher{}
 	mockPublisherSubscriber := &mock3.MockPublisherSubscriber{}
-	mockRPCClient := &mock4.MockIRPCClient{}
+	mockClientRPC := &mock4.MockRPCClient{Timeout: 35 * time.Second}
 	inmemoryStore := store.InMemoryStore{
 		Storage: make([][]byte, 0),
 	}
@@ -62,7 +62,7 @@ func TestAuditor_Start(t *testing.T) {
 			TaskPublisherSubscriber: mockPublisherSubscriber,
 			Modules:                 map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
 			BiddingWait:             3 * time.Second,
-			RPCClient:               mockRPCClient,
+			ClientRPC:               mockClientRPC,
 		},
 	)
 	assert.Nil(err)
@@ -105,7 +105,7 @@ func TestAuditor_Start(t *testing.T) {
 		Result: definition,
 	}
 
-	mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
+	mockClientRPC.On("CallServer", mock.Anything, mock.Anything, mock.Anything).
 		Return(&validationResults, nil)
 
 	mockResultPublisher.On("Publish", mock.Anything, mock.Anything).Return(nil)
@@ -114,7 +114,7 @@ func TestAuditor_Start(t *testing.T) {
 	time.Sleep(time.Second * 5)
 
 	mockPublisherSubscriber.AssertCalled(t, "Next", mock.Anything)
-	mockRPCClient.On("Call", mock.Anything, mock.Anything, mock.Anything).
+	mockClientRPC.On("Call", mock.Anything, mock.Anything, mock.Anything).
 		Return(&validationResults, nil)
 	mockResultPublisher.AssertCalled(
 		t,
