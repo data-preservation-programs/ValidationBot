@@ -1,3 +1,4 @@
+// nolint:stylecheck
 package mockResultPublisher
 
 import (
@@ -15,7 +16,10 @@ type MockRPCClient struct {
 	Timeout time.Duration
 }
 
-func (m *MockRPCClient) CallServer(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
+func (m *MockRPCClient) CallServer(
+	ctx context.Context,
+	input module.ValidationInput,
+) (*module.ValidationResult, error) {
 	args := m.Called(ctx, input)
 
 	value, ok := args.Get(0).(*module.ValidationResult)
@@ -31,7 +35,11 @@ func (m *MockRPCClient) GetTimeout() time.Duration {
 	return m.Timeout
 }
 
-func (m *MockRPCClient) Validate(ctx context.Context, stdout io.Reader, input module.ValidationInput) (*module.ValidationResult, error) {
+func (m *MockRPCClient) Validate(
+	ctx context.Context,
+	stdout io.Reader,
+	input module.ValidationInput,
+) (*module.ValidationResult, error) {
 	args := m.Called(ctx, stdout, input)
 
 	value, ok := args.Get(0).(*module.ValidationResult)

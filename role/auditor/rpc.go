@@ -42,12 +42,18 @@ type ClientConfig struct {
 	ExecPath string
 }
 
+const (
+	scanPause = time.Millisecond * 200
+	scanLoops = 3
+)
+
 func NewClientRPC(config ClientConfig) *ClientRPC {
 	return &ClientRPC{
 		log:      log.With().Str("role", "rpc.client").Caller().Logger(),
 		baseDir:  config.BaseDir,
 		Timeout:  config.Timeout,
 		execPath: config.ExecPath,
+		Cmd:      nil,
 	}
 }
 
@@ -78,8 +84,12 @@ func (r *ClientRPC) callServer(
 	defer os.RemoveAll(dir)
 
 	absdir, err := filepath.Abs(dir)
-	fmt.Println("Absolute dir", absdir)
-	fmt.Println("exec path", r.execPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get absolute path")
+	}
+
+	r.log.Info().Str("Absolute dir", absdir).Msg("using absolute path to tmp dir")
+	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
 	r.Cmd = exec.CommandContext(ctx, dir, "validation-rpc")
@@ -104,8 +114,6 @@ func (r *ClientRPC) callServer(
 			}
 		}
 	}()
-
-	fmt.Printf("cmd: %v\n", r.Cmd)
 
 	reply, err := validate(ctx, stdout, input)
 	if err != nil {
@@ -143,10 +151,10 @@ func (r *ClientRPC) Validate(
 	for scanner.Scan() {
 		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
 			scans += 1
-			if scans > 3 {
+			if scans > scanLoops {
 				return nil, errors.Wrap(err, "failed to parse port")
 			}
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(scanPause)
 		} else {
 			port = _port
 			break

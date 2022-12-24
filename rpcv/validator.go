@@ -108,6 +108,7 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 		}
 
 		// http.Serve always returns non-nil error when closing: ignore
+		//nolint:gosec
 		_ = http.Serve(listener, nil)
 
 		return nil
