@@ -147,7 +147,6 @@ func (a *Auditor) Start(ctx context.Context) {
 
 				log.Debug().Bytes("task", task).Msg("performing validation")
 
-				// test run graphSync.Validate in a loop -- watch memory run away
 				ctx, cancel := context.WithTimeout(ctx, a.clientRPC.GetTimeout())
 				defer cancel()
 

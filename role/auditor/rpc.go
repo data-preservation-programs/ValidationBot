@@ -68,11 +68,6 @@ func (r *ClientRPC) CallServer(
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
 
-	// err = os.Chmod(dir, 0777)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to change permissions")
-	}
-
 	defer os.RemoveAll(dir)
 
 	absdir, err := filepath.Abs(dir)
@@ -86,9 +81,9 @@ func (r *ClientRPC) CallServer(
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
 	cmd := exec.CommandContext(ctx, dir, "validation-rpc")
 	cmd.Dir = absdir
-	cmd.Path = r.execPath + "validation_bot"
-	stdout, _ := cmd.StdoutPipe()
+	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
 
+	stdout, _ := cmd.StdoutPipe()
 	defer stdout.Close()
 
 	err = cmd.Start()
@@ -177,7 +172,7 @@ func (r *ClientRPC) Validate(
 
 	var reply module.ValidationResult
 
-	err = client.Call("RPCValidator.Validate", input, &reply)
+	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")
 	}

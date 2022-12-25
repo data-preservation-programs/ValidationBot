@@ -33,7 +33,7 @@ func TestAuditor_Start(t *testing.T) {
 	_, _, auditorPeerID := helper.GeneratePeerID(t)
 	mockResultPublisher := &mock2.MockPublisher{}
 	mockPublisherSubscriber := &mock3.MockPublisherSubscriber{}
-	mockClientRPC := &mock4.MockRPCClient{Timeout: 35 * time.Second}
+	mockClientRPC := &mock4.MockRPCClient{Timeout: 15 * time.Second}
 	inmemoryStore := store.InMemoryStore{
 		Storage: make([][]byte, 0),
 	}
