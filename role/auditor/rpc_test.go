@@ -10,7 +10,7 @@ import (
 	"time"
 	"validation-bot/module"
 	"validation-bot/module/echo"
-	"validation-bot/rpcv"
+	"validation-bot/rpcserver"
 	"validation-bot/task"
 
 	"github.com/google/uuid"
@@ -20,8 +20,8 @@ import (
 func TestRPCClient__Validate(t *testing.T) {
 	assert := assert.New(t)
 
-	rpcServer := rpcv.NewRPCValidator(
-		rpcv.ValidatorConfig{
+	rpcServer := rpcserver.NewRPCServer(
+		rpcserver.Config{
 			Modules: map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()},
 		},
 	)
@@ -83,7 +83,7 @@ func TestRPCClient_Call__FeatureTest(t *testing.T) {
 	rpcClient := NewClientRPC(ClientConfig{
 		BaseDir:  "/tmp",
 		Timeout:  2 * time.Minute,
-		ExecPath: pathing + "/../../",
+		ExecPath: fmt.Sprintf("%s/../..", pathing),
 	})
 
 	ctx := context.Background()
@@ -102,14 +102,6 @@ func TestRPCClient_Call__FeatureTest(t *testing.T) {
 		},
 		Input: json,
 	}
-
-	// mock callServer
-	// cValidate := func(ctx context.Context, stdout io.Reader, tsk module.ValidationInput) (*module.ValidationResult, error) {
-	// 	return &module.ValidationResult{
-	// 		ValidationInput: tsk,
-	// 		Result:          json,
-	// 	}, nil
-	// }
 
 	result, err := rpcClient.CallServer(ctx, tsk)
 	fmt.Printf("result: %v\n", result)

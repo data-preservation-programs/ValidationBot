@@ -1,4 +1,4 @@
-package rpcv
+package rpcserver
 
 import (
 	"bytes"
@@ -14,8 +14,8 @@ func TestRpcServer_NewRPCServer(t *testing.T) {
 	assert := assert.New(t)
 	mods := map[task.Type]module.AuditorModule{task.Echo: echo.NewEchoAuditor()}
 
-	validator := NewRPCValidator(ValidatorConfig{Modules: mods})
-	assert.NotNil(validator)
+	rpcServer := NewRPCServer(Config{Modules: mods})
+	assert.NotNil(rpcServer)
 
 	json, err := module.NewJSONB(`{"hello":"world"}`)
 	assert.NoError(err)
@@ -30,7 +30,7 @@ func TestRpcServer_NewRPCServer(t *testing.T) {
 		Input: json,
 	}
 
-	err = validator.Validate(input, &reply)
+	err = rpcServer.Validate(input, &reply)
 	assert.NoError(err)
 	result := bytes.NewBuffer(reply.Result.Bytes).String()
 	assert.Equal("{\"hello\":\"world\"}", result)

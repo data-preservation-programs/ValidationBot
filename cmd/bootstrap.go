@@ -18,7 +18,7 @@ import (
 	"validation-bot/role/dispatcher"
 	"validation-bot/role/observer"
 	"validation-bot/role/trust"
-	"validation-bot/rpcv"
+	"validation-bot/rpcserver"
 	"validation-bot/store"
 	"validation-bot/task"
 
@@ -113,11 +113,11 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 					if err != nil {
 						panic(err)
 					}
-					pathing, err := filepath.Abs(filepath.Dir(wd))
+					absPath, err := filepath.Abs(filepath.Dir(wd))
 					if err != nil {
 						panic(err)
 					}
-					return pathing
+					return absPath
 				}(),
 			},
 		},
@@ -797,20 +797,20 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide rpc client")
 	}
 
-	type RPCValidatorParams struct {
+	type RPCServerParams struct {
 		dig.In
 		Modules []module.AuditorModule `group:"auditor_module"`
 	}
 
 	err = container.Provide(
-		func(params RPCValidatorParams) (*rpcv.RPCValidator, error) {
+		func(params RPCServerParams) (*rpcserver.RPCServer, error) {
 			modules := make(map[string]module.AuditorModule)
 			for _, m := range params.Modules {
 				modules[m.Type()] = m
 			}
 
-			return rpcv.NewRPCValidator(
-				rpcv.ValidatorConfig{
+			return rpcserver.NewRPCServer(
+				rpcserver.Config{
 					Modules: modules,
 				},
 			), nil
@@ -881,7 +881,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	return cfg, nil
 }
 
-func runValidator(ctx context.Context, configPath string) error {
+func runRPCServer(ctx context.Context, configPath string) error {
 	container := dig.New()
 	log := log3.With().Str("role", "rpc-server").Caller().Logger()
 
@@ -894,15 +894,15 @@ func runValidator(ctx context.Context, configPath string) error {
 		log.Info().Msg("starting rpc with module")
 
 		err = container.Invoke(
-			func(validator *rpcv.RPCValidator) {
-				err := validator.Start(ctx, 0)
+			func(rpcServer *rpcserver.RPCServer) {
+				err := rpcServer.Start(ctx, 0)
 				if err != nil {
-					log.Fatal().Err(err).Msg("cannot start rpc validator")
+					log.Fatal().Err(err).Msg("cannot start rpc for validation check")
 				}
 			},
 		)
 		if err != nil {
-			return errors.Wrap(err, "cannot start auditor")
+			return errors.Wrap(err, "cannot start auditor rpc server")
 		}
 		return nil
 	} else {

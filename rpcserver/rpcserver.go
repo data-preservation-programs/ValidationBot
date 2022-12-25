@@ -1,4 +1,4 @@
-package rpcv
+package rpcserver
 
 import (
 	"context"
@@ -14,23 +14,23 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type RPCValidator struct {
+type RPCServer struct {
 	log     zerolog.Logger
 	Modules map[task.Type]module.AuditorModule
 }
 
-type ValidatorConfig struct {
+type Config struct {
 	Modules map[task.Type]module.AuditorModule
 }
 
-func NewRPCValidator(config ValidatorConfig) *RPCValidator {
-	return &RPCValidator{
-		log:     log.With().Str("role", "rpcv").Caller().Logger(),
+func NewRPCServer(config Config) *RPCServer {
+	return &RPCServer{
+		log:     log.With().Str("role", "rpcserver").Caller().Logger(),
 		Modules: config.Modules,
 	}
 }
 
-func (ra *RPCValidator) Validate(input module.ValidationInput, reply *module.ValidationResult) error {
+func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.ValidationResult) error {
 	ctx := context.Background()
 	ra.log.Info().Msgf("Received validation request for task %s", input.TaskID)
 
@@ -52,11 +52,11 @@ func (ra *RPCValidator) Validate(input module.ValidationInput, reply *module.Val
 
 type portNumber = int
 
-func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
-	rpcValidator := new(RPCValidator)
-	rpcValidator.Modules = ra.Modules
+func (ra *RPCServer) Start(ctx context.Context, forcePort int) error {
+	rpcServer := new(RPCServer)
+	rpcServer.Modules = ra.Modules
 
-	err := rpc.Register(rpcValidator)
+	err := rpc.Register(rpcServer)
 	if err != nil {
 		return errors.Wrap(err, "failed to register rpc auditor")
 	}
@@ -76,12 +76,11 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 		return errors.New("failed type assertion on listener.Addr to *net.TCPAddr")
 	}
 
-	// print port number to stdout
+	// print port number to stdout so ClientRPC can read it
 	//nolint:forbidigo
 	fmt.Printf("%d\n", addr.Port)
 
 	done := make(chan struct{})
-	// ensure listener is closed
 	defer close(done)
 
 	go func() {
@@ -100,15 +99,15 @@ func (ra *RPCValidator) Start(ctx context.Context, forcePort int) error {
 
 	select {
 	case <-ctx.Done():
-		log.Info().Msgf("shutting down Validator RPC on port: %q", address)
+		log.Info().Msgf("shutting down Validator RPC Server on port: %q", address)
 		return nil
 	default:
 		if err != nil {
 			return errors.Wrap(err, "failed to accept connection")
 		}
 
+		// nolint:gosec
 		// http.Serve always returns non-nil error when closing: ignore
-		//nolint:gosec
 		_ = http.Serve(listener, nil)
 
 		return nil

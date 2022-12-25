@@ -49,7 +49,7 @@ func main() {
 			},
 			{
 				Name:  "validation-rpc",
-				Usage: "start running the rpcv server",
+				Usage: "start running the rpc server",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "config",
@@ -60,7 +60,7 @@ func main() {
 					},
 				},
 				Action: func(c *cli.Context) error {
-					return runValidator(c.Context, configPath)
+					return runRPCServer(c.Context, configPath)
 				},
 			},
 			{
