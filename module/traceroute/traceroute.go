@@ -175,11 +175,8 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bo
 
 	err = json.Unmarshal(outputStr, &output)
 	if err != nil {
-		return nil, errors.Wrapf(
-			err,
-			"failed to unmarshal traceroute output: %s",
-			strings.Replace(string(outputStr), "\n", "", -1),
-		)
+		errStr := strings.ReplaceAll(string(outputStr), "\n", "")
+		return nil, errors.Wrapf(err, "failed to unmarshal traceroute output: %s", errStr)
 	}
 
 	return output.Hops, nil
