@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"validation-bot/task"
 
@@ -174,7 +175,11 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bo
 
 	err = json.Unmarshal(outputStr, &output)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to unmarshal traceroute output: %s", string(outputStr))
+		return nil, errors.Wrapf(
+			err,
+			"failed to unmarshal traceroute output: %s",
+			strings.Replace(string(outputStr), "\n", "", -1),
+		)
 	}
 
 	return output.Hops, nil
