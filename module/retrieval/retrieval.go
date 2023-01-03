@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgtype"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
@@ -264,6 +265,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	lastStatus := ResultStatus("skipped")
 	lastErrorMessage := ""
 
+	var jsonb pgtype.JSONB
+
 	switch {
 	case minerInfoResult.ErrorCode != "":
 		lastStatus = ResultStatus(minerInfoResult.ErrorCode)
@@ -358,28 +361,38 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 					break
 				}
+
+				resultContent := Result{
+					Status:                lastStatus,
+					ErrorMessage:          lastErrorMessage,
+					TotalBytesDownloaded:  totalBytes,
+					MaxAverageSpeedPerSec: maxAvgSpeed,
+					MinTimeToFirstByte:    minTTFB,
+					Results:               results,
+				}
+
+				jsonb, err = module.NewJSONB(resultContent)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to marshal GraphSync result")
+				}
 			case Bitswap:
-				// TODO: implement Bitswap
-				retriever, cleanup, err := q.bitswap.Build()
+				b, cleanup, err := q.bitswap.Build(ctx, minerInfoResult)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to build Bitswap retriever")
+					cleanup()
+					continue
+				}
+
+				cleanup()
+				results, err := b.Retrieve(ctx, dataCid)
 
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
 		}
-	}
-
-	result := Result{
-		Status:                lastStatus,
-		ErrorMessage:          lastErrorMessage,
-		TotalBytesDownloaded:  totalBytes,
-		MaxAverageSpeedPerSec: maxAvgSpeed,
-		MinTimeToFirstByte:    minTTFB,
-		Results:               results,
-	}
-
-	jsonb, err := module.NewJSONB(result)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal result")
 	}
 
 	return &module.ValidationResult{

@@ -1,10 +1,28 @@
 package retrieval
 
 import (
+	"context"
 	"time"
+
+	"github.com/filecoin-project/go-address"
+	"github.com/ipfs/go-cid"
 )
 
 type Protocol string
+
+type Retriever interface {
+	Retrieve(
+		parent context.Context,
+		minerAddress address.Address,
+		dataCid cid.Cid,
+		timeout time.Duration,
+	) (*ResultContent, error)
+}
+
+// TODO make generic for bitswap and graphsync?
+type RetrieverBuilder interface {
+	Build() (Retriever, Cleanup, error)
+}
 
 const (
 	Bitswap                  Protocol     = "Bitswap"
@@ -44,4 +62,26 @@ type Result struct {
 	MaxAverageSpeedPerSec float64                    `json:"maxAverageSpeedPerSec"`
 	MinTimeToFirstByte    time.Duration              `json:"minTimeToFirstByte"`
 	Results               map[Protocol]ResultContent `json:"results"`
+}
+
+type TimeEventPair struct {
+	Timestamp time.Time `json:"timestamp"`
+	Code      string    `json:"code"`
+	Message   string    `json:"message"`
+	Received  uint64    `json:"received"`
+}
+
+type CalculatedStats struct {
+	Events             []TimeEventPair `json:"retrievalEvents,omitempty"`
+	BytesDownloaded    uint64          `json:"bytesDownloaded,omitempty"`
+	AverageSpeedPerSec float64         `json:"averageSpeedPerSec,omitempty"`
+	TimeElapsed        time.Duration   `json:"timeElapsed,omitempty"`
+	TimeToFirstByte    time.Duration   `json:"timeToFirstByte,omitempty"`
+}
+
+type ResultContent struct {
+	Status       ResultStatus `json:"status"`
+	ErrorMessage string       `json:"errorMessage,omitempty"`
+	Protocol     Protocol     `json:"protocol"`
+	CalculatedStats
 }
