@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	BITSWAP_PROTOCOL = "/fil/retrieval/1.0.0"
-	CONTENT_ROUTING  = "dht"
+	BITSWAP_PROTOCOL = "/ipfs/bitswap/1.2.0"
 )
 
 type BitswapRetriever struct {
@@ -34,8 +33,8 @@ type BitswapRetriever struct {
 	libp2p  host.Host
 	tmpDir  string
 	bitswap *bitswap.Bitswap
-	bs      blockstore.Blockstore
-	routing routing2.ContentRouting
+	bs      blockstore.Blockstore   // TODO not necessary?
+	routing routing2.ContentRouting // TODO not necessary?
 }
 
 type BitswapRetrieverBuilder struct{}
@@ -54,7 +53,12 @@ func initDHT(ctx context.Context, libp2p host.Host) (routing2.ContentRouting, er
 }
 
 func (b *BitswapRetrieverBuilder) Build(ctx context.Context, dir string) (*BitswapRetriever, Cleanup, error) {
+	directory := dir // TODO - possibly not necessary but just in case
+
 	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
+	}
 
 	kdht, err := initDHT(ctx, libp2p)
 	if err != nil {
@@ -62,14 +66,15 @@ func (b *BitswapRetrieverBuilder) Build(ctx context.Context, dir string) (*Bitsw
 	}
 
 	//nolint:gomnd
-	bstoreDatastore, err := flatfs.CreateOrOpen(filepath.Join(dir, "blockstore"), flatfs.NextToLast(3), false)
+	bstoreDatastore, err := flatfs.CreateOrOpen(filepath.Join(directory, "blockstore"), flatfs.NextToLast(3), false)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create or open flatfs blockstore")
 	}
 
 	bstore := blockstore.NewBlockstoreNoPrefix(bstoreDatastore)
 
-	datastore, err := levelds.NewDatastore(filepath.Join(dir, "datastore"), nil)
+	// TODO potentially not necessary?
+	datastore, err := levelds.NewDatastore(filepath.Join(directory, "datastore"), nil)
 	if err != nil {
 		bstoreDatastore.Close()
 		return nil, nil, errors.Wrap(err, "cannot create leveldb datastore")
@@ -94,9 +99,9 @@ func (b *BitswapRetrieverBuilder) Build(ctx context.Context, dir string) (*Bitsw
 			libp2p:  libp2p,
 			bs:      bstore,
 			bitswap: bitswap,
-			tmpDir:  dir,
+			tmpDir:  directory,
 		}, func() {
-			os.RemoveAll(dir)
+			os.RemoveAll(directory)
 			libp2p.Close()
 			bitswap.Close()
 			closer()
@@ -112,7 +117,6 @@ func (b *BitswapRetriever) Retreive(ctx context.Context, input module.Validation
 	defer cancel()
 
 	block, err := b.bitswap.GetBlock(queryContext, cid)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get block")
 	}

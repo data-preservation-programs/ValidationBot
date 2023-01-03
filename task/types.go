@@ -12,7 +12,7 @@ type Type = string
 const (
 	Echo          Type = "echo"
 	QueryAsk      Type = "query_ask"
-	Retrieval     Type = "retrieval"
+	Retrieval     Type = "retrieval" // TODO split out for different retrieval types?
 	Traceroute    Type = "traceroute"
 	IndexProvider Type = "index_provider"
 )

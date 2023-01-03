@@ -83,32 +83,10 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 	}, nil
 }
 
-type TimeEventPair struct {
-	Timestamp time.Time `json:"timestamp"`
-	Code      string    `json:"code"`
-	Message   string    `json:"message"`
-	Received  uint64    `json:"received"`
-}
-
 type retrievalStats struct {
 	log    zerolog.Logger
 	events []TimeEventPair
 	done   chan interface{}
-}
-
-type CalculatedStats struct {
-	Events             []TimeEventPair `json:"retrievalEvents,omitempty"`
-	BytesDownloaded    uint64          `json:"bytesDownloaded,omitempty"`
-	AverageSpeedPerSec float64         `json:"averageSpeedPerSec,omitempty"`
-	TimeElapsed        time.Duration   `json:"timeElapsed,omitempty"`
-	TimeToFirstByte    time.Duration   `json:"timeToFirstByte,omitempty"`
-}
-
-type ResultContent struct {
-	Status       ResultStatus `json:"status"`
-	ErrorMessage string       `json:"errorMessage,omitempty"`
-	Protocol     Protocol     `json:"protocol"`
-	CalculatedStats
 }
 
 func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {

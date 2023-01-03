@@ -360,7 +360,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				}
 			case Bitswap:
 				// TODO: implement Bitswap
-				retriever, cleanup, err := q.bitswap.Build()
+				// retriever, cleanup, err := q.bitswap.Build()
 
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
