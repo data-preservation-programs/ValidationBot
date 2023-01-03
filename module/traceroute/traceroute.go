@@ -60,6 +60,7 @@ func (q Auditor) Validate(ctx context.Context, input module.ValidationInput) (*m
 		return nil, errors.Wrap(err, "failed to marshal result")
 	}
 
+	// TODO ipld here?
 	return &module.ValidationResult{
 		ValidationInput: input,
 		Result:          jsonb,

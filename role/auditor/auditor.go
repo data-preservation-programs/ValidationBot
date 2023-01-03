@@ -76,6 +76,7 @@ func (a *Auditor) Start(ctx context.Context) {
 		for {
 			log.Debug().Msg("waiting for task")
 
+			// TODO ipld here?
 			from, task, err := a.taskPublisherSubscriber.Next(ctx)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to get next task")

@@ -37,6 +37,7 @@ func NewEchoAuditor() Auditor {
 func (e Auditor) Validate(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error) {
 	e.log.Info().Bytes("definition", input.Input.Bytes).Msgf("performing validation")
 
+	// TODO ipld here?
 	output := module.ValidationResult{
 		ValidationInput: input,
 		Result:          input.Input,

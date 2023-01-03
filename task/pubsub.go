@@ -118,6 +118,7 @@ func (l Libp2pPublisherSubscriber) Next(ctx context.Context) (*peer.ID, Payload,
 
 func (l Libp2pPublisherSubscriber) Publish(ctx context.Context, task Payload) error {
 	l.log.Debug().Bytes("task", task).Caller().Msg("publishing message")
+	// TODO ipld here?
 	return errors.Wrap(l.topic.Publish(ctx, task), "cannot publish message")
 }
 

@@ -79,6 +79,7 @@ func ModifyPeers(
 			trustedPeers = append(trustedPeers, peerID)
 		}
 
+		// TODO ipld here?
 		operation := Operation{
 			Type:         operationType,
 			Peer:         "",

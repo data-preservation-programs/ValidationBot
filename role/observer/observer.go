@@ -141,6 +141,7 @@ func (o *Observer) storeResult(
 		previousCid = &p
 	}
 
+	// TODO ipld here?
 	toStore := module.ValidationResultModel{
 		ValidationInput: result.ValidationInput,
 		Result:          result.Result,
