@@ -7,6 +7,7 @@ import (
 type Protocol string
 
 const (
+	Bitswap                  Protocol     = "Bitswap"
 	GraphSync                Protocol     = "GraphSync"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"

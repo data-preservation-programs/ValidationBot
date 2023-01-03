@@ -150,6 +150,7 @@ type Auditor struct {
 	log              zerolog.Logger
 	timeout          time.Duration
 	graphsync        GraphSyncRetrieverBuilder
+	bitswap          BitswapRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
 	locationResolver module.IPInfoResolver
@@ -281,24 +282,41 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				dataCidOrLabel = input.Label
 			}
 
+			if dataCidOrLabel == "" {
+				q.log.Error().Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("dataCid or label is required")
+				continue
+			}
+
+			dataCid, err := cid.Decode(dataCidOrLabel)
+			if err != nil {
+				q.log.Error().Err(err).Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("failed to decode data cid for GraphSync protocol")
+				continue
+			}
+
 			switch protocol {
 			case GraphSync:
-				if dataCidOrLabel == "" {
-					q.log.Error().Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("dataCid or label is required")
-					continue
-				}
+				// if dataCidOrLabel == "" {
+				// 	q.log.Error().Str("provider", provider).Str(
+				// 		"protocol",
+				// 		string(protocol),
+				// 	).Msg("dataCid or label is required")
+				// 	continue
+				// }
 
-				dataCid, err := cid.Decode(dataCidOrLabel)
-				if err != nil {
-					q.log.Error().Err(err).Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("failed to decode data cid for GraphSync protocol")
-					continue
-				}
+				// dataCid, err := cid.Decode(dataCidOrLabel)
+				// if err != nil {
+				// 	q.log.Error().Err(err).Str("provider", provider).Str(
+				// 		"protocol",
+				// 		string(protocol),
+				// 	).Msg("failed to decode data cid for GraphSync protocol")
+				// 	continue
+				// }
 
 				retriever, cleanup, err := q.graphsync.Build()
 				if err != nil {
@@ -340,6 +358,10 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 					break
 				}
+			case Bitswap:
+				// TODO: implement Bitswap
+				retriever, cleanup, err := q.bitswap.Build()
+
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
