@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -193,7 +194,7 @@ func (s W3StoreSubscriber) downloadChainedEntries(ctx context.Context, fromExclu
 		}
 
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to download car")
+			return nil, errors.Wrap(err, fmt.Sprintf("failed to download car for CID link %s", url))
 		}
 
 		if got.StatusCode() != http.StatusOK {
