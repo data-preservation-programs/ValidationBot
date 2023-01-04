@@ -41,6 +41,8 @@ The trust manager connects the Auditor and Observer and shares "trusted peers" s
 
 The Observer subscribes to Web3Storage and pushes data from the **validation results** back to the **RDS database**. It does this one CID at a time starting with the **last CID seen in the RDS database**, comparing that to the **latest CID recieved by querying the ipns for the miner**. The observer will then iterate the difference between last seen CID to the latest Root CID, downloading all entries in between and syncing them to the RDS database.
 
+# Architecture
+
 <iframe width="768" height="432" src="https://miro.com/app/embed/uXjVP2sy1Nk=/?pres=1&frameId=3458764542072189907&embedId=928848589575" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 
 
