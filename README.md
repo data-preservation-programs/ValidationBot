@@ -65,4 +65,8 @@ struct Definition {
 
 # Validation Bot CLI commands
 
-# Validation Bot Configuration
+TODO
+
+# Configuration
+
+TODO
