@@ -43,9 +43,7 @@ The Observer subscribes to Web3Storage and pushes data from the **validation res
 
 # Architecture
 
-<iframe width="768" height="432" src="https://miro.com/app/embed/uXjVP2sy1Nk=/?pres=1&frameId=3458764542072189907&embedId=928848589575" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
-
-
+<iframe width="768" height="432" src="https://miro.com/app/live-embed/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 
 # Tasks API
 
