@@ -18,7 +18,10 @@ TODO
 
 # Architecture
 
-![validation-bot-architechture](/assets/validation-bot-architecture.jpg)
+<p align="center">
+  <img src="assets/validation-bot-architecture.jpg" style="height: 700px;"/>
+</p>
+
 [miro board](https://miro.com/app/board/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102)
 
 ## Dispatcher
