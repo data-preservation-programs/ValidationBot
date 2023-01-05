@@ -1,6 +1,6 @@
 # Validation Bot
 
-This repo contains the validation bot that is used to collect metrics against storage providers in order to determine a base meassurement for quality of that miner.
+This repo contains the validation bot that is used to collect metrics to determine a base meassurement for quality of miners on the Filecoin network.
 
 # Current Project Status
 
@@ -15,6 +15,10 @@ TODO
 TODO
 
 # Design
+
+# Architecture
+
+<iframe width="768" height="432" src="https://miro.com/app/live-embed/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 
 ## Dispatcher
 
@@ -40,10 +44,6 @@ The trust manager connects the Auditor and Observer and shares "trusted peers" s
 ## Observer
 
 The Observer subscribes to Web3Storage and pushes data from the **validation results** back to the **RDS database**. It does this one CID at a time starting with the **last CID seen in the RDS database**, comparing that to the **latest CID recieved by querying the ipns for the miner**. The observer will then iterate the difference between last seen CID to the latest Root CID, downloading all entries in between and syncing them to the RDS database.
-
-# Architecture
-
-<iframe width="768" height="432" src="https://miro.com/app/live-embed/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
 
 # Tasks API
 
