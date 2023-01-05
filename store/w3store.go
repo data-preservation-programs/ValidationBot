@@ -73,7 +73,7 @@ func (s W3StoreSubscriber) Head(ctx context.Context, peerID peer.ID) (*Entry, er
 
 	latest, err := getLastRecord(ctx, log, s.client, peerStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get last record")
+		return nil, errors.Wrap(err, "failed to get last record (Head)")
 	}
 
 	if latest == nil {
@@ -121,7 +121,7 @@ func (s W3StoreSubscriber) Subscribe(ctx context.Context, peerID peer.ID, last *
 		for {
 			latest, err := getLastRecord(ctx, log, s.client, peerStr)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to get last record")
+				log.Error().Err(err).Msg("failed to get last record (Subscribe)")
 				time.Sleep(s.retryInterval)
 				continue
 			}
@@ -338,7 +338,7 @@ func (s *W3StorePublisher) initialize(ctx context.Context) error {
 
 	entry, err := getLastRecord(ctx, s.log, s.client, peerStr)
 	if err != nil {
-		return errors.Wrap(err, "failed to get last record")
+		return errors.Wrap(err, "failed to get last record (init)")
 	}
 
 	if entry != nil {
@@ -346,7 +346,7 @@ func (s *W3StorePublisher) initialize(ctx context.Context) error {
 
 		lastCid, err := cid.Decode(string(entry.Value))
 		if err != nil {
-			return errors.Wrap(err, "failed to get last cid")
+			return errors.Wrap(err, "failed to get last cid (init)")
 		}
 
 		s.lastCid = &lastCid
