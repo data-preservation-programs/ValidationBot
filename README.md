@@ -18,7 +18,8 @@ TODO
 
 # Architecture
 
-<iframe width="768" height="432" src="https://miro.com/app/live-embed/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+![validation-bot-architechture](/assets/validation-bot-architecture.jpg)
+[miro board](https://miro.com/app/board/uXjVP2sy1Nk=/?moveToViewport=-1582,-828,2605,2080&embedId=755140909102)
 
 ## Dispatcher
 
@@ -26,7 +27,7 @@ The dispatcher is responsible for querying the RDS database for all tasks that a
 
 ## Auditor
 
-The Auditor is responsible for running **validation modules** on the various tasks that it recieves and publishes the **validation results** to Web3Storage. A module's purpose is to test different aspects of a storage provider. These modules include:
+The Auditor is responsible for running **validation modules** on the various tasks that it recieves, publishing the **validation results** to Web3Storage. A module's purpose is to test different aspects of a storage provider. These modules include:
 
 * Echo - returns the task input to test its received.
 * Trace Route - tests approximate geolocation of miner.
@@ -39,7 +40,7 @@ The Auditor is responsible for running **validation modules** on the various tas
 
 ## Trust Manager
 
-The trust manager connects the Auditor and Observer and shares "trusted peers" so that the Observers and Auditors can coordinate against the Database and Web3Storage to resolve difference between a miners database CID and the miner's Web3Storage Root CID.
+The trust manager connects the Auditor and Observer, sharing "trusted peers" so that the Observers and Auditors can coordinate against the Database and Web3Storage to resolve difference between a miners database CID and the miner's Web3Storage Root CID.
 
 ## Observer
 
