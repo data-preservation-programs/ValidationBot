@@ -8,6 +8,7 @@ import (
 	"validation-bot/task"
 
 	"github.com/ipfs/go-cid"
+	"github.com/ipld/go-ipld-prime/node/basicnode"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -57,7 +58,12 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, cid cid.Cid) (*ResultCo
 		<-queryContext.Done()
 	}()
 
-	block, err := b.bitswap.Get(cid)
+	t0 := time.Now()
+	root, err := b.bitswap.Get(cid)
+	elapsed := time.Duration(time.Since(t0).Milliseconds())
+
+	basicnode.Prototype.Bytes.NewBuilder().AssignBytes(root)
+
 	if err != nil {
 		return &ResultContent{
 			Status:       RetrieveFailure,
@@ -73,15 +79,15 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, cid cid.Cid) (*ResultCo
 			Events: []TimeEventPair{
 				TimeEventPair{
 					Timestamp: time.Now(),
-					Code:      "start",
+					Code:      string(Success),
 					Message:   "start",
-					Received:  block,
+					Received:  root,
 				},
 			},
-			BytesDownloaded:    len(block),
-			AverageSpeedPerSec: 0,
-			TimeElapsed:        0,
-			TimeToFirstByte:    0,
+			BytesDownloaded:    len(uint64(root)),
+			AverageSpeedPerSec: float64(len(root)) / elapsed.Seconds(),
+			TimeElapsed:        elapsed,
+			TimeToFirstByte:    elapsed,
 		},
 	}, nil
 }
