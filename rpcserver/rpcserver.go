@@ -6,9 +6,11 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
 	"validation-bot/module"
 	"validation-bot/task"
 
+	cborutil "github.com/filecoin-project/go-cbor-util"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -76,9 +78,13 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort int) error {
 		return errors.New("failed type assertion on listener.Addr to *net.TCPAddr")
 	}
 
+	if err := cborutil.WriteCborRPC(os.Stdout, addr.Port); err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+
 	// print port number to stdout so ClientRPC can read it
 	//nolint:forbidigo
-	fmt.Printf("%d\n", addr.Port)
+	// fmt.Printf("%d\n", addr.Port)
 
 	done := make(chan struct{})
 	defer close(done)
