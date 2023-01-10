@@ -48,6 +48,22 @@ func main() {
 				},
 			},
 			{
+				Name:  "validation-rpc",
+				Usage: "start running the rpc server",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						Usage:       "path to the config file",
+						Value:       "./config.yaml",
+						Destination: &configPath,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					return runRPCServer(c.Context, configPath)
+				},
+			},
+			{
 				Name:  "generate-peer",
 				Usage: "generate a new peer id with private key",
 				Action: func(c *cli.Context) error {

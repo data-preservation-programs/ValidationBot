@@ -18,6 +18,7 @@
 .vscode
 .idea
 validation_bot
+validation_rpc
 *.yaml
 build
 GeoLite2-City*
