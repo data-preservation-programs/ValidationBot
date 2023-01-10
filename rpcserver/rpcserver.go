@@ -41,6 +41,7 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 		return errors.New(fmt.Sprintf("no module found for task type %s", input.Type))
 	}
 
+	// TODO come back and do cborutl.Write/ReadCborRPC?
 	result, err := mod.Validate(ctx, input)
 	if err != nil {
 		//nolint:forbidigo
@@ -78,6 +79,7 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort int) error {
 		return errors.New("failed type assertion on listener.Addr to *net.TCPAddr")
 	}
 
+	// print port number to stdout so ClientRPC can read it
 	if err := cborutil.WriteCborRPC(os.Stdout, addr.Port); err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}

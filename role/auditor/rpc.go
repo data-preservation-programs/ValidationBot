@@ -136,6 +136,7 @@ func (r *ClientRPC) Validate(
 	scans := 0
 
 	for scanner.Scan() {
+		// TODO come back and do cborutl.ReadCborRPC?
 		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
 			scans += 1
 			if scans > scanLoops {
