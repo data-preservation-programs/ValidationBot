@@ -26,14 +26,13 @@ const (
 )
 
 type traverser struct {
-	session bswap.Session
-	events  []TimeEventPair
 }
 type BitswapRetriever struct {
-	log       zerolog.Logger
-	libp2p    host.Host
-	tmpDir    string
-	traverser *traverser
+	log     zerolog.Logger
+	libp2p  host.Host
+	tmpDir  string
+	bitswap *bswap.Session
+	events  []TimeEventPair
 }
 
 type BitswapRetrieverBuilder struct{}
@@ -44,14 +43,12 @@ func (b *BitswapRetrieverBuilder) Build(ctx context.Context, minerInfo *module.M
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	session := *bswap.New(libp2p, *minerInfo.PeerID)
+	session := bswap.New(libp2p, *minerInfo.PeerID)
 
 	return &BitswapRetriever{
-			log:    log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			libp2p: libp2p,
-			traverser: &traverser{
-				session: session,
-			},
+			log:     log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
+			libp2p:  libp2p,
+			bitswap: session,
 		}, func() {
 			libp2p.Close()
 		}, nil
@@ -70,8 +67,9 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid) (*ResultC
 	}()
 
 	t0 := time.Now()
-	node, err := b.traverser.Get(ctx, root)
+	node, err := b.Get(queryContext, root)
 	if err != nil {
+		// TODO revisit this; err already has event
 		return &ResultContent{
 			Status:       RetrieveFailure,
 			ErrorMessage: errors.Wrap(err, "failed to get block via Bitswap").Error(),
@@ -81,29 +79,28 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid) (*ResultC
 
 	ttfb := time.Duration(time.Since(t0).Milliseconds())
 
-	stat, err := node.Stat()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get node stat")
-	}
+	Walk(ctx, root, b)
+	// stat, err := node.Stat()
+	// if err != nil {
+	// 	b.events = append(
+	// 		b.events,
+	// 		TimeEventPair{
+	// 			Timestamp: time.Now(),
+	// 			Code:      string(RetrieveFailure),
+	// 			Message:   fmt.Sprintf("failed to get node stat: %s - %s", root, err),
+	// 		},
+	// 	)
+	// 	return nil, errors.Wrap(err, "failed to get node stat")
+	// }
 
-	b.traverser.events = append(
-		b.traverser.events,
-		TimeEventPair{
-			Timestamp: time.Now(),
-			Code:      string(Success),
-			Message:   fmt.Sprintf("got block %s", stat.Hash),
-			Received:  uint64(len(node.RawData())),
-		},
-	)
-
-	b.traverser.GetMany(ctx, node)
+	// b.GetMany(ctx, node)
 	elapsed := time.Duration(time.Since(t0).Milliseconds())
 
 	return &ResultContent{
 		Status:   "success",
 		Protocol: Bitswap,
 		CalculatedStats: CalculatedStats{
-			Events:             b.traverser.events,
+			Events:             b.events,
 			BytesDownloaded:    uint64(stat.CumulativeSize),
 			AverageSpeedPerSec: float64(stat.CumulativeSize) / elapsed.Seconds(),
 			TimeElapsed:        elapsed,
@@ -112,14 +109,14 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid) (*ResultC
 	}, nil
 }
 
-func (t *traverser) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
-	bytes, err := t.session.Get(ctx, root)
+func (b *BitswapRetriever) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
+	bytes, err := b.bitswap.Get(root)
 
 	if err != nil {
 		msg := fmt.Sprintf("failed to get block %s - %s", root, err)
 
-		t.events = append(
-			t.events,
+		b.events = append(
+			b.events,
 			TimeEventPair{
 				Timestamp: time.Now(),
 				Code:      string(RetrieveFailure),
@@ -133,8 +130,8 @@ func (t *traverser) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
 
 	stat, err := node.Stat()
 	if err != nil {
-		t.events = append(
-			t.events,
+		b.events = append(
+			b.events,
 			TimeEventPair{
 				Timestamp: time.Now(),
 				Code:      string(RetrieveFailure),
@@ -144,8 +141,8 @@ func (t *traverser) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
 		return nil, errors.Wrap(err, "failed to get node stat")
 	}
 
-	t.events = append(
-		t.events,
+	b.events = append(
+		b.events,
 		TimeEventPair{
 			Timestamp: time.Now(),
 			Code:      string(Success),
@@ -157,7 +154,7 @@ func (t *traverser) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
 	return node, nil
 }
 
-func (t *traverser) GetMany(ctx context.Context, nd ipld.Node) error {
+func (b *BitswapRetriever) GetMany(ctx context.Context, nd ipld.Node) error {
 	var cids []cid.Cid
 	for _, link := range nd.Links() {
 		cids = append(cids, link.Cid)
