@@ -2,29 +2,38 @@ package retrieval
 
 import (
 	"context"
+	"fmt"
 	"time"
 	"validation-bot/module"
 	"validation-bot/role"
 	"validation-bot/task"
 
-	"github.com/ipfs/go-cid"
-	"github.com/ipld/go-ipld-prime/node/basicnode"
+	cid "github.com/ipfs/go-cid"
+	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-merkledag"
+
+	// ipld "github.com/ipld/go-ipld-prime"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
 	bswap "github.com/willscott/go-selfish-bitswap-client"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
 	BITSWAP_PROTOCOL = "/ipfs/bitswap/1.2.0"
 )
 
+type traverser struct {
+	session bswap.Session
+	events  []TimeEventPair
+}
 type BitswapRetriever struct {
-	log     zerolog.Logger
-	libp2p  host.Host
-	tmpDir  string
-	bitswap *bswap.Session
+	log       zerolog.Logger
+	libp2p    host.Host
+	tmpDir    string
+	traverser *traverser
 }
 
 type BitswapRetrieverBuilder struct{}
@@ -35,12 +44,14 @@ func (b *BitswapRetrieverBuilder) Build(ctx context.Context, minerInfo *module.M
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	session := bswap.New(libp2p, *minerInfo.PeerID)
+	session := *bswap.New(libp2p, *minerInfo.PeerID)
 
 	return &BitswapRetriever{
-			log:     log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			libp2p:  libp2p,
-			bitswap: session,
+			log:    log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
+			libp2p: libp2p,
+			traverser: &traverser{
+				session: session,
+			},
 		}, func() {
 			libp2p.Close()
 		}, nil
@@ -50,7 +61,7 @@ func (b *BitswapRetriever) Type() task.Type {
 	return task.Retrieval
 }
 
-func (b *BitswapRetriever) Retrieve(ctx context.Context, cid cid.Cid) (*ResultContent, error) {
+func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid) (*ResultContent, error) {
 	queryContext, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
@@ -59,11 +70,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, cid cid.Cid) (*ResultCo
 	}()
 
 	t0 := time.Now()
-	root, err := b.bitswap.Get(cid)
-	elapsed := time.Duration(time.Since(t0).Milliseconds())
-
-	basicnode.Prototype.Bytes.NewBuilder().AssignBytes(root)
-
+	node, err := b.traverser.Get(ctx, root)
 	if err != nil {
 		return &ResultContent{
 			Status:       RetrieveFailure,
@@ -72,22 +79,137 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, cid cid.Cid) (*ResultCo
 		}, nil
 	}
 
+	ttfb := time.Duration(time.Since(t0).Milliseconds())
+
+	stat, err := node.Stat()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get node stat")
+	}
+
+	b.traverser.events = append(
+		b.traverser.events,
+		TimeEventPair{
+			Timestamp: time.Now(),
+			Code:      string(Success),
+			Message:   fmt.Sprintf("got block %s", stat.Hash),
+			Received:  uint64(len(node.RawData())),
+		},
+	)
+
+	b.traverser.GetMany(ctx, node)
+	elapsed := time.Duration(time.Since(t0).Milliseconds())
+
 	return &ResultContent{
 		Status:   "success",
 		Protocol: Bitswap,
 		CalculatedStats: CalculatedStats{
-			Events: []TimeEventPair{
-				TimeEventPair{
-					Timestamp: time.Now(),
-					Code:      string(Success),
-					Message:   "start",
-					Received:  root,
-				},
-			},
-			BytesDownloaded:    len(uint64(root)),
-			AverageSpeedPerSec: float64(len(root)) / elapsed.Seconds(),
+			Events:             b.traverser.events,
+			BytesDownloaded:    uint64(stat.CumulativeSize),
+			AverageSpeedPerSec: float64(stat.CumulativeSize) / elapsed.Seconds(),
 			TimeElapsed:        elapsed,
-			TimeToFirstByte:    elapsed,
+			TimeToFirstByte:    ttfb,
 		},
 	}, nil
+}
+
+func (t *traverser) Get(ctx context.Context, root cid.Cid) (ipld.Node, error) {
+	bytes, err := t.session.Get(ctx, root)
+
+	if err != nil {
+		msg := fmt.Sprintf("failed to get block %s - %s", root, err)
+
+		t.events = append(
+			t.events,
+			TimeEventPair{
+				Timestamp: time.Now(),
+				Code:      string(RetrieveFailure),
+				Message:   msg,
+			},
+		)
+		return nil, errors.Wrap(err, msg)
+	}
+
+	node := merkledag.NewRawNode(bytes)
+
+	stat, err := node.Stat()
+	if err != nil {
+		t.events = append(
+			t.events,
+			TimeEventPair{
+				Timestamp: time.Now(),
+				Code:      string(RetrieveFailure),
+				Message:   fmt.Sprintf("failed to get node stat: %s - %s", root, err),
+			},
+		)
+		return nil, errors.Wrap(err, "failed to get node stat")
+	}
+
+	t.events = append(
+		t.events,
+		TimeEventPair{
+			Timestamp: time.Now(),
+			Code:      string(Success),
+			Message:   fmt.Sprintf("got block %s", stat.Hash),
+			Received:  uint64(stat.DataSize),
+		},
+	)
+
+	return node, nil
+}
+
+func (t *traverser) GetMany(ctx context.Context, nd ipld.Node) error {
+	var cids []cid.Cid
+	for _, link := range nd.Links() {
+		cids = append(cids, link.Cid)
+	}
+
+	// traverse cids and call Get on each
+	eg, ctx := errgroup.WithContext(ctx)
+
+	for _, cid := range cids {
+		cid := cid
+		eg.Go(func() error {
+			_, err := t.Get(ctx, cid)
+			return err
+		})
+	}
+
+	return nil
+}
+
+func Walk(ctx context.Context, c cid.Cid, ng ipld.NodeGetter) error {
+	nd, err := ng.Get(ctx, c)
+	if err != nil {
+		return err
+	}
+
+	return walk(ctx, nd, ng)
+}
+
+func walk(ctx context.Context, nd ipld.Node, ng ipld.NodeGetter) error {
+	var cids []cid.Cid
+	for _, link := range nd.Links() {
+		cids = append(cids, link.Cid)
+	}
+
+	eg, gctx := errgroup.WithContext(ctx)
+
+	ndChan := ng.GetMany(ctx, cids)
+	for ndOpt := range ndChan {
+		if ndOpt.Err != nil {
+			return ndOpt.Err
+		}
+
+		nd := ndOpt.Node
+		eg.Go(func() error {
+			return walk(gctx, nd, ng)
+		})
+	}
+
+	err := eg.Wait()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

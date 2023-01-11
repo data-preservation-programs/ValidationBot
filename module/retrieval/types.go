@@ -3,7 +3,7 @@ package retrieval
 import (
 	"context"
 	"time"
-
+	"github.com/rs/zerolog"
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 )
@@ -84,4 +84,10 @@ type ResultContent struct {
 	ErrorMessage string       `json:"errorMessage,omitempty"`
 	Protocol     Protocol     `json:"protocol"`
 	CalculatedStats
+}
+
+type RetrievalStats interface {
+	log    zerolog.Logger
+	events []TimeEventPair
+	done   chan interface{}
 }
