@@ -27,6 +27,10 @@ type RetrieverBuilder interface {
 const (
 	Bitswap                  Protocol     = "Bitswap"
 	GraphSync                Protocol     = "GraphSync"
+	BlockParseException      ResultStatus = "block_parse_exception"
+	BlockReceived            ResultStatus = "block_received"
+	RetrieveComplete         ResultStatus = "retreive_complete"
+	FirstByteReceived        ResultStatus = "first_byte_received"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"
 	QueryResponseUnavailable ResultStatus = "query_response_unavailable"

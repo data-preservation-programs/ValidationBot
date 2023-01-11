@@ -251,6 +251,11 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	results := make(map[Protocol]ResultContent)
+	/*
+	 * TODO:
+	 * totalBytes is total bytes for all protocols?
+	 *   or is this just supposed to be ResultContent.TotalBytes?
+	 */
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
@@ -298,35 +303,20 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				q.log.Error().Err(err).Str("provider", provider).Str(
 					"protocol",
 					string(protocol),
-				).Msg("failed to decode data cid for GraphSync protocol")
+				).Msg("failed to decode data cid")
 				continue
 			}
 
 			switch protocol {
 			case GraphSync:
-				// if dataCidOrLabel == "" {
-				// 	q.log.Error().Str("provider", provider).Str(
-				// 		"protocol",
-				// 		string(protocol),
-				// 	).Msg("dataCid or label is required")
-				// 	continue
-				// }
-
-				// dataCid, err := cid.Decode(dataCidOrLabel)
-				// if err != nil {
-				// 	q.log.Error().Err(err).Str("provider", provider).Str(
-				// 		"protocol",
-				// 		string(protocol),
-				// 	).Msg("failed to decode data cid for GraphSync protocol")
-				// 	continue
-				// }
-
 				retriever, cleanup, err := q.graphsync.Build()
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
 						string(protocol),
 					).Msg("failed to build GraphSync retriever")
+					// TODO: is this missing from here?
+					cleanup()
 					continue
 				}
 
@@ -386,9 +376,43 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					continue
 				}
 
-				cleanup()
-				results, err := b.Retrieve(ctx, dataCid)
+				result, err := b.Retrieve(ctx, dataCid, q.timeout)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to retrieve data with Bitswap protocol")
+					cleanup()
+					continue
+				}
 
+				cleanup()
+				result.Protocol = Bitswap
+				results[Bitswap] = *result
+				lastStatus = result.Status
+				lastErrorMessage = result.ErrorMessage
+
+				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
+					minTTFB = result.TimeToFirstByte
+				}
+
+				if result.AverageSpeedPerSec > maxAvgSpeed {
+					maxAvgSpeed = result.AverageSpeedPerSec
+				}
+
+				resultContent := Result{
+					Status:                lastStatus,
+					ErrorMessage:          lastErrorMessage,
+					TotalBytesDownloaded:  totalBytes,
+					MaxAverageSpeedPerSec: maxAvgSpeed,
+					MinTimeToFirstByte:    minTTFB,
+					Results:               results,
+				}
+
+				jsonb, err = module.NewJSONB(resultContent)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to marshal Bitswap result")
+				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}

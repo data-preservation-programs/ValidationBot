@@ -83,10 +83,13 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 	}, nil
 }
 
+// TODO: Generalize this across retreival?
 type retrievalStats struct {
-	log    zerolog.Logger
-	events []TimeEventPair
-	done   chan interface{}
+	log           zerolog.Logger
+	events        []TimeEventPair
+	done          chan interface{}
+	firstByteCode string
+	protocol      Protocol
 }
 
 func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {
@@ -109,7 +112,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 			bytesDownloaded = event.Received
 		}
 
-		if event.Code == string(rep.FirstByteCode) {
+		if event.Code == r.firstByteCode {
 			firstByteTime = event.Timestamp
 		}
 	}
@@ -136,7 +139,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 			TimeElapsed:        lastEventTime.Sub(startTime),
 			TimeToFirstByte:    timeToFirstByte,
 		},
-		Protocol: GraphSync,
+		Protocol: r.protocol,
 	}
 }
 
@@ -282,9 +285,11 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	}
 
 	stats := &retrievalStats{
-		log:    g.log,
-		done:   make(chan interface{}),
-		events: make([]TimeEventPair, 0),
+		log:           g.log,
+		done:          make(chan interface{}),
+		events:        make([]TimeEventPair, 0),
+		firstByteCode: string(rep.FirstByteCode),
+		protocol:      GraphSync,
 	}
 	filClient.SubscribeToRetrievalEvents(stats)
 	filClient.SubscribeToDataTransferEvents(stats.OnDataTransferEvent)
