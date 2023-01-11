@@ -25,8 +25,6 @@ const (
 	BITSWAP_PROTOCOL = "/ipfs/bitswap/1.2.0"
 )
 
-type traverser struct {
-}
 type BitswapRetriever struct {
 	log     zerolog.Logger
 	libp2p  host.Host
