@@ -67,6 +67,8 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 
 	err = os.MkdirAll(tmpdir, 0o755)
 	if err != nil {
+		// TODO: is this needed here? when would MkdirAll fail? or would it not?
+		libp2p.Close()
 		return nil, nil, errors.Wrap(err, "failed to create temp folder")
 	}
 
@@ -83,32 +85,13 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 	}, nil
 }
 
-type TimeEventPair struct {
-	Timestamp time.Time `json:"timestamp"`
-	Code      string    `json:"code"`
-	Message   string    `json:"message"`
-	Received  uint64    `json:"received"`
-}
-
+// TODO: Generalize this across retreival?
 type retrievalStats struct {
-	log    zerolog.Logger
-	events []TimeEventPair
-	done   chan interface{}
-}
-
-type CalculatedStats struct {
-	Events             []TimeEventPair `json:"retrievalEvents,omitempty"`
-	BytesDownloaded    uint64          `json:"bytesDownloaded,omitempty"`
-	AverageSpeedPerSec float64         `json:"averageSpeedPerSec,omitempty"`
-	TimeElapsed        time.Duration   `json:"timeElapsed,omitempty"`
-	TimeToFirstByte    time.Duration   `json:"timeToFirstByte,omitempty"`
-}
-
-type ResultContent struct {
-	Status       ResultStatus `json:"status"`
-	ErrorMessage string       `json:"errorMessage,omitempty"`
-	Protocol     Protocol     `json:"protocol"`
-	CalculatedStats
+	log           zerolog.Logger
+	events        []TimeEventPair
+	done          chan interface{}
+	firstByteCode string
+	protocol      Protocol
 }
 
 func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage string) *ResultContent {
@@ -131,7 +114,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 			bytesDownloaded = event.Received
 		}
 
-		if event.Code == string(rep.FirstByteCode) {
+		if event.Code == r.firstByteCode {
 			firstByteTime = event.Timestamp
 		}
 	}
@@ -158,7 +141,7 @@ func (r *retrievalStats) NewResultContent(status ResultStatus, errorMessage stri
 			TimeElapsed:        lastEventTime.Sub(startTime),
 			TimeToFirstByte:    timeToFirstByte,
 		},
-		Protocol: GraphSync,
+		Protocol: r.protocol,
 	}
 }
 
@@ -304,9 +287,11 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 	}
 
 	stats := &retrievalStats{
-		log:    g.log,
-		done:   make(chan interface{}),
-		events: make([]TimeEventPair, 0),
+		log:           g.log,
+		done:          make(chan interface{}),
+		events:        make([]TimeEventPair, 0),
+		firstByteCode: string(rep.FirstByteCode),
+		protocol:      GraphSync,
 	}
 	filClient.SubscribeToRetrievalEvents(stats)
 	filClient.SubscribeToDataTransferEvents(stats.OnDataTransferEvent)

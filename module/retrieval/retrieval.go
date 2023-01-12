@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgtype"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
@@ -150,6 +151,7 @@ type Auditor struct {
 	log              zerolog.Logger
 	timeout          time.Duration
 	graphsync        GraphSyncRetrieverBuilder
+	bitswap          BitswapRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
 	locationResolver module.IPInfoResolver
@@ -249,6 +251,11 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	results := make(map[Protocol]ResultContent)
+	/*
+	 * TODO:
+	 * totalBytes is total bytes for all protocols?
+	 *   or is this just supposed to be ResultContent.TotalBytes?
+	 */
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
@@ -262,6 +269,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 	lastStatus := ResultStatus("skipped")
 	lastErrorMessage := ""
+
+	var jsonb pgtype.JSONB
 
 	switch {
 	case minerInfoResult.ErrorCode != "":
@@ -281,31 +290,33 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				dataCidOrLabel = input.Label
 			}
 
+			if dataCidOrLabel == "" {
+				q.log.Error().Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("dataCid or label is required")
+				continue
+			}
+
+			dataCid, err := cid.Decode(dataCidOrLabel)
+			if err != nil {
+				q.log.Error().Err(err).Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("failed to decode data cid")
+				continue
+			}
+
 			switch protocol {
 			case GraphSync:
-				if dataCidOrLabel == "" {
-					q.log.Error().Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("dataCid or label is required")
-					continue
-				}
-
-				dataCid, err := cid.Decode(dataCidOrLabel)
-				if err != nil {
-					q.log.Error().Err(err).Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("failed to decode data cid for GraphSync protocol")
-					continue
-				}
-
 				retriever, cleanup, err := q.graphsync.Build()
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
 						string(protocol),
 					).Msg("failed to build GraphSync retriever")
+					// TODO: is this missing from here?
+					cleanup()
 					continue
 				}
 
@@ -340,24 +351,72 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 					break
 				}
+
+				resultContent := Result{
+					Status:                lastStatus,
+					ErrorMessage:          lastErrorMessage,
+					TotalBytesDownloaded:  totalBytes,
+					MaxAverageSpeedPerSec: maxAvgSpeed,
+					MinTimeToFirstByte:    minTTFB,
+					Results:               results,
+				}
+
+				jsonb, err = module.NewJSONB(resultContent)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to marshal GraphSync result")
+				}
+			case Bitswap:
+				b, cleanup, err := q.bitswap.Build(ctx, minerInfoResult)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to build Bitswap retriever")
+					cleanup()
+					continue
+				}
+
+				result, err := b.Retrieve(ctx, dataCid, q.timeout)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to retrieve data with Bitswap protocol")
+					cleanup()
+					continue
+				}
+
+				cleanup()
+				result.Protocol = Bitswap
+				results[GraphSync] = *result
+				lastStatus = result.Status
+				lastErrorMessage = result.ErrorMessage
+
+				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
+					minTTFB = result.TimeToFirstByte
+				}
+
+				if result.AverageSpeedPerSec > maxAvgSpeed {
+					maxAvgSpeed = result.AverageSpeedPerSec
+				}
+
+				resultContent := Result{
+					Status:                lastStatus,
+					ErrorMessage:          lastErrorMessage,
+					TotalBytesDownloaded:  totalBytes,
+					MaxAverageSpeedPerSec: maxAvgSpeed,
+					MinTimeToFirstByte:    minTTFB,
+					Results:               results,
+				}
+
+				jsonb, err = module.NewJSONB(resultContent)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to marshal Bitswap result")
+				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
 		}
-	}
-
-	result := Result{
-		Status:                lastStatus,
-		ErrorMessage:          lastErrorMessage,
-		TotalBytesDownloaded:  totalBytes,
-		MaxAverageSpeedPerSec: maxAvgSpeed,
-		MinTimeToFirstByte:    minTTFB,
-		Results:               results,
-	}
-
-	jsonb, err := module.NewJSONB(result)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal result")
 	}
 
 	return &module.ValidationResult{
