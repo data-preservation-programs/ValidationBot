@@ -67,6 +67,8 @@ func (g GraphSyncRetrieverBuilderImpl) Build() (GraphSyncRetriever, Cleanup, err
 
 	err = os.MkdirAll(tmpdir, 0o755)
 	if err != nil {
+		// TODO: is this needed here? when would MkdirAll fail? or would it not?
+		libp2p.Close()
 		return nil, nil, errors.Wrap(err, "failed to create temp folder")
 	}
 
@@ -296,6 +298,8 @@ func (g GraphSyncRetrieverImpl) Retrieve(
 
 	filClient, cleanup, err := g.newFilClient(ctx, g.tmpDir)
 	if err != nil {
+		// TODO do we need this?
+		cleanup()
 		return nil, errors.Wrap(err, "cannot create filClient")
 	}
 
