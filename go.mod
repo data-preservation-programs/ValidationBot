@@ -3,7 +3,7 @@ module validation-bot
 go 1.18
 
 require (
-	github.com/application-research/filclient v0.3.0
+	github.com/application-research/filclient v0.4.0
 	github.com/bcicen/jstream v1.0.1
 	github.com/filecoin-project/go-address v1.0.0
 	github.com/filecoin-project/go-cbor-util v0.0.1
