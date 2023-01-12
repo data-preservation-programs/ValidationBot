@@ -3,7 +3,6 @@ package retrieval
 import (
 	"context"
 	"time"
-	"github.com/rs/zerolog"
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
 )
@@ -27,6 +26,9 @@ type RetrieverBuilder interface {
 const (
 	Bitswap                  Protocol     = "Bitswap"
 	GraphSync                Protocol     = "GraphSync"
+	BlockParseException      ResultStatus = "block_parse_exception"
+	BlockReceived            ResultStatus = "block_received"
+	FirstByteReceived        ResultStatus = "first_byte_received"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"
 	QueryResponseUnavailable ResultStatus = "query_response_unavailable"
@@ -84,10 +86,4 @@ type ResultContent struct {
 	ErrorMessage string       `json:"errorMessage,omitempty"`
 	Protocol     Protocol     `json:"protocol"`
 	CalculatedStats
-}
-
-type RetrievalStats interface {
-	log    zerolog.Logger
-	events []TimeEventPair
-	done   chan interface{}
 }
