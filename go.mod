@@ -3,7 +3,6 @@ module validation-bot
 go 1.18
 
 require (
-	github.com/application-research/filclient v0.4.0
 	github.com/bcicen/jstream v1.0.1
 	github.com/filecoin-project/go-address v1.0.0
 	github.com/filecoin-project/go-cbor-util v0.0.1
@@ -59,6 +58,7 @@ require (
 	github.com/Stebalien/go-bitfield v0.0.1 // indirect
 	github.com/akavel/rsrc v0.8.0 // indirect
 	github.com/alexbrainman/goissue34681 v0.0.0-20191006012335-3fc7a47baff5 // indirect
+	github.com/application-research/filclient v0.3.0
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
