@@ -29,7 +29,7 @@ const (
 	GraphSync                Protocol     = "GraphSync"
 	BlockParseException      ResultStatus = "block_parse_exception"
 	BlockReceived            ResultStatus = "block_received"
-	RetrieveComplete         ResultStatus = "retreive_complete"
+	RetrieveComplete         ResultStatus = "retrieve_complete"
 	FirstByteReceived        ResultStatus = "first_byte_received"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"

@@ -89,6 +89,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/application-research/filclient v0.3.0 h1:dlUj6Sovt+Ia1BCOAL3RWpRPGTLBp3fJDksxcFkM2cE=
 github.com/application-research/filclient v0.3.0/go.mod h1:DQWX5A748TqK1TQdIRVM2vgzW+472Gr0bJ/4TpgTXaY=
+github.com/application-research/filclient v0.4.0 h1:oX2pw8g44e4daMMsHWfQVUDuTOLf0nMHJyJShcrcSqM=
+github.com/application-research/filclient v0.4.0/go.mod h1:YPio+DyJ/7a0W3kVs6kjP52PmxNw/HQoMAnGEh0qSCU=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=
@@ -264,8 +266,8 @@ github.com/filecoin-project/dagstore v0.5.5/go.mod h1:ijFKvL6hJPlprPN8HT4LL7LoVx
 github.com/filecoin-project/go-address v0.0.3/go.mod h1:jr8JxKsYx+lQlQZmF5i2U0Z+cGQ59wMIps/8YW/lDj8=
 github.com/filecoin-project/go-address v0.0.5/go.mod h1:jr8JxKsYx+lQlQZmF5i2U0Z+cGQ59wMIps/8YW/lDj8=
 github.com/filecoin-project/go-address v0.0.6/go.mod h1:7B0/5DA13n6nHkB8bbGx1gWzG/dbTsZ0fgOJVGsM3TE=
-github.com/filecoin-project/go-address v1.0.0 h1:IrexI0kpADLaPP+CdmU3CVAUqnW/FQC0KTmz4lVKiFU=
-github.com/filecoin-project/go-address v1.0.0/go.mod h1:5t3z6qPmIADZBtuE9EIzi0EwzcRy2nVhpo0I/c1r0OA=
+github.com/filecoin-project/go-address v1.1.0 h1:ofdtUtEsNxkIxkDw67ecSmvtzaVSdcea4boAmLbnHfE=
+github.com/filecoin-project/go-address v1.1.0/go.mod h1:5t3z6qPmIADZBtuE9EIzi0EwzcRy2nVhpo0I/c1r0OA=
 github.com/filecoin-project/go-amt-ipld/v2 v2.1.0 h1:t6qDiuGYYngDqaLc2ZUvdtAg4UNxPeOYaXhBWSNsVaM=
 github.com/filecoin-project/go-amt-ipld/v2 v2.1.0/go.mod h1:nfFPoGyX0CU9SkXX8EoCcSuHN1XcbN0c6KBh7yvP5fs=
 github.com/filecoin-project/go-amt-ipld/v3 v3.0.0/go.mod h1:Qa95YNAbtoVCTSVtX38aAC1ptBnJfPma1R/zZsKmx4o=
@@ -751,8 +753,8 @@ github.com/ipfs/go-merkledag v0.2.4/go.mod h1:SQiXrtSts3KGNmgOzMICy5c0POOpUNQLvB
 github.com/ipfs/go-merkledag v0.3.2/go.mod h1:fvkZNNZixVW6cKSZ/JfLlON5OlgTXNdRLz0p6QG/I2M=
 github.com/ipfs/go-merkledag v0.5.1/go.mod h1:cLMZXx8J08idkp5+id62iVftUQV+HlYJ3PIhDfZsjA4=
 github.com/ipfs/go-merkledag v0.6.0/go.mod h1:9HSEwRd5sV+lbykiYP+2NC/3o6MZbKNaa4hfNcH5iH0=
-github.com/ipfs/go-merkledag v0.8.0 h1:ZUda+sh/MGZX4Z13DE/VQT4GmKWm4H95Nje4qcL/yPE=
-github.com/ipfs/go-merkledag v0.8.0/go.mod h1:/RmH1kOs7qDMNtGKPh4d/UErNMVuAMpPS/tP57a3aoY=
+github.com/ipfs/go-merkledag v0.8.1 h1:N3yrqSre/ffvdwtHL4MXy0n7XH+VzN8DlzDrJySPa94=
+github.com/ipfs/go-merkledag v0.8.1/go.mod h1:uYUlWE34GhbcTjGuUDEcdPzsEtOdnOupL64NgSRjmWI=
 github.com/ipfs/go-metrics-interface v0.0.1 h1:j+cpbjYvu4R8zbleSs36gvB7jR+wsL2fGD6n0jO4kdg=
 github.com/ipfs/go-metrics-interface v0.0.1/go.mod h1:6s6euYU4zowdslK0GKHmqaIZ3j/b/tL7HTWtJ4VPgWY=
 github.com/ipfs/go-path v0.3.0 h1:tkjga3MtpXyM5v+3EbRvOHEoo+frwi4oumw5K+KYWyA=
@@ -1744,8 +1746,9 @@ github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
 github.com/ziflex/lecho/v3 v3.1.0 h1:65bSzSc0yw7EEhi44lMnkOI877ZzbE7tGDWfYCQXZwI=
 github.com/ziflex/lecho/v3 v3.1.0/go.mod h1:dwQ6xCAKmSBHhwZ6XmiAiDptD7iklVkW7xQYGUncX0Q=
-github.com/zondax/hid v0.9.0 h1:eiT3P6vNxAEVxXMw66eZUAAnU2zD33JBkfG/EnfAKl8=
 github.com/zondax/hid v0.9.0/go.mod h1:l5wttcP0jwtdLjqjMMWFVEE7d1zO0jvSPA9OPZxWpEM=
+github.com/zondax/hid v0.9.1 h1:gQe66rtmyZ8VeGFcOpbuH3r7erYtNEAezCAYu8LdkJo=
+github.com/zondax/hid v0.9.1/go.mod h1:l5wttcP0jwtdLjqjMMWFVEE7d1zO0jvSPA9OPZxWpEM=
 github.com/zondax/ledger-go v0.12.1 h1:hYRcyznPRJp+5mzF2sazTLP2nGvGjYDD2VzhHhFomLU=
 github.com/zondax/ledger-go v0.12.1/go.mod h1:KatxXrVDzgWwbssUWsF5+cOJHXPvzQ09YSlzGNuhOEo=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=

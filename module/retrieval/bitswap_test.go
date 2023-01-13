@@ -57,6 +57,8 @@ func TestBitswapRetreiverImpl_NewResultContent(t *testing.T) {
 	assert.NotNil(retriever)
 }
 
+// timeout
+// mock
 func TestBitswapRetreiverImpl_Get(t *testing.T) {
 	assert := assert.New(t)
 	retriever, _, closer := getRetriever(t)

@@ -164,6 +164,7 @@ func (Auditor) Type() task.Type {
 func NewAuditor(
 	lotusAPI api.Gateway,
 	graphsync GraphSyncRetrieverBuilder,
+	bitswap BitswapRetrieverBuilder,
 	timeout time.Duration,
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
@@ -174,6 +175,7 @@ func NewAuditor(
 		log:              log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
 		timeout:          timeout,
 		graphsync:        graphsync,
+		bitswap:          bitswap,
 		sem:              semaphore.NewWeighted(maxJobs),
 		locationFilter:   locationFilter,
 		locationResolver: locationResolver,
@@ -226,7 +228,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 	return true, nil
 }
 
-//nolint:cyclop
+//nolint:cyclop,funlen
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -267,6 +269,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to get miner info")
 	}
 
+	// nolint:ineffassign
 	lastStatus := ResultStatus("skipped")
 	lastErrorMessage := ""
 
@@ -337,6 +340,10 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				results[GraphSync] = *result
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
+
+				// TODO:
+				// this logic can potentially be ranged over at the end of the switch statmenet
+				// after all results have been collected?
 				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
@@ -349,24 +356,9 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 				if result.Status == Success {
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
-					break
-				}
-
-				resultContent := Result{
-					Status:                lastStatus,
-					ErrorMessage:          lastErrorMessage,
-					TotalBytesDownloaded:  totalBytes,
-					MaxAverageSpeedPerSec: maxAvgSpeed,
-					MinTimeToFirstByte:    minTTFB,
-					Results:               results,
-				}
-
-				jsonb, err = module.NewJSONB(resultContent)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to marshal GraphSync result")
 				}
 			case Bitswap:
-				b, cleanup, err := q.bitswap.Build(ctx, minerInfoResult)
+				bitswap, cleanup, err := q.bitswap.Build(ctx, minerInfoResult)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
@@ -376,7 +368,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					continue
 				}
 
-				result, err := b.Retrieve(ctx, dataCid, q.timeout)
+				result, err := bitswap.Retrieve(ctx, dataCid, q.timeout)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
@@ -391,6 +383,10 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				results[Bitswap] = *result
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
+				// TODO:
+				// everything from here on logic can potentially be ranged over at
+				// the end of the switch statmenet after all results have been collected?
+				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
 					minTTFB = result.TimeToFirstByte
@@ -400,23 +396,27 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					maxAvgSpeed = result.AverageSpeedPerSec
 				}
 
-				resultContent := Result{
-					Status:                lastStatus,
-					ErrorMessage:          lastErrorMessage,
-					TotalBytesDownloaded:  totalBytes,
-					MaxAverageSpeedPerSec: maxAvgSpeed,
-					MinTimeToFirstByte:    minTTFB,
-					Results:               results,
-				}
-
-				jsonb, err = module.NewJSONB(resultContent)
-				if err != nil {
-					return nil, errors.Wrap(err, "failed to marshal Bitswap result")
+				if result.Status == Success {
+					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
 		}
+	}
+
+	resultContent := Result{
+		Status:                lastStatus,
+		ErrorMessage:          lastErrorMessage,
+		TotalBytesDownloaded:  totalBytes,
+		MaxAverageSpeedPerSec: maxAvgSpeed,
+		MinTimeToFirstByte:    minTTFB,
+		Results:               results,
+	}
+
+	jsonb, err = module.NewJSONB(resultContent)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to marshal GraphSync result")
 	}
 
 	return &module.ValidationResult{

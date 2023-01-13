@@ -74,7 +74,6 @@ linters-settings:
       - c echo.Context
       - c *cli.Context
       - c cid.Cid
-      - t Time
   paralleltest:
     ignore-missing: true
   funlen:

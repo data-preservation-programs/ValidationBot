@@ -43,12 +43,21 @@ type bitswapAdapter struct {
 func (bi bitswapAdapter) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	bytes, err := bi.session.Get(c)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "cannot get block from adapter")
 	}
 
-	return blocks.NewBlockWithCid(bytes, c)
+	block, err := blocks.NewBlockWithCid(bytes, c)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create block from adapter")
+	}
+
+	return block, nil
 }
 
+// github.com/willscott/go-selfish-bitswap-client has a hardcoded timeout for Session
+// of 10 seconds. Because of this, need to make a new session for each block if we want
+// the Dump process to take longer than 10 seconds in total. This is accomplished by using
+// the bitswapCallback function to create a new session for each block.
 func (b *BitswapRetrieverBuilder) Build(
 	ctx context.Context,
 	minerInfo *module.MinerInfoResult,
@@ -64,6 +73,7 @@ func (b *BitswapRetrieverBuilder) Build(
 		}
 	}
 
+	// nolint:exhaustruct
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
 			bitswap:      bitswapCallback,
@@ -87,27 +97,29 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 	car := gocar.NewSelectiveCar(ctx, b, []gocar.Dag{dag}, gocar.TraverseLinksOnlyOnce())
 
 	onNewCarBlock := func(block gocar.Block) error {
-		t := time.Now()
+		time := time.Now()
 
 		if len(b.events) == 0 {
 			b.events = append(b.events,
 				TimeEventPair{
-					Timestamp: t,
+					Timestamp: time,
 					Code:      string(FirstByteReceived),
 					Message:   fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID),
 					Received:  block.Size,
 				},
 			)
-		} else {
-			b.events = append(b.events,
-				TimeEventPair{
-					Timestamp: t,
-					Code:      string(BlockReceived),
-					Message:   fmt.Sprintf("bytes received: [Block %s]", block.BlockCID),
-					Received:  block.Size,
-				},
-			)
+
+			return nil
 		}
+
+		b.events = append(b.events,
+			TimeEventPair{
+				Timestamp: time,
+				Code:      string(BlockReceived),
+				Message:   fmt.Sprintf("bytes received: [Block %s]", block.BlockCID),
+				Received:  block.Size,
+			},
+		)
 
 		return nil
 	}
@@ -190,16 +202,17 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, errors.Wrap(ctx.Err(), "dump session complete")
 	default:
 	}
 
 	t0 := time.Now()
 	session := b.bitswap()
+
 	defer func() {
 		b.cidDurations[c] = time.Since(t0)
-		if cl, ok := session.(io.Closer); ok {
-			cl.Close()
+		if closer, ok := session.(io.Closer); ok {
+			closer.Close()
 		}
 	}()
 

@@ -680,6 +680,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 						LotusAPI: lotusAPI,
 						BaseDir:  cfg.Module.Retrieval.TmpDir,
 					},
+					retrieval.BitswapRetrieverBuilder{},
 					cfg.Module.Retrieval.Timeout,
 					cfg.Module.Retrieval.MaxJobs,
 					cfg.Module.Retrieval.LocationFilter,
