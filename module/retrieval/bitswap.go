@@ -24,11 +24,10 @@ const (
 	retrievalTimeout = 1 * time.Minute
 )
 
-// return interface of get
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
-	bitswap      func() *bswap.Session
+	bitswap      func() gocar.ReadStore
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
 	traverser    gocar.SelectiveCarPrepared
@@ -36,6 +35,19 @@ type BitswapRetriever struct {
 }
 
 type BitswapRetrieverBuilder struct{}
+
+type bitswapAdapter struct {
+	session *bswap.Session
+}
+
+func (bi bitswapAdapter) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+	bytes, err := bi.session.Get(c)
+	if err != nil {
+		return nil, err
+	}
+
+	return blocks.NewBlockWithCid(bytes, c)
+}
 
 func (b *BitswapRetrieverBuilder) Build(
 	ctx context.Context,
@@ -46,7 +58,11 @@ func (b *BitswapRetrieverBuilder) Build(
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	bitswapCallback := func() *bswap.Session { return bswap.New(libp2p, *minerInfo.PeerID) }
+	bitswapCallback := func() gocar.ReadStore {
+		return bitswapAdapter{
+			session: bswap.New(libp2p, *minerInfo.PeerID),
+		}
+	}
 
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
@@ -182,10 +198,12 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 	session := b.bitswap()
 	defer func() {
 		b.cidDurations[c] = time.Since(t0)
-		session.Close()
+		if cl, ok := session.(io.Closer); ok {
+			cl.Close()
+		}
 	}()
 
-	bytes, err := session.Get(c)
+	block, err := session.Get(ctx, c)
 	if err != nil {
 		b.events = append(b.events,
 			TimeEventPair{
@@ -198,5 +216,5 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
 	}
 
-	return blocks.NewBlockWithCid(bytes, c)
+	return block, nil
 }
