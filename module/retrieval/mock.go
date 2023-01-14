@@ -37,6 +37,7 @@ type mockReadStore struct {
 	mock.Mock
 }
 
+//nolint:forcetypeassert
 func (m *mockReadStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	args := m.Called(ctx, c)
 
@@ -47,7 +48,11 @@ type BitswapRetrieverMock struct {
 	mock.Mock
 }
 
-func (b *BitswapRetrieverMock) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (*ResultContent, error) {
+//nolint:forcetypeassert,lll
+func (b *BitswapRetrieverMock) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (
+	*ResultContent,
+	error,
+) {
 	args := b.Called(ctx, root, timeout)
 	return args.Get(0).(*ResultContent), args.Error(1)
 }

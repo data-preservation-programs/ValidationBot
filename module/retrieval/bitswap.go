@@ -90,7 +90,11 @@ func (b *BitswapRetriever) Type() task.Type {
 	return task.Retrieval
 }
 
-func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (*ResultContent, error) {
+// nolint:lll
+func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (
+	*ResultContent,
+	error,
+) {
 	dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
 
 	// TODO: could potentially use gocar.MaxTraversalLinks(int) to cap this?
