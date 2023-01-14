@@ -43,7 +43,7 @@ type bitswapAdapter struct {
 func (bi bitswapAdapter) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	bytes, err := bi.session.Get(c)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get block from adapter")
+		return nil, errors.Wrap(err, "cannot get bytes from adapter")
 	}
 
 	block, err := blocks.NewBlockWithCid(bytes, c)
