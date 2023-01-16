@@ -24,6 +24,8 @@ const (
 	retrievalTimeout = 1 * time.Minute
 )
 
+var ErrDumpComplete = errors.New("dump session complete")
+
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
@@ -90,6 +92,34 @@ func (b *BitswapRetriever) Type() task.Type {
 	return task.Retrieval
 }
 
+func (b *BitswapRetriever) onNewCarBlock(block gocar.Block) error {
+	time := time.Now()
+
+	if len(b.events) == 0 {
+		b.events = append(b.events,
+			TimeEventPair{
+				Timestamp: time,
+				Code:      string(FirstByteReceived),
+				Message:   fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID),
+				Received:  block.Size,
+			},
+		)
+
+		return nil
+	}
+
+	b.events = append(b.events,
+		TimeEventPair{
+			Timestamp: time,
+			Code:      string(BlockReceived),
+			Message:   fmt.Sprintf("bytes received: [Block %s]", block.BlockCID),
+			Received:  block.Size,
+		},
+	)
+
+	return nil
+}
+
 // nolint:lll
 func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (
 	*ResultContent,
@@ -100,49 +130,37 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 	// TODO: could potentially use gocar.MaxTraversalLinks(int) to cap this?
 	car := gocar.NewSelectiveCar(ctx, b, []gocar.Dag{dag}, gocar.TraverseLinksOnlyOnce())
 
-	onNewCarBlock := func(block gocar.Block) error {
-		time := time.Now()
-
-		if len(b.events) == 0 {
-			b.events = append(b.events,
-				TimeEventPair{
-					Timestamp: time,
-					Code:      string(FirstByteReceived),
-					Message:   fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID),
-					Received:  block.Size,
-				},
-			)
-
-			return nil
-		}
-
-		b.events = append(b.events,
-			TimeEventPair{
-				Timestamp: time,
-				Code:      string(BlockReceived),
-				Message:   fmt.Sprintf("bytes received: [Block %s]", block.BlockCID),
-				Received:  block.Size,
-			},
-		)
-
-		return nil
-	}
-
 	// im actually not sure if the Prepare or the Dump method
 	// calls the miner and traverses the CIDs?
-	traverser, err := car.Prepare(onNewCarBlock)
+	traverser, err := car.Prepare(b.onNewCarBlock)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot prepare Selector")
 	}
 
 	b.traverser = traverser
 
-	ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(retrievalTimeout))
-	defer cancel()
-
 	go func() {
 		b.startTime = time.Now()
+		var tout time.Duration
+
+		if timeout > 0 {
+			tout = timeout
+		} else {
+			tout = retrievalTimeout
+		}
+
+		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
+		defer cancel()
+
 		err = b.traverser.Dump(ctx, io.Discard)
+
+		if errors.Is(err, ErrDumpComplete) {
+			b.done <- ResultContent{
+				Status:       Success,
+				ErrorMessage: "",
+			}
+		}
+
 		if err != nil {
 			b.done <- ResultContent{
 				Status:       RetrieveFailure,
@@ -151,7 +169,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		}
 
 		b.done <- ResultContent{
-			Status:       RetrieveFailure,
+			Status:       Success,
 			ErrorMessage: "",
 		}
 	}()
@@ -204,12 +222,6 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 
 // Get matches the gocar.ReadStore interface used when traversing a car file.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	select {
-	case <-ctx.Done():
-		return nil, errors.Wrap(ctx.Err(), "dump session complete")
-	default:
-	}
-
 	t0 := time.Now()
 	session := b.bitswap()
 
@@ -233,5 +245,10 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
 	}
 
-	return block, nil
+	select {
+	case <-ctx.Done():
+		return block, ErrDumpComplete
+	default:
+		return block, nil
+	}
 }

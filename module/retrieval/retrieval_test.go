@@ -348,6 +348,7 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()
 	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	assert.Nil(err)
 	defer closer()
 	mockRetriever := new(MockGraphSyncRetriever)
 	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
