@@ -51,9 +51,12 @@ jobs:
           postgresql db: 'postgres'
           postgresql user: 'postgres'
           postgresql password: 'postgres'
-
       - name: Setup gotestsum
         run: go install gotest.tools/gotestsum@latest
+
+      - name: Run repo-specific setup
+        uses: ./.github/actions/go-test-setup
+        if: hashFiles('./.github/actions/go-test-setup') != ''
 
       - name: Test
         env:
