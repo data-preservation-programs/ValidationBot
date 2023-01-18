@@ -57,4 +57,4 @@ lint:
 test:
 	go test -p 4 -v ./...
 
-.PHONY: build run clean test maxmind
+.PHONY: build run clean test
