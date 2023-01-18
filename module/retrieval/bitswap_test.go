@@ -113,7 +113,7 @@ func TestBitswapGetImpl(t *testing.T) {
 
 	t.Run("Get() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, mock.Anything).Return(block, errors.New("error"))
+		rs.On("Get", mock.Anything, c).Return(block, errors.New("error"))
 		b.bitswap = func() gocar.ReadStore { return rs }
 
 		ctx := context.Background()
@@ -125,7 +125,7 @@ func TestBitswapGetImpl(t *testing.T) {
 	})
 }
 
-func makeDepthTestingGraph(t *testing.T) ipld.Node {
+func makeDepthTestingGraph(t *testing.T) (ipld.Node, map[cid.Cid]ipld.Node) {
 	root := merkledag.NodeWithData(nil)
 	l11 := merkledag.NodeWithData([]byte("leve1_node1"))
 	l12 := merkledag.NodeWithData([]byte("leve1_node2"))
@@ -141,15 +141,13 @@ func makeDepthTestingGraph(t *testing.T) ipld.Node {
 	root.AddNodeLink(l12.Cid().String(), l12)
 	root.AddNodeLink(l23.Cid().String(), l23)
 
-	// ctx := context.Background()
-	// for _, n := range []ipld.Node{l23, l22, l21, l12, l11, root} {
-	// 	err := ds.Add(ctx, n)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// }
+	var nodeMap = map[cid.Cid]ipld.Node{}
 
-	return root
+	for _, n := range []ipld.Node{l23, l22, l21, l12, l11, root} {
+		nodeMap[n.Cid()] = n
+	}
+
+	return root, nodeMap
 }
 
 func TestRetreiveImpl(t *testing.T) {
@@ -158,43 +156,34 @@ func TestRetreiveImpl(t *testing.T) {
 	bit, closer := getBitswapRetriever(t, "f03223")
 	defer closer()
 
-	a := merkledag.NewRawNode([]byte("hello world"))
-	b := merkledag.NewRawNode([]byte("bbbb"))
-	c := merkledag.NewRawNode([]byte("cccc"))
-
-	nd1 := &merkledag.ProtoNode{}
-	nd1.AddNodeLink("cat", a)
-	nd1.AddNodeLink("dog", b)
-	nd1.AddNodeLink("fish", c)
-
-	ci := cid.NewCidV1(0x55, []byte("bafkreig3nechldkbgfszm522sb4v4t7mnrpsknrsbi7kvcwojipgeygx3u"))
-	fmt.Printf("ci %s\n", ci.String())
-
 	rs := new(mockReadStore)
+	root, nodeMap := makeDepthTestingGraph(t)
 
-	rs.On("Get", mock.Anything, mock.AnythingOfType("cid.Cid")).Return(blocks.NewBlock(a.RawData()), nil)
-
-	fmt.Printf("nd1 %s\n", nd1.Cid())
-	fmt.Printf("a %s\n", a.Cid())
-	fmt.Printf("b %s\n", b.Cid())
-	fmt.Printf("c %s\n", c.Cid())
-	for i, link := range nd1.Links() {
-		fmt.Printf("link %d: %s\n", i, link.Cid)
+	for k, v := range nodeMap {
+		fmt.Printf("mocking from nodeMap: key: %s, value: %v\n\n", k, v)
+		rs.On("Get", mock.Anything, k).Return(v, nil)
 	}
 
-	// root := makeDepthTestingGraph(t)
 	bit.bitswap = func() gocar.ReadStore { return rs }
 
 	t.Run("Retreive() hits deadline", func(t *testing.T) {
 		ctx := context.Background()
 
-		result, err := bit.Retrieve(ctx, a.Cid(), 8*time.Second)
+		result, err := bit.Retrieve(ctx, root.Cid(), 8*time.Second)
 
-		fmt.Println(bit.events)
-		fmt.Println(result)
+		for i, s := range result.CalculatedStats.Events {
+			fmt.Printf("stat-%d: %v\n", i, s)
+		}
+		for i, e := range bit.events {
+			fmt.Printf("event-%d: %v\n", i, e)
+		}
+
+		fmt.Printf("AverageSpeedPerSec: %v\n", result.AverageSpeedPerSec)
+		fmt.Printf("BytesDownloaded: %v\n", result.BytesDownloaded)
+		fmt.Printf("TimeElapsed: %v\n", result.TimeElapsed)
+		fmt.Printf("numberOfEvents: %v\n", len(result.Events))
 
 		assert.Nil(err)
-
 		assert.GreaterOrEqual(len(bit.cidDurations), 1)
 		assert.GreaterOrEqual(len(bit.events), 1)
 		assert.Equal(result.Status, Success)
@@ -204,5 +193,3 @@ func TestRetreiveImpl(t *testing.T) {
 		assert.NotNil(result.AverageSpeedPerSec)
 	})
 }
-
-// TODO: add Retreive test cases
