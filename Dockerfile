@@ -8,6 +8,9 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN git clone https://github.com/data-preservation-programs/ValidationBot.git .
 RUN git checkout ${CODEBUILD_RESOLVED_SOURCE_VERSION}
 
+# turning maxmind off so it doesnt clog tests when
+# license has been hit too many times:
+# https://github.com/data-preservation-programs/ValidationBot/actions/runs/3943694005/jobs/6749126788#step:14:736
 # RUN make maxmind
 RUN make deps
 RUN make build
