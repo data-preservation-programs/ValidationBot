@@ -49,24 +49,41 @@ list all published trusted peers.
 
 ```git clone git@github.com:data-preservation-programs/ValidationBot.git```
 
-2. copy the config template to a config file:
+2. run the make file, this will output the validation_bot binary:
+
+```make all```
+
+3. copy the config template to a config file:
 
 ```cp config.template.yaml config.yaml```
 
 **the app sets a default config in `bootstrap.go` if no config.yaml**
 
-3. Set Environment Variables
+4. Set Environment Variables
+
+once the validation_bot binary is built, you can generate two private keys:
 
 ```bash
-export DISPATCHER_PRIVATEKEY=""
-export AUDITOR_PRIVATEKEY=""
-export IPINFO_TOKEN=""
-export W3S_TOKEN=""
+> ./validation_bot generate-peer
+
+New peer generated using ed25519, keys are encoded in base64
+peer id:      abcdKooWASD9sAWe4rrmEzBD6aN6DSg3vxpHopgfrau3WMMM37vd
+public key:   DACSIAkutzW3LbmaZea/Bq9uuAfNWjf+MZth4372VJntzaiO
+private key:  DACSQKKAZysMKUnt3RIWP3o0fR8MDfqvR/fhF0e7Jhq3qs1dCS63NbctuZpl5r8Gr264B81aN/4xm2HjfvZUme3NqI4=
+
+> export DISPATCHER_PRIVATEKEY=DACSQKKAZysMKUnt3RIWP3o0fR8MDfqvR/fhF0e7Jhq3qs1dCS63NbctuZpl5r8Gr264B81aN/4xm2HjfvZUme3NqI4=
+
+etc...
 ```
 
-4. run the make file, this will output the validation_bot binary:
+environment variables are listed below:
 
-```make all```
+```bash
+export DISPATCHER_PRIVATEKEY="" # get with generate-peer cli command
+export AUDITOR_PRIVATEKEY=""    # get with generate-peer cli command
+export IPINFO_TOKEN=""          # ipinfo token - https://ipinfo.io/
+export W3S_TOKEN=""             # Web3Storage token - https://web3.storage/
+```
 
 5. start the validation bot binary:
 
