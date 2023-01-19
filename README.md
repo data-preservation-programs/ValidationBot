@@ -43,13 +43,38 @@ list all published trusted peers.
   --peerid, -p <string> (required)
     peerIDStr of the trustor
 ```
-# Configuration
+# Running the Validation Bot
 
-TODO
+1. clone the repo down:
+
+```git clone git@github.com:data-preservation-programs/ValidationBot.git```
+
+2. copy the config template to a config file:
+
+```cp config.template.yaml config.yaml```
+
+**the app sets a default config in `bootstrap.go` if no config.yaml**
+
+3. Set Environment Variables
+
+```bash
+export DISPATCHER_PRIVATEKEY=""
+export AUDITOR_PRIVATEKEY=""
+export IPINFO_TOKEN=""
+export W3S_TOKEN=""
+```
+
+4. run the make file, this will output the validation_bot binary:
+
+```make all```
+
+5. start the validation bot binary:
+
+```./validation_bot```
 
 # Design
 
-# Architecture
+## Architecture
 
 <p align="center">
   <img src="assets/validation-bot-architecture.jpg" style="height: 700px;"/>
