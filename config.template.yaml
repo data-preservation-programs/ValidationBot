@@ -54,15 +54,16 @@ w3s:
 database:
     connectionstring: host=localhost port=5432 user=postgres password=postgres dbname=postgres
 trust:
-    # array of trusted peer ids
     trustors:
     retryinterval: 10s
     pollinterval: 1m0s
 topic:
-    topicname: /filecoin/validation_bot/dev
+    # pick a topic for nodes to communicate over via development
+    topicname:
 dealstates:
-    downloadurl: https://marketdeals.s3.amazonaws.com/StateMarketDeals.json
+    downloadurl:
     refreshinterval: 4h0m0s
     sqlinsertbatchsize: 1000
 ipinfo:
+    # required when running auditor
     token:

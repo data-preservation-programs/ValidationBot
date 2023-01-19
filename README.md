@@ -8,8 +8,41 @@ This project is running in production and is in active development.
 
 # Validation Bot CLI commands
 
-TODO
+#### generate new peer ID
 
+generates a new peerID, public key, and private key. This can be used for generating keys for the `conig.yml` file.
+
+```./validation_bot generate-peer```
+
+#### modify trusted peers
+
+create/revoke/reset trusted peers and publish to the network via W3Sname.
+
+```./valiation_bot modify-trusted-peer --type <string> -k <string> -t <string> -p <string>```
+
+##### Options
+```bash
+  --type <string> (required)
+    create/revoke/reset trusted peer
+  -k, --trustor-key <string> (required)
+    private key of the trustor
+  -t, --w3s-token <string> (required)
+    token for web3.storage
+  -p, --peer <string> (required)
+    trustee peerID(s) string to operate on
+```
+
+#### list-trusted-peers
+
+list all published trusted peers.
+```./validation_bot list-trusted-peers --p <string>```
+
+##### Options
+
+```bash
+  --peerid, -p <string> (required)
+    peerIDStr of the trustor
+```
 # Configuration
 
 TODO
