@@ -253,11 +253,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	results := make(map[Protocol]ResultContent)
-	/*
-	 * TODO:
-	 * totalBytes is total bytes for all protocols?
-	 *   or is this just supposed to be ResultContent.TotalBytes?
-	 */
+
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
@@ -383,9 +379,6 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				results[Bitswap] = *result
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
-				// TODO:
-				// everything from here on logic can potentially be ranged over at
-				// the end of the switch statmenet after all results have been collected?
 				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
@@ -405,7 +398,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		}
 	}
 
-	resultContent := Result{
+	result := Result{
 		Status:                lastStatus,
 		ErrorMessage:          lastErrorMessage,
 		TotalBytesDownloaded:  totalBytes,
@@ -414,9 +407,9 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		Results:               results,
 	}
 
-	jsonb, err = module.NewJSONB(resultContent)
+	jsonb, err = module.NewJSONB(result)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal GraphSync result")
+		return nil, errors.Wrap(err, "failed to marshal result")
 	}
 
 	return &module.ValidationResult{

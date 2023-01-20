@@ -57,7 +57,7 @@ func (bi bitswapAdapter) Get(ctx context.Context, c cid.Cid) (blocks.Block, erro
 }
 
 // github.com/willscott/go-selfish-bitswap-client has a hardcoded timeout for Session
-// of 10 seconds. Because of this, need to make a new session for each block if we want
+// of 10 seconds. Because of this, we need to make a new session for each block if we want
 // the Dump process to take longer than 10 seconds in total. This is accomplished by using
 // the bitswapCallback function to create a new session for each block.
 func (b *BitswapRetrieverBuilder) Build(
@@ -93,29 +93,20 @@ func (b *BitswapRetriever) Type() task.Type {
 }
 
 func (b *BitswapRetriever) onNewCarBlock(block gocar.Block) error {
-	time := time.Now()
-
-	if len(b.events) == 0 {
-		b.events = append(b.events,
-			TimeEventPair{
-				Timestamp: time,
-				Code:      string(FirstByteReceived),
-				Message:   fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID),
-				Received:  block.Size,
-			},
-		)
-
-		return nil
+	event := TimeEventPair{
+		Timestamp: time.Now(),
+		Received:  block.Size,
 	}
 
-	b.events = append(b.events,
-		TimeEventPair{
-			Timestamp: time,
-			Code:      string(BlockReceived),
-			Message:   fmt.Sprintf("bytes received: [Block %s]", block.BlockCID),
-			Received:  block.Size,
-		},
-	)
+	if len(b.events) == 0 {
+		event.Message = fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID)
+		event.Code = string(FirstByteReceived)
+	} else {
+		event.Message = fmt.Sprintf("bytes received: [Block %s]", block.BlockCID)
+		event.Code = string(BlockReceived)
+	}
+
+	b.events = append(b.events, event)
 
 	return nil
 }
@@ -127,11 +118,8 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 ) {
 	dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
 
-	// TODO: could potentially use gocar.MaxTraversalLinks(int) to cap this?
 	car := gocar.NewSelectiveCar(ctx, b, []gocar.Dag{dag}, gocar.TraverseLinksOnlyOnce())
 
-	// im actually not sure if the Prepare or the Dump method
-	// calls the miner and traverses the CIDs?
 	traverser, err := car.Prepare(b.onNewCarBlock)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot prepare Selector")
@@ -195,6 +183,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 	for _, event := range b.events {
 		if event.Code == string(FirstByteReceived) {
 			timeToFirstByte = event.Timestamp.Sub(b.startTime)
+			break
 		}
 	}
 

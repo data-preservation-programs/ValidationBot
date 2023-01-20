@@ -19,7 +19,6 @@ type Retriever interface {
 	) (*ResultContent, error)
 }
 
-// TODO make generic for bitswap and graphsync?
 type RetrieverBuilder interface {
 	Build() (Retriever, Cleanup, error)
 }
