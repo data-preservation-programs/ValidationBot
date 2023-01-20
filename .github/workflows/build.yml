@@ -51,7 +51,6 @@ jobs:
 
       - name: Run repo-specific setup
         uses: ./.github/actions/go-test-setup
-        if: hashFiles('./.github/actions/go-test-setup') != ''
 
       - name: Test
         env:
