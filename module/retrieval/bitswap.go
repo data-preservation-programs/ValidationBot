@@ -94,6 +94,7 @@ func (b *BitswapRetriever) Type() task.Type {
 
 // callback gets called after a successful block retrieval during traverser.Dump.
 func (b *BitswapRetriever) onNewCarBlock(block gocar.Block) error {
+	// nolint:exhaustruct
 	event := TimeEventPair{
 		Timestamp: time.Now(),
 		Received:  block.Size,
@@ -211,10 +212,9 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 }
 
 // Get matches the gocar.ReadStore interface used when traversing a car file.
-//
-// Because we initialize the bitswap session each Get request,
-// We meassure the duration of the request from the time the session iniializes
-// for go-selfish-bitswap-client until when the the block was received.
+// Because we initialize the bitswap session for each Get request, we meassure
+// the duration of the request from the time the go-selfish-bitswap-client session
+// initializes until when the block was received.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
 	session := b.bitswap()
