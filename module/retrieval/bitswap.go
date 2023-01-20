@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	retrievalTimeout = 1 * time.Minute
+	completionTime = 20 * time.Second
 )
 
 var ErrDumpComplete = errors.New("dump session complete")
@@ -92,6 +92,7 @@ func (b *BitswapRetriever) Type() task.Type {
 	return task.Retrieval
 }
 
+// callback gets called after a successful block retrieval during traverser.Dump.
 func (b *BitswapRetriever) onNewCarBlock(block gocar.Block) error {
 	event := TimeEventPair{
 		Timestamp: time.Now(),
@@ -134,7 +135,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		if timeout > 0 {
 			tout = timeout
 		} else {
-			tout = retrievalTimeout
+			tout = completionTime
 		}
 
 		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
@@ -210,6 +211,10 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 }
 
 // Get matches the gocar.ReadStore interface used when traversing a car file.
+//
+// Because we initialize the bitswap session each Get request,
+// We meassure the duration of the request from the time the session iniializes
+// for go-selfish-bitswap-client until when the the block was received.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
 	session := b.bitswap()
