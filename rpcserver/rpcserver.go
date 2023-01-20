@@ -78,11 +78,6 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort int) error {
 	}
 
 	// print port number to stdout so ClientRPC can read it
-	// if err := cborutil.WriteCborRPC(os.Stdout, addr.Port); err != nil {
-	// 	return fmt.Errorf("failed to send request: %w", err)
-	// }
-
-	// print port number to stdout so ClientRPC can read it
 	//nolint:forbidigo
 	fmt.Printf("%d\n", addr.Port)
 
