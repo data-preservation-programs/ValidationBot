@@ -1,0 +1,1616 @@
+system
+	memory:      [|                                                               ] 53.75 MiB/4 GiB
+	streams in:  [|                                                               ] 77/4096
+	streams out: [|                                                               ] 143/16384
+	conn in:     [                                                                ] 0/512
+	conn out:    [||||||||||                                                      ] 79/512
+	file desc:   [                                                                ] 78/61440
+
+transient
+	memory:      [                                                                ] 0 B/544 MiB
+	streams in:  [                                                                ] 0/640
+	streams out: [                                                                ] 0/1280
+	conn in:     [                                                                ] 0/96
+	conn out:    [                                                                ] 0/192
+	file desc:   [                                                                ] 0/15360
+
+svc:libp2p.autonat
+	memory:      [                                                                ] 0 B/12 MiB
+	streams in:  [                                                                ] 0/80
+	streams out: [                                                                ] 0/80
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+svc:libp2p.identify
+	memory:      [                                                                ] 0 B/20 MiB
+	streams in:  [                                                                ] 0/320
+	streams out: [                                                                ] 0/320
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+svc:libp2p.ping
+	memory:      [                                                                ] 0 B/20 MiB
+	streams in:  [                                                                ] 0/320
+	streams out: [                                                                ] 0/320
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/chain/ipfs/bitswap/1.2.0
+	memory:      [                                                                ] 0 B/720 MiB
+	streams in:  [                                                                ] 1/2048
+	streams out: [                                                                ] 0/8192
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/fil/chain/xchg/0.0.1
+	memory:      [                                                                ] 0 B/720 MiB
+	streams in:  [                                                                ] 0/2048
+	streams out: [                                                                ] 1/8192
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/fil/hello/1.0.0
+	memory:      [                                                                ] 0 B/720 MiB
+	streams in:  [                                                                ] 0/2048
+	streams out: [                                                                ] 0/8192
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/fil/kad/testnetnet/kad/1.0.0
+	memory:      [                                                                ] 0 B/720 MiB
+	streams in:  [                                                                ] 0/2048
+	streams out: [|                                                               ] 66/8192
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/ipfs/id/1.0.0
+	memory:      [                                                                ] 0 B/20 MiB
+	streams in:  [                                                                ] 0/320
+	streams out: [                                                                ] 0/320
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/ipfs/id/push/1.0.0
+	memory:      [                                                                ] 0 B/20 MiB
+	streams in:  [                                                                ] 0/320
+	streams out: [                                                                ] 0/320
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/ipfs/ping/1.0.0
+	memory:      [                                                                ] 0 B/20 MiB
+	streams in:  [                                                                ] 0/320
+	streams out: [                                                                ] 0/320
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+proto:/meshsub/1.1.0
+	memory:      [                                                                ] 0 B/720 MiB
+	streams in:  [||                                                              ] 76/2048
+	streams out: [|                                                               ] 76/8192
+	conn in:     [                                                                ] 0/0
+	conn out:    [                                                                ] 0/0
+	file desc:   [                                                                ] 0/0
+
+peer:12D3KooWCwevHg1yLCvktf2nvLu7L9894mcrJR4MsBCcm4syShVc
+	memory:      [                                                                ] 1.5 MiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 3/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWQiv8okMjiAST1uLGSq9DSXrQGvrkFsYkd7u9gzWU86PY
+	memory:      [                                                                ] 1 MiB/576 MiB
+	streams in:  [                                                                ] 2/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWAMBTxTpt3wrRWyLjaPTawLjtycN3ye6BiMxYKtgnhYzX
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWATLCSdwkSZpk5JfgW1cg6sh7DjqegqWM1AyhtRMftvV8
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWAbrEcXCFi75N4rxCRXjWoBTFV3ZzF7UWLjaKJeKK1VqQ
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWAqVoLFYKyjXJjR296i3ZzaUxnXu5j7NH3gKFf3kvQDcd
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBP6WnZfBsM8NRJKMLMv7KSXmRgRiRGruceMdq7v5X71G
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBZSprCwgnqSnwr15F38gYkMhXJYT7XoxYB8AiN1A55x6
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBxw4UmJsWW4nrEGFVM7bFeANDMWCHNPYSki584wPD7B5
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWC5g1XNjsGeiiZKAvkj5CxTcdwC8SN1AAVynmyfEvqYiV
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWCK6C31smJg1ZoufNz6oumzCrMv3Pg3rS4z3Wvcc14kgV
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWCYL6mn3p7W5WoaC3yYfbsovaDkQcpyxMFG9PtJUmSjzF
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWCoU4ALUoeu6i943TLMmuBBV9LLMxkX3j5vDKEVmRyefY
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWD945DZ5oRPYqiRyWTxudNW7d1ck8NZKfL79Uf69UhqT6
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWDJTW4WbR8cpM9WKvdkhrrH8cAa1Gfwf4FRxD9dT5gfSp
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWDM3qUVpWQozdrBw5jLkkeSipKbriaXSXSYJqB7Zmu6AL
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWDMJSprsuxhjJVnuQQcyibc5GxanUUxpDzHU74rhknqkU
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWDXhbP3hmQPWChGZPmsREAdtox14KmUB6JhsDKEjXiV6X
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWEWfuXu91MaQvM9vC1LRo3wd9vdbb3aJcYmJ18nNF1ZRa
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWEeKAnejMB986HFFWB6AQ4srrtP6AL2uR4CLggFZNeGTi
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWFFbAMU5rx6qjbn42PswBdumEJfgduBcGRzRn7J6Y4Vff
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWFy41fWvdWCR8xvr9J56TQZ2pmCSDWa66X6ew8EQU2GwT
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWG36wcx5h2N7RkmenWEZjZXBEzGJKACn6dRm5czaKcC3H
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWH1gUdcJ71tsuM1fUjrEvrztocu56KDhnucmc3g9LhTCs
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWHat1UN5DCcWkdRyxEiA2H6tCu8YWpGG9QBeT3rTjEUxj
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWHhogXEo6jgLnXSB8UG3G85Hx9Y7wrKvBfFDVbDjwRnPH
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWHnq24hjBUhARaeap1nGiFwSbwr87WKcdthfJoPXDTcrS
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWHyQY6WMQnonsMgTkpPfrrwvh545huHqNGjFWT4KbnMu9
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWJJvtQkx3KqNcE6nQJ639fwwaJiBBWJVQjWNSTfJEFGeG
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWJKMw5KiUKyHGcwpqLZAp2x3o6WS5jXtqQn8wKP4Mf9dJ
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWK4G4NefAUBptDFFCf9n1ZRZnYSehHRRmpq19xESaYfui
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWKbsrAkjXD1JJbDvD3Xa8QqPjSPHQ3SJRmS7w1ifxZSNP
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWKkmneHK6qnGVGtPxiHUm8XZwyYGY61MWxTWRXQSAps2F
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWKoJgv1gix9cAkJ2knfXqN37Bt6MTXjnxVLNDGLpC8mDK
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWL9zu7RJMSgzyLuDUMZJzYAVXsrYuXqMkpedpYeytcUWo
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLE4gEKKAXGzjwBdKicJTpdwXkvobFHsnw8G24vSnKb2P
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLmQCRHRiE9SR6R9DVW5C5nFWGCnvEENen7FkToKg8ino
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLvChqrxZ6CqPPVSmnBJLdmUsdrfzo834mRbFgbmLRvoL
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWMc2ofK1YZWvZNDfoUjKXA3F3aAnaNNV4Rew9qoqdg2vB
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||||||||||                                                ] 2/8
+	file desc:   [                                                                ] 2/960
+
+peer:12D3KooWN9p7YikhZgJujE1ryovi31Wx4EoDRHGEmtKmZz6kWghM
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWNdfme9vrpX6fQSng1Ha4963TRHSQHzRtA8BH28Pi9HMV
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWPN4arAnJp49HNGWput31hwG1v7GywW2Qc4nBcF45ABYW
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWPdmGgY3FmFJszpqDuMweR9qwDBHVEpAnE1ha67N7h3Ew
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWPdrrhjawyZBZ8w577Esv61ZNTseMfVbKH7C8w7htoutF
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWQ5amcdaRAkenRGQgzDYkwxmrq5xDFXzJzdDRnrKsAzeh
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWQ5jfkdd7hRFHa8RFHSLGrvRJ8s2EKXeT1ZvLPNN8C2CV
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWQRT5gpP3nbRCQUive9U6BvsP2nyLyjXSFreVEqdT7exD
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWR49HReM8caSD9cmmwVPiyb4h6dqJ7NVHD2QA5XqWtMNs
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRDb9V7e5WsHHSZHUtVcR9XgY3BBJSDDYr9YBncXfCjgY
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRDbtXYnT8RQGxZVRnPYR5mDNRQosrzGkLD6XY8rHdD5q
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRLUUNPfycA8RCpe3Bxbdrzn8ZPG96UXzBUZfyiU2b83e
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRc8TE22xKdvJpa9joVQ7mdatLfwtTSp1wAjU89WD5Rp5
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRkyFskoWEr7wGG6rSm8bCaNVY4cvfMogsLtbPt8P3sYD
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRu96rkmevKL7DR6dMGGFo22CrBZhG6ZMWXT9VQaGvSdE
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWSAnofvX8Pf17YacR1CGNoRXYh9SHdgqT7d1uQvdRsdF5
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWSP9JouXjri5b69WQsUG72psLJG6LGJqtcmRo2YSrK3vi
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWSdM5YUNdjUPShdqNWdvZBvE5TaQfrVmz968cD6Z3W7u5
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWT1rUqXn5o4J1cdwvG6Wrdif9gAmkU3sUNaaGyLzK7acw
+	memory:      [                                                                ] 768 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooW9qyikGX6dZW2kcknPYaJ8NKv7kzQpszwG2GFYWXxpQz1
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooW9sCgz8stfFstehzYxeJ5g8VXi9QgYUb24BoyTd8Noeu3
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWABn18HM5hLcu3vgg2K3pu9ETB6YtoTpjSU4LiUoKRAkP
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBPwrvoSBeeaZiMAc1QBKKskHNydD1sm8hZCFUb3hjzaB
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBkWcQsyiaFthGmjgQxj2GtpmB44kDdQU3kgE6tGQGkEE
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWBwrcJiXvMfDTaLxVY8KA3mLheptZK6Uc57Ppmg2msxNq
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWCVe8MmsEMes2FzgTpt9fXtmCY7wrq91GRiaC8PHSCCBj
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWEWVwHGn2yR36gKLozmb4YjDJGerotAPGxmdWZx2nxMC4
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWFcLVPs2bzj8Zz8eSbGob3Wzp4ufqd8Cy9MbwjWfHDR8k
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWKhgq8c7NQ9iGjbyK7v7phXvG6492HQfiDaGHLHLQjk7R
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWL6PsFNPhYftrJzGgF5U18hFoaVhfGk7xwzD8yVrHJ3Uc
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLFhEykxak8fDojtzuVUTGZ4uHUZnL9sQTk41F4tpDT8j
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLFynvDQiUpXoHroV1YxKHhPJgysQGH2k3ZGwtWzR4dFH
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWLwFkweKQB9UqfzNSqgHgbzpm4zG7kUjoimpaVAfnyCU7
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWP5MwCiqdMETF9ub1P3MbCvQCcfconnYHbWg6sUJcDRQQ
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWRs3aY1p3juFjPy8gPN95PEQChm2QKGUCAdcDCC4EBMKf
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWScFR7385LTyR4zU1bYdzSiiAb5rnNABfVahPvVSzyTkR
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWSsjSaxoN3tdeWo4y9g34ptm3m7VmhoLvig1WXarkTPEj
+	memory:      [                                                                ] 512 KiB/576 MiB
+	streams in:  [                                                                ] 1/768
+	streams out: [                                                                ] 2/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooWFbXvk6x2vcTDuTRSeqVUECr13HHaKpXq24QZnE8qAL7L
+	memory:      [                                                                ] 256 KiB/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 1/960
+
+peer:12D3KooW9y6wdA5zi5ei3YzcveHmfRpyrVxutzQqcgQxJ3UWL7HJ
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWA9ioiDnhKo4S3xDE19GsnKuntjweCAMUGhNsupRFczrX
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWAXjDe55EyFAuywzncS3Rf7YsipLiUzguq1HV9YLqMokP
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWB6TLTyMjt2HA2hmAjVQ1h41TU8VR2STdtGeZ1VJt7YfM
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBA9svCUVRij9AMnhaDKHKYmyYTaA4oyguqgGkaSz2Zb5
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBJAVd3SKWS13mrf251dQneScgXgvcD2ca4pYBz18Rnee
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBJYbFeSMQdHJ5DP1ZGvLUF2nbQAYM7nALR8sKj3ah5QR
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBdCYnjEe8QswnYcMeV5DRNtL75sKjXUugBKUWapQaMXY
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBh4EKNqPgyeivXky2uT5GNtDr4LTXAV6kVFExgfeJGUB
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBs3YhmxD4FbSCebEo7D943LqihuuRi3K8HyHUX7AYVRA
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBvuSa1wDXmrxsrBUm3Tm26sT4RbKUwwENfspgYsmLjx8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWBxz9RABLFbxx9gPg9BmTb4s8K5h6o4GEhN6fjMeW8iyX
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWC346MTwhQ4da3BXB3ucvPymPsSzu7ziR6p2uHozAzrCh
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWC37YiwUmz6YEsnroth9ywhm6YhWKyPrHVYWR2mLZkfN2
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWC6tLsxWqEQDpgyxBKwWRhgu4yUc2kY27CetrscXmcGAy
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWC7ETfBkkEP6cxSQ8p8KATmQPXHwEuy24ZYpB3XQdcSy7
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWCMBGeZwpw98mqewaKcapfYxMe39FR1BVsStL1rkt2XcB
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWChLsm9zmPM3hhubHxQop4tkyzVGW1oLotXydN66PbWsn
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWCmr8qjGGwM2UZ3Qy194aWGpp2kUAXSE2hW5ukidu8QxY
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWCvx7z6GBmzsfKA5LifPmP6fsegYuUN9Khvq7SeLzXQ4o
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWD11k28RX1Ghh2G3a2ao4s2NKE9Vm1QVyvmTbDF6AFmyN
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWD3toGN7LYQHobeggXFu5LedferXct6DDqkKHGsEUvxrK
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWD5KhCsFr1aZ7AJzq45AmD8XwLpXs8fC4QYYnPkMqkCvu
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWD9KhQg548sM6ym2ZvjWqeSX5c9arBwr8zwPSDpccaYoc
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDFQYC7XkLjhHQU8WDxvNT7WawiRd6KuNopqTCrLnXBo9
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDPaTQRu5Mxwnh62vMdjEjc8VDkbeoMTAeFwswuo3qGfC
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDVyQoJNzFukz1YrpGTtTuKLf9ixNSMkJxYdB7x5FXxxq
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDkmeiwoGsx6kgTjN1PysEMiDb28aqGXTRkbzatpxWPHD
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDovx298KSkF3e9ERL6fyQGYJvSG9THPaiSihZJkYuvC7
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDqH4yevnGjnMiWLiTAeyhTVPNmA6Td3ccw6ASioHLsqK
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDu2aeDehHaAW22KF3CS6B56CSod3sZt4pPnZDzKi6VM8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWDwUx5LT69xCrAaTa65X9qapsPuqH2ryi1LChLWP2azhD
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWED6c7doZTFQaBATFWtp49DBvCbi5ijL4fT42itpHnivM
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWEJhNYXAM6F8ospW15Tc3ARJFYUZr9YTh95patktVasuK
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWEP9uFbeQ8v98sXVmgrc8jNZq1Y6UbiTUjfskhAeYb4YH
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWEhwK5sGJ5XQrovvbxh4bsabiECvxM3aRecVCCczzsVso
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFEojDwJd99vNbLqc99cZyTi7t1Ms7pWEHzcpzA32wtQN
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFVTLwHHtFQEfyc5mvnS6pEePjw6JR6g42BKJA7ctFyfY
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFdQQHJe7EBJU4igTN98wiKtQh7X5ESXW6StfrBunMzPM
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFgrZ5LWvSEtGMADJCkki8B9GXFK16tsir2tTWy9cy7x8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFhCpWBkkd495L5u7mHc3cDjThHeixTQ3kgAGK7YyajZb
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWFxtFpzBmm15ZcBALdd8jD8tmzUEjJ5gGiAkAf73kKU5h
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWG25Zov6z9TGu2Hc4umJV8KPd1XVZExBHDY5KbuqY9K1M
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWG3azqiHCsEbxs5icwWvh6PfF9gFRKLkgkbUCG4NbYQh5
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWG87qsgjHzgeNERmcthRkMzEsamdwpSb4rtW7DgJYEkE9
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGBWx9gyUFTVQcKMTenQMSyE2ad9m7c9fpjS4NMjoDien
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 1/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [||||||||                                                        ] 1/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGCKyYKYCgqw56j3sQZSNvAjas8N8Zr8XjBMkrGh5mUjw
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGDewcehJuG8XXciRNP1SyGchjSxrdixkBRXCyCTHiBmk
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGEXPwxr8fJvWKVmn1w78uNnKFZuY1xHjZ1ojnbtb8P1Z
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGKCYM8LWFeBkmzqL5qSYVJi4f6yheTHeiTufHJ6LULPG
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGRLJGYMKE7wibcUhwsJ7JpYfUzYP8D65hYSeU9yjqLRs
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGYWZm5nnKirdWw6JQKxjLkWyHZngFJnZBCphTRyVhV2J
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGfhcTbqpk2BxtEX5bgwVBWLd781Me69D3fUvj3wDaTAK
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGp5HYNqrp6HbPZQdJABCzfbiZtga8A9DcRg3UaE4Ufei
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGr7c3E9gzmdEvQNRJu5mYBsR51fgiSUgpXaM8J1wsaBs
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGtne4RkvQd3S1xGCM1FjbLQgKGQTQhUmy2d3qEz7XK6f
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGud1QfEFLGsCYGVqiACcT9TKoqNnjJWZERS8WNqPemea
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWGxpMdcgbt2mzLdCFUmyxJxxQijXyTZ3pd12DNdJvzY6h
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWHH4zEsvCBazKqsW1mz3fjzT9U82zmUW1aqBjMP8CynrH
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWHa2WHo5SzLXEnkfdSesnRQjTzZtcA7D2TA8XST9f1afZ
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJ3CKfMpXZCruQbeXUSHYgrzPJHZ4XZ14sxFiJtjepy3A
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJ3qx1AJxhcu3oLb1FN64UW7CtS21Xofp4WMhPdpdkW4F
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJDjmvvkyZUEQ1EDkV94iA9V2jtzDypsuMBgzH7en1vkm
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJH7r4cuvXVJbzcfu4hfeicekqsszfwSL9pXQotSnzh8Y
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJKfwWx5phJstJhK4V1usLZpm5tTbBzDDUbEhwfZPX8Qc
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJLVsis98JfhNBEhPFNB4C2nucwex3GTRgSRtzjEt5Hqb
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJNzeezRf6H1dKRYQNZZoaaXuByu3jWJEhtJ8TWwXor6G
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJRvW9nH8uQnSKNLMRtM7cWf61ShQJhazLvUYVbJGSUJo
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJS5tRaztkqkGLvBVnDHzUbnuU22wPMXc78GwFbtbUEKD
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJpfQnHUQME9GCHzodKiASTDN8kcwtczCnQuxf8pumpYr
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWJqSgWcHpNeUmweydhb8WMEK5HW2QZcscxJ4E4bWH1WUQ
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKERhQvQMXF3TmqsPK7bTQg8pbaEWHejPsLcSriCFxqBa
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKGGJn9jsXVsZ1mVXW3qenpSk8eLHvnkfagW4rfKWM1CF
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKTiVKsmS2aQeS3tyWxQE8CNJetxCAArFyydrHgM2bUpe
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKYzt137pXvUMjzqPuYpLtLx8s6UwdZkf6Knham7u6Lfq
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKasnLcu9myNNhyJA2Qrqw514yvZE6JUQm6kNb4Stou1n
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWKd67MBZ6mGYEQnGR3HdUBu1pDFjzUpJPDWAHJzYLLRC7
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWLSjtEpCe9wXV9d9dEj2aoDpFbAVmAfhbWi217ScxwxEj
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWLb3m4vVtqZHhaW9RbLKeWVC5Tirq52JEQhGifZH8BFuS
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWLjJVCxYyKDeKF5vhPt4ZBL4x4tcmy1srWEnrsHpGPk19
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWLmK1utwen1pZEDxsHHzm5CpUUxuNUDEuwDhrbiZjBJ1N
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWLoCAoBy6YdBc3GbN2ho2wdZWdLRnm8bmd3ToBeoP2qUo
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMAARYW4hZCcBJeG17vLBZbQiQ6WpLnppGrtjs5BTutGb
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMNfAxUotcDC89kNRSbqtAtBQjKzA3j2mFZMm5yfqBLhz
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMSskkKFHWeeVPHhGk1wJW6387nLiSKnyn3HZ7888VT1L
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMezunbPLtStFWJHMehHPCaH4n48EWN584CAJQmkRf5Ro
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMoU25ekn4BWTAZ5eCnMSjy9exy7mQTZm4th2uBrGoFww
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMrhzqoTb6rJUYcw15qpiwKsRLEiyNCXTsWW4pLnqYmyh
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWMxQo62y41sRWHeun4R4SXPhascs7A1XB18sESLSgZkK8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWN6UFXT4uwcf7giEN7gk6X4ko2cmanLgHrPQ34rfCKWFX
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWNKWk3fZJYWgLbLZfMWCCqW5EuByY1CMSRCjNyqQFU1ok
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWNStRBkFJurA5DVDekCJ6tmhAm9Sd6DFyoTKDVsk1vrRK
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWNZJitTAq1q2MppjatgCb4yHrfkzSL3Us4JG3ppewJkxU
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWP1SWj8iC3jMJ9tRmqpyy911uy5U8fzE96dtxnvmLHyiy
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWP8G5DAm84VkgSiJYtivSetkeyjpz74DZ2wjvG1LzH8EQ
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWPTgCjEWtHfb3emVn4YwRjxU84hp8kJQdRzLggGq2Feka
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWPy7sFvU9tSZWoqpZyPrit3dvJHxRK4mgUV9Vw7wvhqK6
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWQ1MNFzTHpTxGV4UN2oStbi6CXMkP1Wr3FzjUajvip7Ez
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWQ3Wd2iWD9SHqP3od6LDcrL5p1xmLtM1VpKKkn9E4M7yu
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWQFdzddy8yHogu4XLanqfLL772ti9gfq3XQFkhmp1h9tE
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWQTjuQ9TaTg47qf3Y4g53WrTmsF1KXEBZjv4a3WqbSLSV
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWQx9iXdPkCZXwy3B6KJv5fDTUmy83W6KwXhmjCXEz7hoF
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWR3EMuyqz8FzSXt4AYN8eiriyUjbSCL9nxwNznSYpySuN
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWR9kGgN8cU7btLEWkajaqv9f4LZdBZFvjDVRe1ZuxEaRV
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWRL7Jk6ShGbcQdyp95H75DmNjf7PD4tQRFrW7XBadugG8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWRRyfoYonnAhhN3iQyr4ManceDTDQQS8sD8E3yhQu5o64
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWRgsgF7QeKyJgVQfKbsALidSQ4RYz84ny8ZJ16qADGFow
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWSFCZGQxW5Lw7KhFkJeRLSWEYuxJGbZQZFkYQb3tqXjq4
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWSQECi8qyu5AbnNsWGxj8aCgYaHJC8rkvmxFDofpJssgx
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWSa92R2cSBsHmnA4FPH2JdhwN8bn17XZoWNh5Vdfbq3qu
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWSgPUnzSTGNbXZ5zZjtabcnBRGuHULNqQ333AVEmufGh8
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
+peer:12D3KooWT1fPhh7nZERyN4ZEBxodMVxNB5ydFL7XRGhQdVgiTVFc
+	memory:      [                                                                ] 0 B/576 MiB
+	streams in:  [                                                                ] 0/768
+	streams out: [                                                                ] 0/1536
+	conn in:     [                                                                ] 0/4
+	conn out:    [                                                                ] 0/8
+	file desc:   [                                                                ] 0/960
+
