@@ -64,6 +64,7 @@ list all published trusted peers.
 once the validation_bot binary is built, you can generate two private keys:
 
 ```bash
+# dispatcher key/peer
 > ./validation_bot generate-peer
 
 New peer generated using ed25519, keys are encoded in base64
@@ -73,7 +74,12 @@ private key:  DACSQKKAZysMKUnt3RIWP3o0fR8MDfqvR/fhF0e7Jhq3qs1dCS63NbctuZpl5r8Gr2
 
 > export DISPATCHER_PRIVATEKEY=DACSQKKAZysMKUnt3RIWP3o0fR8MDfqvR/fhF0e7Jhq3qs1dCS63NbctuZpl5r8Gr264B81aN/4xm2HjfvZUme3NqI4=
 
-etc...
+# auditor key/peer
+> ./validation_bot generate-peer
+
+peer id:      12D3KooWLkr4mSY71AFippd43tDC6AnewArpmJwvvvR6GZFku15n
+public key:   CAESIKKJxrAmfubI4xxSQIYnac4MeKuXD2YMPdBdEF09g7gl
+private key:  CAESQAGfB+A6gFrcl0Y5TnC2wq5uDAH6C6V9CEF3Tb1LK2eqoonGsCZ+5sjjHFJAhidpzgx4q5cPZgw90F0QXT2DuCU=
 ```
 
 environment variables are listed below:
@@ -85,9 +91,17 @@ export IPINFO_TOKEN=""          # ipinfo token - https://ipinfo.io/
 export W3S_TOKEN=""             # Web3Storage token - https://web3.storage/
 ```
 
+5. In order for Auditor and Dispatchers to communciate, you want to configure the trusted peers:
+
+```bash
+ ./validation_bot modify-trusted-peer --type=create -trustor-key {{dispatcher-private-key}} -w3s-token {{web3storage-key}} -peer {{auditor peer-id}}
+```
+
 5. start the validation bot binary:
 
-```./validation_bot```
+```bash
+./validation_bot
+```
 
 # Design
 
