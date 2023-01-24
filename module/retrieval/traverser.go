@@ -30,7 +30,7 @@ type OnNewCarBlockFunc func(Block)
 
 type Traverser struct {
 	dags          []gocar.Dag
-	store         gocar.ReadStore
+	carReader     gocar.ReadStore
 	onNewCarBlock OnNewCarBlockFunc
 	offset        uint64
 	size          uint64
@@ -48,11 +48,9 @@ func NewTraverser(bitswap *BitswapRetriever, dags []gocar.Dag) (*Traverser, erro
 		bitswap.onNewCarBlock(block)
 	}
 
-	carReader := bitswap.bitswap()
-
 	traverser := &Traverser{
 		dags,
-		carReader,
+		bitswap,
 		onNewCarBlock,
 		0,
 		0,
@@ -77,7 +75,7 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 		return nil, errors.New("incorrect link type")
 	}
 	c := cl.Cid
-	blk, err := t.store.Get(ctx.Ctx, c)
+	blk, err := t.carReader.Get(ctx.Ctx, c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get block from loader")
 	}
@@ -99,6 +97,9 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 
 func (t Traverser) traverse(context context.Context) error {
 	err := t.traverseBlocks(context)
+	if errors.Is(err, ErrMaxTimeReached) {
+		return ErrMaxTimeReached
+	}
 	if err != nil {
 		return errors.Wrap(err, "failed to traverse blocks")
 	}

@@ -24,7 +24,7 @@ const (
 	completionTime = 20 * time.Second
 )
 
-var ErrDumpComplete = errors.New("dump session complete")
+var ErrMaxTimeReached = errors.New("dump session complete")
 
 type BitswapRetriever struct {
 	log          zerolog.Logger
@@ -140,7 +140,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 		err = b.traverser.traverse(ctx)
 
-		if errors.Is(err, ErrDumpComplete) {
+		if errors.Is(err, ErrMaxTimeReached) {
 			b.done <- ResultContent{
 				Status:       Success,
 				ErrorMessage: "",
@@ -237,7 +237,7 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 
 	select {
 	case <-ctx.Done():
-		return block, ErrDumpComplete
+		return block, nil
 	default:
 		return block, nil
 	}
