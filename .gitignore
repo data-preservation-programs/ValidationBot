@@ -18,5 +18,5 @@
 .vscode
 .idea
 validation_bot
-*.yaml
+config.yaml
 build

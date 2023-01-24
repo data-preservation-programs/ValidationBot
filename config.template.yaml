@@ -1,0 +1,69 @@
+log:
+    pretty: true
+    level: debug
+dispatcher:
+    enabled: false
+    # required if dispatcher enabled
+    privatekey:
+    apiaddress: :8000
+    # if changed, adjust exposed port in Dockerfile
+    listenaddr: /ip4/0.0.0.0/tcp/7998
+    checkinterval: 1m0s
+    authenticationtokens: []
+    jitter: 1m0s
+auditor:
+    enabled: false
+    # required if auditor enabled
+    privatekey:
+    # if changed, adjust exposed port in Dockerfile
+    listenaddr: /ip4/0.0.0.0/tcp/7999
+    biddingwait: 10s
+observer:
+    enabled: false
+    retryinterval: 1m0s
+    pollinterval: 1m0s
+module:
+    echo:
+        enabled: true
+    queryask:
+        enabled: true
+    retrieval:
+        enabled: true
+        tmpdir: /some/tmp/dir/path
+        timeout: 30s
+        maxjobs: 1
+        locationfilter:
+            continent: []
+            country: []
+    traceroute:
+        enabled: true
+        usesudo: false
+    indexprovider:
+        enabled: true
+lotus:
+    url: https://api.node.glif.io/
+    token: ""
+w3s:
+    # required if observer is enabled
+    token: ""
+    clientretrywait: 10s
+    clientretrywaitmax: 1m0s
+    clientretrycount: 5
+    subscriberretryinterval: 10s
+    subscriberpollinterval: 1m0s
+database:
+    connectionstring: host=localhost port=5432 user=postgres password=postgres dbname=postgres
+trust:
+    trustors:
+    retryinterval: 10s
+    pollinterval: 1m0s
+topic:
+    # pick a topic for nodes to communicate over via development
+    topicname:
+dealstates:
+    downloadurl:
+    refreshinterval: 4h0m0s
+    sqlinsertbatchsize: 1000
+ipinfo:
+    # required when running auditor
+    token:
