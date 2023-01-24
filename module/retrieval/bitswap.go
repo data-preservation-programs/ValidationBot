@@ -93,7 +93,7 @@ func (b *BitswapRetriever) Type() task.Type {
 }
 
 // callback gets called after a successful block retrieval during traverser.Dump.
-func (b *BitswapRetriever) onNewCarBlock(block Block) error {
+func (b *BitswapRetriever) onNewCarBlock(block Block) {
 	// nolint:exhaustruct
 	event := TimeEventPair{
 		Timestamp: time.Now(),
@@ -109,8 +109,6 @@ func (b *BitswapRetriever) onNewCarBlock(block Block) error {
 	}
 
 	b.events = append(b.events, event)
-
-	return nil
 }
 
 // nolint:lll

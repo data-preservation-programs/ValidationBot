@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Block is all information and metadata about a block that is part of a car file
+// Block is all information and metadata about a block that is part of a car file.
 type Block struct {
 	BlockCID cid.Cid
 	Data     []byte
@@ -25,11 +25,8 @@ type Block struct {
 	Size     uint64
 }
 
-// OnCarHeaderFunc is called during traversal when the header is created
-type OnCarHeaderFunc func(gocar.CarHeader) error
-
-// OnNewCarBlockFunc is called during traveral when a new unique block is encountered
-type OnNewCarBlockFunc func(Block) error
+// OnNewCarBlockFunc is called during traveral when a new unique block is encountered.
+type OnNewCarBlockFunc func(Block)
 
 type Traverser struct {
 	dags          []gocar.Dag
@@ -45,15 +42,10 @@ type Traverser struct {
 func NewTraverser(bitswap *BitswapRetriever, dags []gocar.Dag) (*Traverser, error) {
 	var cids []cid.Cid
 
-	onNewCarBlock := func(block Block) error {
+	onNewCarBlock := func(block Block) {
 		cids = append(cids, block.BlockCID)
 
-		err := bitswap.onNewCarBlock(block)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		bitswap.onNewCarBlock(block)
 	}
 
 	carReader := bitswap.bitswap()
@@ -74,7 +66,7 @@ func NewTraverser(bitswap *BitswapRetriever, dags []gocar.Dag) (*Traverser, erro
 	return traverser, nil
 }
 
-// Size returns the total size in bytes of the car file that will be written
+// Size returns the total size in bytes of the car file that will be written.
 func (t Traverser) Size() uint64 {
 	return t.size
 }
@@ -87,21 +79,18 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 	c := cl.Cid
 	blk, err := t.store.Get(ctx.Ctx, c)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get block from loader")
 	}
 	raw := blk.RawData()
 	if !t.cidSet.Has(c) {
 		t.cidSet.Add(c)
 		size := util.LdSize(c.Bytes(), raw)
-		err := t.onNewCarBlock(Block{
+		t.onNewCarBlock(Block{
 			BlockCID: c,
 			Data:     raw,
 			Offset:   t.offset,
 			Size:     size,
 		})
-		if err != nil {
-			return nil, err
-		}
 		t.offset += size
 		t.size += size
 	}
@@ -111,7 +100,7 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 func (t Traverser) traverse(context context.Context) error {
 	err := t.traverseBlocks(context)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to traverse blocks")
 	}
 	return nil
 }
@@ -129,14 +118,17 @@ func (t *Traverser) traverseBlocks(ctx context.Context) error {
 	for _, carDag := range t.dags {
 		parsed, err := selector.ParseSelector(carDag.Selector)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to parse selector")
 		}
 		lnk := cidlink.Link{Cid: carDag.Root}
+		// nolint:exhaustruct
 		ns, _ := nsc(lnk, ipld.LinkContext{}) // nsc won't error
+		// nolint:exhaustruct,varnamelen
 		nd, err := t.lsys.Load(ipld.LinkContext{Ctx: ctx}, lnk, ns)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to load root node")
 		}
+		// nolint:exhaustruct
 		prog := traversal.Progress{
 			Cfg: &traversal.Config{
 				Ctx:                            ctx,
@@ -147,7 +139,7 @@ func (t *Traverser) traverseBlocks(ctx context.Context) error {
 		}
 		err = prog.WalkAdv(nd, parsed, func(traversal.Progress, ipld.Node, traversal.VisitReason) error { return nil })
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to walk root node")
 		}
 	}
 	return nil
