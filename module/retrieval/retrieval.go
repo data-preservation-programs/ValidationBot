@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -135,8 +136,8 @@ func (Dispatcher) Validate(definition task.Definition) error {
 		return errors.Wrap(err, "failed to unmarshal definition")
 	}
 
-	if len(def.ProtocolPreference) != 1 || def.ProtocolPreference[0] != GraphSync {
-		return errors.New("currently only GraphSync protocol is supported")
+	if len(def.ProtocolPreference) != 1 || !slices.Contains([]Protocol{GraphSync, Bitswap}, def.ProtocolPreference[0]) {
+		return errors.New("currently only GraphSync and Bitswap protocol are supported")
 	}
 
 	if definition.IntervalSeconds > 0 && definition.IntervalSeconds < 3600 {

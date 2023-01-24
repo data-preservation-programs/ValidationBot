@@ -135,28 +135,32 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 	}
 	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
+	assert.ErrorContains(err, "currently only GraphSync and Bitswap protocol are supported")
 }
 
 func TestRetrieval_Dispatcher_Validate_IntervalTooShort(t *testing.T) {
 	assert := assert.New(t)
-	def := TaskDefinition{
-		ProtocolPreference: []Protocol{Protocol("graphsync")},
-		DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
-		PieceCids:          []string{"cid5", "cid6"},
+
+	cases := []Protocol{GraphSync, Bitswap}
+	for _, protocol := range cases {
+		def := TaskDefinition{
+			ProtocolPreference: []Protocol{Protocol(protocol)},
+			DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
+			PieceCids:          []string{"cid5", "cid6"},
+		}
+		definition, err := module.NewJSONB(def)
+		assert.NoError(err)
+		taskDef := task.Definition{
+			Target:          "provider",
+			Definition:      definition,
+			ID:              uuid.New(),
+			Type:            task.Retrieval,
+			IntervalSeconds: 1800,
+		}
+		dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
+		err = dispatcher.Validate(taskDef)
+		assert.ErrorContains(err, "interval must be at least 1 hour")
 	}
-	definition, err := module.NewJSONB(def)
-	assert.NoError(err)
-	taskDef := task.Definition{
-		Target:          "provider",
-		Definition:      definition,
-		ID:              uuid.New(),
-		Type:            task.Retrieval,
-		IntervalSeconds: 1800,
-	}
-	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
-	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
 
 func TestRetrieval_CidNotGiven(t *testing.T) {
