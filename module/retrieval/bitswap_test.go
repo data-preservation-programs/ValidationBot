@@ -69,7 +69,7 @@ func TestOnNewCarBlockImpl(t *testing.T) {
 	defer closer()
 
 	c := cid.NewCidV1(cid.Raw, []byte("hello world"))
-	block := gocar.Block{
+	block := Block{
 		BlockCID: c,
 		Data:     c.Bytes(),
 		Offset:   0,

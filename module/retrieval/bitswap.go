@@ -32,7 +32,7 @@ type BitswapRetriever struct {
 	bitswap      func() gocar.ReadStore
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
-	traverser    gocar.SelectiveCarPrepared
+	traverser    *Traverser
 	startTime    time.Time
 }
 
@@ -93,7 +93,7 @@ func (b *BitswapRetriever) Type() task.Type {
 }
 
 // callback gets called after a successful block retrieval during traverser.Dump.
-func (b *BitswapRetriever) onNewCarBlock(block gocar.Block) error {
+func (b *BitswapRetriever) onNewCarBlock(block Block) error {
 	// nolint:exhaustruct
 	event := TimeEventPair{
 		Timestamp: time.Now(),
@@ -120,9 +120,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 ) {
 	dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
 
-	car := gocar.NewSelectiveCar(ctx, b, []gocar.Dag{dag}, gocar.TraverseLinksOnlyOnce())
-
-	traverser, err := car.Prepare(b.onNewCarBlock)
+	traverser, err := NewTraverser(b, []gocar.Dag{dag})
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot prepare Selector")
 	}
@@ -142,7 +140,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
 		defer cancel()
 
-		err = b.traverser.Dump(ctx, io.Discard)
+		err = b.traverser.traverse(ctx)
 
 		if errors.Is(err, ErrDumpComplete) {
 			b.done <- ResultContent{

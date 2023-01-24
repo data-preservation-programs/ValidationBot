@@ -24,6 +24,7 @@ require (
 	github.com/ipfs/go-ipns v0.3.0
 	github.com/ipfs/go-merkledag v0.8.1
 	github.com/ipld/go-car v0.5.0
+	github.com/ipld/go-codec-dagpb v1.5.0
 	github.com/ipld/go-ipld-prime v0.19.0
 	github.com/jackc/pgtype v1.12.0
 	github.com/labstack/echo/v4 v4.9.0
@@ -170,7 +171,6 @@ require (
 	github.com/ipfs/go-verifcid v0.0.1 // indirect
 	github.com/ipfs/interface-go-ipfs-core v0.7.0 // indirect
 	github.com/ipld/go-car/v2 v2.5.0 // indirect
-	github.com/ipld/go-codec-dagpb v1.5.0 // indirect
 	github.com/ipld/go-ipld-selector-text-lite v0.0.1 // indirect
 	github.com/ipsn/go-secp256k1 v0.0.0-20180726113642-9d62b9f0bc52 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect

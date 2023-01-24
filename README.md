@@ -17,7 +17,7 @@ TODO
 # Design
 
 # Architecture
-
+`
 <p align="center">
   <img src="assets/validation-bot-architecture.jpg" style="height: 700px;"/>
 </p>
