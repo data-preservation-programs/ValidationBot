@@ -26,12 +26,16 @@ type Block struct {
 }
 
 // OnNewCarBlockFunc is called during traveral when a new unique block is encountered.
-type OnNewCarBlockFunc func(Block)
+type OnNewBlockFunc func(Block)
+
+type DataReader interface {
+	Get(context.Context, cid.Cid) ([]byte, error)
+}
 
 type Traverser struct {
 	dags          []gocar.Dag
-	carReader     gocar.ReadStore
-	onNewCarBlock OnNewCarBlockFunc
+	reader        DataReader
+	onNewCarBlock OnNewBlockFunc
 	offset        uint64
 	size          uint64
 	cidSet        *cid.Set
@@ -75,24 +79,24 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 		return nil, errors.New("incorrect link type")
 	}
 	c := cl.Cid
-	blk, err := t.carReader.Get(ctx.Ctx, c)
+	data, err := t.reader.Get(ctx.Ctx, c)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get block from loader")
 	}
-	raw := blk.RawData()
+
 	if !t.cidSet.Has(c) {
 		t.cidSet.Add(c)
-		size := util.LdSize(c.Bytes(), raw)
+		size := util.LdSize(c.Bytes(), data)
 		t.onNewCarBlock(Block{
 			BlockCID: c,
-			Data:     raw,
+			Data:     data,
 			Offset:   t.offset,
 			Size:     size,
 		})
 		t.offset += size
 		t.size += size
 	}
-	return bytes.NewReader(raw), nil
+	return bytes.NewReader(data), nil
 }
 
 func (t Traverser) traverse(context context.Context) error {

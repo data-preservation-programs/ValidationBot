@@ -29,7 +29,7 @@ var ErrMaxTimeReached = errors.New("dump session complete")
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
-	bitswap      func() gocar.ReadStore
+	bitswap      DataReader
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
 	traverser    *Traverser
@@ -69,6 +69,7 @@ func (b *BitswapRetrieverBuilder) Build(
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
+	// remove adapter ¯\_(ツ)_/¯
 	bitswapCallback := func() gocar.ReadStore {
 		return bitswapAdapter{
 			session: bswap.New(libp2p, *minerInfo.PeerID),
