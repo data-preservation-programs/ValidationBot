@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"validation-bot/module"
+	"validation-bot/role"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
@@ -15,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -260,6 +262,18 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to get miner info")
 	}
 
+	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+
+	protocols, err := minerSupporttedProtocols(ctx, *minerInfoResult.PeerID, libp2p)
+
+	sprotocols := make([]Protocol, len(input.ProtocolPreference))
+
+	for _, protocol := range protocols.Protocols {
+		if slices.Contains(input.ProtocolPreference, Protocol(protocol.Name)) {
+			sprotocols = append(sprotocols, Protocol(protocol.Name))
+		}
+	}
+
 	lastStatus := ResultStatus("skipped")
 	lastErrorMessage := ""
 
@@ -273,7 +287,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		q.log.Info().Str("provider", provider).Msg("miner location does not match filter")
 		return nil, nil
 	default:
-		for _, protocol := range input.ProtocolPreference {
+		for _, protocol := range sprotocols {
 			q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("starting retrieval")
 
 			dataCidOrLabel := input.DataCid

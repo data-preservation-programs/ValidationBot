@@ -8,6 +8,8 @@ type Protocol string
 
 const (
 	GraphSync                Protocol     = "GraphSync"
+	Http                     Protocol     = "http"
+	Https                    Protocol     = "https"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"
 	QueryResponseUnavailable ResultStatus = "query_response_unavailable"
@@ -16,6 +18,7 @@ const (
 	RetrieveFailure          ResultStatus = "retrieve_failure"
 	DataTransferFailure      ResultStatus = "data_transfer_failure"
 	RetrieveTimeout          ResultStatus = "retrieve_timeout"
+	ProtocolUnsupported      ResultStatus = "protocol_unsupported"
 )
 
 type TaskDefinition struct {
