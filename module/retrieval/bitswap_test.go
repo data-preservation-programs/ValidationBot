@@ -12,7 +12,6 @@ import (
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
-	gocar "github.com/ipld/go-car"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -48,22 +47,7 @@ func TestBitswapBuilderImpl_Build(t *testing.T) {
 	assert.IsType(&BitswapRetriever{}, b)
 }
 
-func TestBitswapAdapterImpl(t *testing.T) {
-	assert := assert.New(t)
-	b, closer := getBitswapRetriever(t, "f03223")
-	defer closer()
-
-	session := b.bitswap()
-
-	switch session.(type) {
-	case bitswapAdapter:
-		assert.True(true)
-	default:
-		t.Errorf("expected bitswapAdapter, got %T", session)
-	}
-}
-
-func TestOnNewCarBlockImpl(t *testing.T) {
+func TestonNewBlockImpl(t *testing.T) {
 	assert := assert.New(t)
 	b, closer := getBitswapRetriever(t, "f03223")
 	defer closer()
@@ -76,12 +60,12 @@ func TestOnNewCarBlockImpl(t *testing.T) {
 		Size:     uint64(len(c.Bytes())),
 	}
 
-	b.onNewCarBlock(block)
+	b.onNewBlock(block)
 
 	assert.Equal(len(b.events), 1)
 	assert.Equal(b.events[0].Code, string(FirstByteReceived))
 
-	b.onNewCarBlock(block)
+	b.onNewBlock(block)
 
 	assert.Equal(len(b.events), 2)
 	assert.Equal(b.events[1].Code, string(BlockReceived))
@@ -100,21 +84,21 @@ func TestBitswapGetImpl(t *testing.T) {
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
 		rs := new(mockReadStore)
 		rs.On("Get", mock.Anything, mock.Anything).Return(block, nil)
-		b.bitswap = func() gocar.ReadStore { return rs }
+		b.bitswap = rs
 
 		ctx := context.Background()
 
 		result, err := b.Get(ctx, c)
 		assert.NoError(err)
 
-		assert.Equal(block.RawData(), result.RawData())
+		assert.Equal(block.RawData(), result)
 		assert.Equal(len(b.cidDurations), 1)
 	})
 
 	t.Run("Get() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
 		rs.On("Get", mock.Anything, c).Return(block, errors.New("error"))
-		b.bitswap = func() gocar.ReadStore { return rs }
+		b.bitswap = rs
 
 		ctx := context.Background()
 
@@ -164,7 +148,7 @@ func TestRetreiveImpl(t *testing.T) {
 		rs.On("Get", mock.Anything, k).Return(v, nil)
 	}
 
-	bit.bitswap = func() gocar.ReadStore { return rs }
+	bit.bitswap = rs
 
 	t.Run("Retreive() hits deadline", func(t *testing.T) {
 		ctx := context.Background()

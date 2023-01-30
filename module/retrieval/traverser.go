@@ -26,36 +26,36 @@ type Block struct {
 }
 
 // OnNewCarBlockFunc is called during traveral when a new unique block is encountered.
-type OnNewBlockFunc func(Block)
+type onNewBlockFunc func(Block)
 
 type DataReader interface {
 	Get(context.Context, cid.Cid) ([]byte, error)
 }
 
 type Traverser struct {
-	dags          []gocar.Dag
-	reader        DataReader
-	onNewCarBlock OnNewBlockFunc
-	offset        uint64
-	size          uint64
-	cidSet        *cid.Set
-	cids          []cid.Cid
-	lsys          ipld.LinkSystem
+	dags       []gocar.Dag
+	reader     DataReader
+	onNewBlock onNewBlockFunc
+	offset     uint64
+	size       uint64
+	cidSet     *cid.Set
+	cids       []cid.Cid
+	lsys       ipld.LinkSystem
 }
 
 func NewTraverser(bitswap *BitswapRetriever, dags []gocar.Dag) (*Traverser, error) {
 	var cids []cid.Cid
 
-	onNewCarBlock := func(block Block) {
+	onNewBlock := func(block Block) {
 		cids = append(cids, block.BlockCID)
 
-		bitswap.onNewCarBlock(block)
+		bitswap.onNewBlock(block)
 	}
 
 	traverser := &Traverser{
 		dags,
 		bitswap,
-		onNewCarBlock,
+		onNewBlock,
 		0,
 		0,
 		cid.NewSet(),
@@ -87,7 +87,7 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 	if !t.cidSet.Has(c) {
 		t.cidSet.Add(c)
 		size := util.LdSize(c.Bytes(), data)
-		t.onNewCarBlock(Block{
+		t.onNewBlock(Block{
 			BlockCID: c,
 			Data:     data,
 			Offset:   t.offset,

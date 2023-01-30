@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-address"
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/mock"
 )
@@ -38,10 +37,16 @@ type mockReadStore struct {
 }
 
 //nolint:forcetypeassert
-func (m *mockReadStore) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	args := m.Called(ctx, c)
+func (m *mockReadStore) Get(c cid.Cid) ([]byte, error) {
+	args := m.Called(c)
 
-	return args.Get(0).(blocks.Block), args.Error(1)
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *mockReadStore) Close() error {
+	args := m.Called()
+
+	return args.Error(0)
 }
 
 type BitswapRetrieverMock struct {

@@ -2,8 +2,8 @@ package retrieval
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
-	"io"
 	"time"
 	"validation-bot/module"
 	"validation-bot/role"
@@ -11,7 +11,6 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
-	blocks "github.com/ipfs/go-block-format"
 	gocar "github.com/ipld/go-car"
 	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
 	"github.com/pkg/errors"
@@ -26,35 +25,21 @@ const (
 
 var ErrMaxTimeReached = errors.New("dump session complete")
 
+type bitswapSession interface {
+	Get(c cid.Cid) ([]byte, error)
+	Close() error
+}
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
-	bitswap      DataReader
+	bitswap      bitswapSession
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
-	traverser    *Traverser
+	size         uint64
 	startTime    time.Time
 }
 
 type BitswapRetrieverBuilder struct{}
-
-type bitswapAdapter struct {
-	session *bswap.Session
-}
-
-func (bi bitswapAdapter) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
-	bytes, err := bi.session.Get(c)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get bytes from adapter")
-	}
-
-	block, err := blocks.NewBlockWithCid(bytes, c)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot create block from adapter")
-	}
-
-	return block, nil
-}
 
 // github.com/willscott/go-selfish-bitswap-client has a hardcoded timeout for Session
 // of 10 seconds. Because of this, we need to make a new session for each block if we want
@@ -69,17 +54,10 @@ func (b *BitswapRetrieverBuilder) Build(
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	// remove adapter ¯\_(ツ)_/¯
-	bitswapCallback := func() gocar.ReadStore {
-		return bitswapAdapter{
-			session: bswap.New(libp2p, *minerInfo.PeerID),
-		}
-	}
-
 	// nolint:exhaustruct
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			bitswap:      bitswapCallback,
+			bitswap:      bswap.New(libp2p, *minerInfo.PeerID),
 			done:         make(chan interface{}),
 			events:       make([]TimeEventPair, 0),
 			cidDurations: make(map[cid.Cid]time.Duration),
@@ -94,7 +72,7 @@ func (b *BitswapRetriever) Type() task.Type {
 }
 
 // callback gets called after a successful block retrieval during traverser.Dump.
-func (b *BitswapRetriever) onNewCarBlock(block Block) {
+func (b *BitswapRetriever) onNewBlock(block Block) {
 	// nolint:exhaustruct
 	event := TimeEventPair{
 		Timestamp: time.Now(),
@@ -124,7 +102,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		return nil, errors.Wrap(err, "cannot prepare Selector")
 	}
 
-	b.traverser = traverser
+	defer b.bitswap.Close()
 
 	go func() {
 		b.startTime = time.Now()
@@ -139,7 +117,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
 		defer cancel()
 
-		err = b.traverser.traverse(ctx)
+		err = traverser.traverse(ctx)
 
 		if errors.Is(err, ErrMaxTimeReached) {
 			b.done <- ResultContent{
@@ -163,6 +141,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	select {
 	case <-ctx.Done():
+		b.size = traverser.Size()
 		return b.NewResultContent(RetrieveComplete, ""), nil
 	case result := <-b.done:
 		switch result := result.(type) {
@@ -191,7 +170,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 	}
 
 	if totalDuration != 0 {
-		averageSpeedPerSec = float64(b.traverser.Size()) / float64(totalDuration)
+		averageSpeedPerSec = float64(b.size) / float64(totalDuration)
 	}
 
 	return &ResultContent{
@@ -200,7 +179,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 		Protocol:     Bitswap,
 		CalculatedStats: CalculatedStats{
 			Events:             b.events,
-			BytesDownloaded:    b.traverser.Size(),
+			BytesDownloaded:    b.size,
 			AverageSpeedPerSec: averageSpeedPerSec,
 			TimeElapsed:        totalDuration,
 			TimeToFirstByte:    timeToFirstByte,
@@ -212,34 +191,21 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 // Because we initialize the bitswap session for each Get request, we meassure
 // the duration of the request from the time the go-selfish-bitswap-client session
 // initializes until when the block was received.
-func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) ([]byte, error) {
 	t0 := time.Now()
-	session := b.bitswap()
-
-	defer func() {
-		b.cidDurations[c] = time.Since(t0)
-		if closer, ok := session.(io.Closer); ok {
-			closer.Close()
-		}
-	}()
-
-	block, err := session.Get(ctx, c)
+	bytes, err := b.bitswap.Get(c)
+	b.cidDurations[c] = time.Since(t0)
 	if err != nil {
 		b.events = append(b.events,
 			TimeEventPair{
 				Timestamp: time.Now(),
 				Code:      string(RetrieveFailure),
 				Message:   fmt.Sprintf("failure: %s", c.String()),
-				Received:  0,
+				Received:  binary.LittleEndian.Uint64(bytes),
 			},
 		)
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
 	}
 
-	select {
-	case <-ctx.Done():
-		return block, nil
-	default:
-		return block, nil
-	}
+	return bytes, nil
 }
