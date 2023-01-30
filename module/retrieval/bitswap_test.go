@@ -8,7 +8,6 @@ import (
 	"validation-bot/module"
 
 	"github.com/filecoin-project/lotus/api/client"
-	blocks "github.com/ipfs/go-block-format"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
@@ -79,11 +78,11 @@ func TestBitswapGetImpl(t *testing.T) {
 
 	c := cid.NewCidV1(cid.Raw, []byte("hello world"))
 
-	block := blocks.NewBlock([]byte("hello world"))
+	// block := blocks.NewBlock([]byte("hello world"))
 
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, mock.Anything).Return(block, nil)
+		rs.On("Get", mock.Anything, mock.Anything).Return([]byte("hello world"), nil)
 		b.bitswap = rs
 
 		ctx := context.Background()
@@ -91,13 +90,13 @@ func TestBitswapGetImpl(t *testing.T) {
 		result, err := b.Get(ctx, c)
 		assert.NoError(err)
 
-		assert.Equal(block.RawData(), result)
+		assert.Equal([]byte("hello world"), result)
 		assert.Equal(len(b.cidDurations), 1)
 	})
 
 	t.Run("Get() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, c).Return(block, errors.New("error"))
+		rs.On("Get", mock.Anything, c).Return([]byte("hello world"), errors.New("error"))
 		b.bitswap = rs
 
 		ctx := context.Background()
