@@ -31,7 +31,7 @@ type bitswapSession interface {
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
-	bitswap      bitswapSession
+	bitswap      bswap.Bitswap
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
 	size         uint64
@@ -56,10 +56,14 @@ func (b *BitswapRetrieverBuilder) Build(
 	// libp2p.Peerstore().AddAddrs(*minerInfo.PeerID, minerInfo.MultiAddrs, time.Hour)
 	// fmt.Printf("peers: %v\n", libp2p.Peerstore().Peers())
 
+	opts := bswap.Options{
+		SessionTimeout: completionTime,
+	}
+
 	// nolint:exhaustruct
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			bitswap:      bswap.New(libp2p, *minerInfo.PeerID),
+			bitswap:      bswap.New(libp2p, *minerInfo.PeerID, opts),
 			done:         make(chan interface{}),
 			events:       make([]TimeEventPair, 0),
 			cidDurations: make(map[cid.Cid]time.Duration),
@@ -195,7 +199,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 // initializes until when the block was received.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) ([]byte, error) {
 	t0 := time.Now()
-	bytes, err := b.bitswap.Get(c)
+	bytes, err := b.bitswap.Get(ctx, c)
 	b.cidDurations[c] = time.Since(t0)
 	if err != nil {
 		b.events = append(b.events,

@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/go-merkledag"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func getBitswapRetriever(t *testing.T, clientId string) (*BitswapRetriever, func()) {
@@ -80,7 +81,7 @@ func TestBitswapGetImpl(t *testing.T) {
 
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", c).Return(v, nil)
+		rs.On("Get", mock.Anything, c).Return(v, nil)
 		b.bitswap = rs
 
 		ctx := context.Background()
@@ -94,7 +95,7 @@ func TestBitswapGetImpl(t *testing.T) {
 
 	t.Run("Get() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", c).Return(v, errors.New("error"))
+		rs.On("Get", mock.Anything, c).Return(v, errors.New("error"))
 		b.bitswap = rs
 
 		ctx := context.Background()

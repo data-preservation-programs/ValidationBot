@@ -37,8 +37,8 @@ type mockReadStore struct {
 }
 
 //nolint:forcetypeassert
-func (m *mockReadStore) Get(c cid.Cid) ([]byte, error) {
-	args := m.Called(c)
+func (m *mockReadStore) Get(ctx context.Context, c cid.Cid) ([]byte, error) {
+	args := m.Called(ctx, c)
 
 	return args.Get(0).([]byte), args.Error(1)
 }
