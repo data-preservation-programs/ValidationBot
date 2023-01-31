@@ -13,7 +13,6 @@ import (
 	"github.com/ipfs/go-merkledag"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func getBitswapRetriever(t *testing.T, clientId string) (*BitswapRetriever, func()) {
@@ -76,13 +75,12 @@ func TestBitswapGetImpl(t *testing.T) {
 	b, closer := getBitswapRetriever(t, "f03223")
 	defer closer()
 
-	c := cid.NewCidV1(cid.Raw, []byte("hello world"))
-
-	// block := blocks.NewBlock([]byte("hello world"))
+	v := []byte("hello world")
+	c := cid.NewCidV1(cid.Raw, v)
 
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, mock.Anything).Return([]byte("hello world"), nil)
+		rs.On("Get", c).Return(v, nil)
 		b.bitswap = rs
 
 		ctx := context.Background()
@@ -90,13 +88,13 @@ func TestBitswapGetImpl(t *testing.T) {
 		result, err := b.Get(ctx, c)
 		assert.NoError(err)
 
-		assert.Equal([]byte("hello world"), result)
+		assert.Equal(v, result)
 		assert.Equal(len(b.cidDurations), 1)
 	})
 
 	t.Run("Get() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, c).Return([]byte("hello world"), errors.New("error"))
+		rs.On("Get", c).Return(v, errors.New("error"))
 		b.bitswap = rs
 
 		ctx := context.Background()
@@ -142,9 +140,10 @@ func TestRetreiveImpl(t *testing.T) {
 	rs := new(mockReadStore)
 	root, nodeMap := makeDepthTestingGraph(t)
 
+	rs.On("Close").Return(nil)
 	for k, v := range nodeMap {
 		fmt.Printf("mocking from nodeMap: key: %s, value: %v\n\n", k, v)
-		rs.On("Get", mock.Anything, k).Return(v, nil)
+		rs.On("Get", k).Return(v.RawData(), nil)
 	}
 
 	bit.bitswap = rs
@@ -174,5 +173,26 @@ func TestRetreiveImpl(t *testing.T) {
 		assert.NotNil(result.BytesDownloaded)
 		assert.NotNil(result.TimeToFirstByte)
 		assert.NotNil(result.AverageSpeedPerSec)
+	})
+}
+
+func TestBitswapGetImplLive(t *testing.T) {
+	t.Skip("Only turn on for live test")
+	assert := assert.New(t)
+
+	b, closer := getBitswapRetriever(t, "f022352")
+	defer closer()
+
+	c, err := cid.Decode("bafybeicozcxftee3qct6mswo7nmchbmyhstqbsteytbdiarq64kqcooa34")
+	assert.NoError(err)
+
+	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
+		result, err := b.Retrieve(context.Background(), c, 8*time.Second)
+		assert.NoError(err)
+
+		fmt.Printf("result: %v\n", result)
+		assert.NotNil(result)
+		assert.Equal(len(b.cidDurations), 1)
+		assert.Greater(result.BytesDownloaded, uint64(0))
 	})
 }

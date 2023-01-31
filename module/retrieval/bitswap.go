@@ -2,7 +2,6 @@ package retrieval
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 	"validation-bot/module"
@@ -53,6 +52,9 @@ func (b *BitswapRetrieverBuilder) Build(
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
+
+	// libp2p.Peerstore().AddAddrs(*minerInfo.PeerID, minerInfo.MultiAddrs, time.Hour)
+	// fmt.Printf("peers: %v\n", libp2p.Peerstore().Peers())
 
 	// nolint:exhaustruct
 	return &BitswapRetriever{
@@ -201,7 +203,7 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) ([]byte, error) {
 				Timestamp: time.Now(),
 				Code:      string(RetrieveFailure),
 				Message:   fmt.Sprintf("failure: %s", c.String()),
-				Received:  binary.LittleEndian.Uint64(bytes),
+				Received:  0,
 			},
 		)
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
