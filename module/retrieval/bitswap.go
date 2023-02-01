@@ -10,12 +10,12 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 
+	bswap "github.com/brossetti1/go-selfish-bitswap-client"
 	gocar "github.com/ipld/go-car"
 	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
-	bswap "github.com/willscott/go-selfish-bitswap-client"
 )
 
 const (

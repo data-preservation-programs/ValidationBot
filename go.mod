@@ -5,11 +5,12 @@ go 1.18
 require (
 	github.com/application-research/filclient v0.4.0
 	github.com/bcicen/jstream v1.0.1
+	github.com/brossetti1/go-selfish-bitswap-client v0.0.0-20230201224834-ddcd9e7d9939
 	github.com/filecoin-project/go-address v1.1.0
 	github.com/filecoin-project/go-cbor-util v0.0.1
 	github.com/filecoin-project/go-data-transfer v1.15.2
 	github.com/filecoin-project/go-fil-markets v1.25.1
-	github.com/filecoin-project/go-legs v0.4.16
+	github.com/filecoin-project/go-legs v0.4.15
 	github.com/filecoin-project/go-state-types v0.10.0-alpha-2
 	github.com/filecoin-project/lotus v1.19.0
 	github.com/go-resty/resty/v2 v2.7.0
@@ -29,7 +30,7 @@ require (
 	github.com/jackc/pgtype v1.12.0
 	github.com/labstack/echo/v4 v4.9.0
 	github.com/labstack/gommon v0.3.1
-	github.com/libp2p/go-libp2p v0.24.2
+	github.com/libp2p/go-libp2p v0.23.2
 	github.com/libp2p/go-libp2p-kad-dht v0.20.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
 	github.com/mitchellh/mapstructure v1.5.0
@@ -41,7 +42,6 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.17.1
-	github.com/willscott/go-selfish-bitswap-client v0.0.0-20230131081541-52e168547e03
 	github.com/ziflex/lecho/v3 v3.1.0
 	go.uber.org/dig v1.15.0
 	golang.org/x/exp v0.0.0-20221205204356-47842c84f3db
@@ -66,6 +66,7 @@ require (
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/chzyer/readline v1.5.0 // indirect
 	github.com/containerd/cgroups v1.0.4 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
@@ -128,7 +129,6 @@ require (
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
-	github.com/google/pprof v0.0.0-20221203041831-ce31453925ec // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/graph-gophers/graphql-go v1.2.0 // indirect
@@ -198,7 +198,7 @@ require (
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.2.0 // indirect
 	github.com/libp2p/go-libp2p-core v0.20.1 // indirect
-	github.com/libp2p/go-libp2p-gostream v0.5.0 // indirect
+	github.com/libp2p/go-libp2p-gostream v0.4.1-0.20220720161416-e1952aede109 // indirect
 	github.com/libp2p/go-libp2p-http v0.2.1 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.5.0 // indirect
 	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
@@ -208,7 +208,7 @@ require (
 	github.com/libp2p/go-openssl v0.1.0 // indirect
 	github.com/libp2p/go-reuseport v0.2.0 // indirect
 	github.com/libp2p/go-yamux/v4 v4.0.0 // indirect
-	github.com/lucas-clemente/quic-go v0.31.1 // indirect
+	github.com/lucas-clemente/quic-go v0.29.1 // indirect
 	github.com/magefile/mage v1.9.0 // indirect
 	github.com/magiconair/properties v1.8.0 // indirect
 	github.com/marten-seemann/qtls-go1-18 v0.1.3 // indirect
@@ -234,7 +234,8 @@ require (
 	github.com/multiformats/go-multihash v0.2.1 // indirect
 	github.com/multiformats/go-varint v0.0.7 // indirect
 	github.com/nkovacs/streamquote v1.0.0 // indirect
-	github.com/onsi/ginkgo/v2 v2.5.1 // indirect
+	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
@@ -292,6 +293,7 @@ require (
 	google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1 // indirect
 	google.golang.org/grpc v1.46.2 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
