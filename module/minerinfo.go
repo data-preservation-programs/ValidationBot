@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"github.com/filecoin-project/go-address"
@@ -75,6 +76,8 @@ func GetMinerInfo(ctx context.Context, lotusAPI api.Gateway, provider string) (*
 		maddrs[i] = multiaddrBytes
 		maddrStrs[i] = multiaddrBytes.String()
 	}
+
+	fmt.Println(maddrStrs, minerInfo.PeerId, providerAddr, minerInfo.Multiaddrs)
 
 	return &MinerInfoResult{
 		MultiAddrs:   maddrs,

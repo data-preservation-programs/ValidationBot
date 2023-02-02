@@ -79,7 +79,7 @@ func (t *Traverser) loader(ctx ipld.LinkContext, lnk ipld.Link) (io.Reader, erro
 		return nil, errors.New("incorrect link type")
 	}
 	c := cl.Cid
-	data, err := t.reader.Get(ctx.Ctx, c)
+	data, err := t.reader.Get(ctx.Ctx, cl.Cid)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get block from loader")
 	}

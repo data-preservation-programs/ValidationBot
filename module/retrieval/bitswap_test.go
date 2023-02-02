@@ -144,7 +144,7 @@ func TestRetreiveImpl(t *testing.T) {
 	rs.On("Close").Return(nil)
 	for k, v := range nodeMap {
 		fmt.Printf("mocking from nodeMap: key: %s, value: %v\n\n", k, v)
-		rs.On("Get", k).Return(v.RawData(), nil)
+		rs.On("Get", mock.Anything, k).Return(v.RawData(), nil)
 	}
 
 	bit.bitswap = rs
@@ -178,7 +178,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	t.Skip("Only turn on for live test")
+	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f022352")
@@ -188,7 +188,7 @@ func TestBitswapGetImplLive(t *testing.T) {
 	assert.NoError(err)
 
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
-		result, err := b.Retrieve(context.Background(), c, 8*time.Second)
+		result, err := b.Retrieve(context.Background(), c, 8*time.Minute)
 		assert.NoError(err)
 
 		fmt.Printf("result: %v\n", result)

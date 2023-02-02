@@ -24,10 +24,6 @@ const (
 
 var ErrMaxTimeReached = errors.New("dump session complete")
 
-type bitswapSession interface {
-	Get(c cid.Cid) ([]byte, error)
-	Close() error
-}
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
@@ -53,8 +49,7 @@ func (b *BitswapRetrieverBuilder) Build(
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	// libp2p.Peerstore().AddAddrs(*minerInfo.PeerID, minerInfo.MultiAddrs, time.Hour)
-	// fmt.Printf("peers: %v\n", libp2p.Peerstore().Peers())
+	fmt.Printf("minerInfo: %v\n", minerInfo)
 
 	opts := bswap.Options{
 		SessionTimeout: completionTime,
