@@ -9,6 +9,8 @@ import (
 	"validation-bot/task"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 
 	bswap "github.com/brossetti1/go-selfish-bitswap-client"
 	gocar "github.com/ipld/go-car"
@@ -22,8 +24,6 @@ const (
 	completionTime = 20 * time.Second
 )
 
-var ErrMaxTimeReached = errors.New("dump session complete")
-
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
@@ -32,6 +32,7 @@ type BitswapRetriever struct {
 	cidDurations map[cid.Cid]time.Duration
 	size         uint64
 	startTime    time.Time
+	supported    bool
 }
 
 type BitswapRetrieverBuilder struct{}
@@ -41,15 +42,24 @@ type BitswapRetrieverBuilder struct{}
 // the Dump process to take longer than 10 seconds in total. This is accomplished by using
 // the bitswapCallback function to create a new session for each block.
 func (b *BitswapRetrieverBuilder) Build(
-	ctx context.Context,
 	minerInfo *module.MinerInfoResult,
+	minerProtocols *[]MinerProtocols,
 ) (*BitswapRetriever, Cleanup, error) {
 	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
 	}
 
-	fmt.Printf("minerInfo: %v\n", minerInfo)
+	var pid peer.ID
+
+	for _, mp := range *minerProtocols {
+		if mp.Protocol == "bitswap" {
+			pid = mp.PeerID
+			for _, addr := range mp.MultiAddrs {
+				libp2p.Peerstore().SetAddr(mp.PeerID, addr, peerstore.PermanentAddrTTL)
+			}
+		}
+	}
 
 	opts := bswap.Options{
 		SessionTimeout: completionTime,
@@ -58,11 +68,12 @@ func (b *BitswapRetrieverBuilder) Build(
 	// nolint:exhaustruct
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			bitswap:      bswap.New(libp2p, *minerInfo.PeerID, opts),
+			bitswap:      bswap.New(libp2p, pid, opts),
 			done:         make(chan interface{}),
 			events:       make([]TimeEventPair, 0),
 			cidDurations: make(map[cid.Cid]time.Duration),
 			startTime:    time.Time{},
+			supported:    len(*minerProtocols) > 0, // TODO should we keep this?
 		}, func() {
 			libp2p.Close()
 		}, nil
@@ -103,7 +114,9 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		return nil, errors.Wrap(err, "cannot prepare Selector")
 	}
 
-	defer b.bitswap.Close()
+	defer func() {
+		b.bitswap.Close()
+	}()
 
 	go func() {
 		b.startTime = time.Now()

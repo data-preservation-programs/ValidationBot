@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 	"validation-bot/module"
+	"validation-bot/role"
 
 	"github.com/filecoin-project/lotus/api/client"
 	cid "github.com/ipfs/go-cid"
@@ -16,18 +17,35 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func getBitswapRetriever(t *testing.T, clientId string) (*BitswapRetriever, func()) {
+func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*BitswapRetriever, func()) {
 	assert := assert.New(t)
 	ctx := context.Background()
 	lotusAPI, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/rpc/v0", nil)
 	assert.NoError(err)
 
-	minerInfo, err := module.GetMinerInfo(ctx, lotusAPI, clientId)
+	minerInfo, err := module.GetMinerInfo(context.Background(), lotusAPI, clientId)
 	assert.NoError(err)
 
-	builder := BitswapRetrieverBuilder{}
+	var minerProtos []MinerProtocols
 
-	b, cleanup, err := builder.Build(ctx, minerInfo)
+	if getProtos {
+		// For Live Testing
+		libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+		if err != nil {
+			panic(err)
+		}
+		minerProtos, err = GetMinerProtocols(ctx, minerInfo, libp2p, Bitswap)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		minerProtos = make([]MinerProtocols, 0)
+	}
+
+	builder := BitswapRetrieverBuilder{}
+	fmt.Println("minerInfo: ", minerInfo)
+
+	b, cleanup, err := builder.Build(minerInfo, &minerProtos)
 	assert.Nil(err)
 	assert.NotNil(b)
 
@@ -39,7 +57,7 @@ func getBitswapRetriever(t *testing.T, clientId string) (*BitswapRetriever, func
 
 func TestBitswapBuilderImpl_Build(t *testing.T) {
 	assert := assert.New(t)
-	b, closer := getBitswapRetriever(t, "f03223")
+	b, closer := getBitswapRetriever(t, "f03223", false)
 	defer closer()
 
 	assert.NotNil(b)
@@ -48,7 +66,7 @@ func TestBitswapBuilderImpl_Build(t *testing.T) {
 
 func TestonNewBlockImpl(t *testing.T) {
 	assert := assert.New(t)
-	b, closer := getBitswapRetriever(t, "f03223")
+	b, closer := getBitswapRetriever(t, "f03223", false)
 	defer closer()
 
 	c := cid.NewCidV1(cid.Raw, []byte("hello world"))
@@ -73,7 +91,7 @@ func TestonNewBlockImpl(t *testing.T) {
 func TestBitswapGetImpl(t *testing.T) {
 	assert := assert.New(t)
 
-	b, closer := getBitswapRetriever(t, "f03223")
+	b, closer := getBitswapRetriever(t, "f03223", false)
 	defer closer()
 
 	v := []byte("hello world")
@@ -135,7 +153,7 @@ func makeDepthTestingGraph(t *testing.T) (ipld.Node, map[cid.Cid]ipld.Node) {
 func TestRetreiveImpl(t *testing.T) {
 	assert := assert.New(t)
 
-	bit, closer := getBitswapRetriever(t, "f03223")
+	bit, closer := getBitswapRetriever(t, "f03223", false)
 	defer closer()
 
 	rs := new(mockReadStore)
@@ -181,7 +199,7 @@ func TestBitswapGetImplLive(t *testing.T) {
 	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
-	b, closer := getBitswapRetriever(t, "f022352")
+	b, closer := getBitswapRetriever(t, "f022352", true)
 	defer closer()
 
 	c, err := cid.Decode("bafybeicozcxftee3qct6mswo7nmchbmyhstqbsteytbdiarq64kqcooa34")
@@ -190,8 +208,10 @@ func TestBitswapGetImplLive(t *testing.T) {
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
 		result, err := b.Retrieve(context.Background(), c, 8*time.Minute)
 		assert.NoError(err)
+		assert.Empty(result.ErrorMessage)
 
 		fmt.Printf("result: %v\n", result)
+
 		assert.NotNil(result)
 		assert.Equal(len(b.cidDurations), 1)
 		assert.Greater(result.BytesDownloaded, uint64(0))

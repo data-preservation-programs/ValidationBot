@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"validation-bot/module"
+	"validation-bot/role"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
@@ -229,7 +230,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 	return true, nil
 }
 
-//nolint:cyclop,funlen
+//nolint:cyclop,funlen,maintidx
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -355,7 +356,22 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 				}
 			case Bitswap:
-				bitswap, cleanup, err := q.bitswap.Build(ctx, minerInfoResult)
+				libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to create libp2p host")
+				}
+				protocols, err := GetMinerProtocols(ctx, minerInfoResult, libp2p, Bitswap)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to get miner protocols")
+					continue
+				}
+				bitswap, cleanup, err := q.bitswap.Build(minerInfoResult, &protocols)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
