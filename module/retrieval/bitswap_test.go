@@ -196,7 +196,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	// t.Skip("Only turn on for live test")
+	t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f022352", true)
