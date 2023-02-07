@@ -71,7 +71,7 @@ func TestBitswapBuilderImpl_Build(t *testing.T) {
 	assert.IsType(&BitswapRetriever{}, b)
 }
 
-func TestonNewBlockImpl(t *testing.T) {
+func TestOnNewBlockImpl(t *testing.T) {
 	assert := assert.New(t)
 	b, closer := getBitswapRetriever(t, "f03223", false)
 	defer closer()
@@ -203,7 +203,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	// t.Skip("Only turn on for live test")
+	t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f022352", true)

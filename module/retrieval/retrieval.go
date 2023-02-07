@@ -22,8 +22,6 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var supportedProtocols []Protocol = []Protocol{GraphSync, Bitswap}
-
 type Dispatcher struct {
 	dealResolver module.DealStatesResolver
 }
@@ -43,6 +41,10 @@ func genRandNumber(max int) int {
 	}
 
 	return int(n.Int64())
+}
+
+func GetSupportedProtocols() []Protocol {
+	return []Protocol{GraphSync, Bitswap}
 }
 
 func (Dispatcher) Type() task.Type {
@@ -142,7 +144,7 @@ func (Dispatcher) Validate(definition task.Definition) error {
 
 	if len(def.ProtocolPreference) >= 1 {
 		for _, protocol := range def.ProtocolPreference {
-			if !slices.Contains(supportedProtocols, protocol) {
+			if !slices.Contains(GetSupportedProtocols(), protocol) {
 				// TODO should we just remove this protocol from def.ProtocolPreference
 				// TODO and log attempt of unsupported protocol?
 				return errors.New(
@@ -244,7 +246,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 	return true, nil
 }
 
-//nolint:cyclop,funlen,maintidx
+//nolint:cyclop,funlen,maintidx,gocyclo
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -404,7 +406,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
-						string(protocol.MultiAddrStr[0]),
+						protocol.MultiAddrStr[0],
 					).Msg("failed to build Bitswap retriever")
 					cleanup()
 					continue

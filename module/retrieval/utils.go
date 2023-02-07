@@ -3,6 +3,7 @@ package retrieval
 import (
 	"context"
 	"strings"
+	"time"
 	"validation-bot/module"
 
 	multiaddrutil "github.com/filecoin-project/go-legs/httpsync/multiaddr"
@@ -64,7 +65,7 @@ func GetMinerProtocols(
 			case "http", "https", "libp2p", "ws", "wss":
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-			default:
+			case "bitswap":
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrBytes.String()
 
@@ -74,6 +75,8 @@ func GetMinerProtocols(
 				}
 
 				libp2p.Peerstore().SetAddr(peerID, mma, peerstore.PermanentAddrTTL)
+			default:
+				// do nothing right now
 			}
 
 			minerp := MinerProtocols{
@@ -121,8 +124,8 @@ func minerSupporttedProtocols(
 	minerInfo peer.AddrInfo,
 	host host.Host,
 ) (*types.QueryResponse, error) {
-	// ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
 	id, err := peer.Decode(minerInfo.ID.String())
 	if err != nil {
