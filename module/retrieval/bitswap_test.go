@@ -26,26 +26,33 @@ func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*Bitswa
 	minerInfo, err := module.GetMinerInfo(context.Background(), lotusAPI, clientId)
 	assert.NoError(err)
 
-	var minerProtos []MinerProtocols
+	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+	if err != nil {
+		panic(err)
+	}
+
+	var bitswap MinerProtocols
 
 	if getProtos {
 		// For Live Testing
-		libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+		protocols, err := GetMinerProtocols(ctx, minerInfo, libp2p)
 		if err != nil {
 			panic(err)
 		}
-		minerProtos, err = GetMinerProtocols(ctx, minerInfo, libp2p, Bitswap)
-		if err != nil {
-			panic(err)
+
+		for _, mp := range protocols {
+			if mp.Protocol == "bitswap" {
+				bitswap = mp
+			}
 		}
 	} else {
-		minerProtos = make([]MinerProtocols, 0)
+		bitswap = MinerProtocols{Protocol: Bitswap}
 	}
 
 	builder := BitswapRetrieverBuilder{}
 	fmt.Println("minerInfo: ", minerInfo)
 
-	b, cleanup, err := builder.Build(minerInfo, &minerProtos)
+	b, cleanup, err := builder.Build(minerInfo, bitswap, libp2p)
 	assert.Nil(err)
 	assert.NotNil(b)
 
@@ -196,7 +203,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	t.Skip("Only turn on for live test")
+	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f022352", true)

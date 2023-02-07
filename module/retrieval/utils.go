@@ -31,7 +31,6 @@ func GetMinerProtocols(
 	ctx context.Context,
 	minerInfo *module.MinerInfoResult,
 	libp2p host.Host,
-	proto Protocol,
 ) ([]MinerProtocols, error) {
 	info := peer.AddrInfo{ID: *minerInfo.PeerID, Addrs: minerInfo.MultiAddrs}
 
@@ -47,52 +46,49 @@ func GetMinerProtocols(
 
 	// nolint:forbidigo
 	fmt.Printf("protocols: %v", supported)
-	var maddrs []multiaddr.Multiaddr
-	var maddrStrs []string
-	var pcols []MinerProtocols
-
-	pro := strings.ToLower(string(proto))
+	var protocols []MinerProtocols
 
 	for _, protocol := range supported.Protocols {
-		if protocol.Name == pro {
-			maddrs = make([]multiaddr.Multiaddr, len(protocol.Addresses))
-			maddrStrs = make([]string, len(protocol.Addresses))
-			pcols = make([]MinerProtocols, len(protocol.Addresses))
+		maddrs := make([]multiaddr.Multiaddr, len(protocol.Addresses))
+		maddrStrs := make([]string, len(protocol.Addresses))
+		protocols = make([]MinerProtocols, len(protocol.Addresses))
+		var peerID peer.ID
 
-			for i, mma := range protocol.Addresses {
-				multiaddrBytes, err := multiaddr.NewMultiaddrBytes(mma.Bytes())
-				if err != nil {
-					continue
-				}
+		for i, mma := range protocol.Addresses {
+			multiaddrBytes, err := multiaddr.NewMultiaddrBytes(mma.Bytes())
+			if err != nil {
+				continue
+			}
 
+			switch protocol.Name {
+			case "http", "https", "libp2p", "ws", "wss":
 				maddrs[i] = multiaddrBytes
-				if pro == "http" || pro == "https" {
-					maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-				} else {
-					maddrStrs[i] = multiaddrBytes.String()
-				}
+				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
+			default:
+				maddrs[i] = multiaddrBytes
+				maddrStrs[i] = multiaddrBytes.String()
 
-				peerID, err := peerIDFromMultiAddr(mma.String())
+				peerID, err = peerIDFromMultiAddr(mma.String())
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot decode peer id")
 				}
 
 				libp2p.Peerstore().SetAddr(peerID, mma, peerstore.PermanentAddrTTL)
-
-				minerp := MinerProtocols{
-					Protocol:     proto,
-					PeerID:       peerID,
-					MultiAddrs:   maddrs,
-					MultiAddrStr: maddrStrs,
-				}
-
-				// nolint:makezero
-				pcols = append(pcols, minerp)
 			}
+
+			minerp := MinerProtocols{
+				Protocol:     Protocol(protocol.Name),
+				PeerID:       peerID,
+				MultiAddrs:   maddrs,
+				MultiAddrStr: maddrStrs,
+			}
+
+			// nolint:makezero
+			protocols = append(protocols, minerp)
 		}
 	}
 
-	return pcols, nil
+	return protocols, nil
 }
 
 func peerIDFromMultiAddr(ma string) (peer.ID, error) {

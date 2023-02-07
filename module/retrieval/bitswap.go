@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 	"validation-bot/module"
-	"validation-bot/role"
 	"validation-bot/task"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 
 	bswap "github.com/brossetti1/go-selfish-bitswap-client"
@@ -21,7 +20,7 @@ import (
 )
 
 const (
-	completionTime = 20 * time.Second
+	completionTime = 8 * time.Minute
 )
 
 type BitswapRetriever struct {
@@ -32,7 +31,6 @@ type BitswapRetriever struct {
 	cidDurations map[cid.Cid]time.Duration
 	size         uint64
 	startTime    time.Time
-	supported    bool
 }
 
 type BitswapRetrieverBuilder struct{}
@@ -43,22 +41,18 @@ type BitswapRetrieverBuilder struct{}
 // the bitswapCallback function to create a new session for each block.
 func (b *BitswapRetrieverBuilder) Build(
 	minerInfo *module.MinerInfoResult,
-	minerProtocols *[]MinerProtocols,
+	protocol MinerProtocols,
+	libp2p host.Host,
 ) (*BitswapRetriever, Cleanup, error) {
-	libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "cannot create libp2p host")
+	if protocol.Protocol != "bitswap" {
+		return nil, nil, errors.New("protocol is not bitswap")
 	}
 
-	var pid peer.ID
+	// TODO bad address means addr has peer id in it - fixed on this pr
+	// https://github.com/libp2p/go-libp2p/pull/2007/files
 
-	for _, mp := range *minerProtocols {
-		if mp.Protocol == "bitswap" {
-			pid = mp.PeerID
-			for _, addr := range mp.MultiAddrs {
-				libp2p.Peerstore().SetAddr(mp.PeerID, addr, peerstore.PermanentAddrTTL)
-			}
-		}
+	for _, addr := range protocol.MultiAddrs {
+		libp2p.Peerstore().SetAddr(protocol.PeerID, addr, peerstore.PermanentAddrTTL)
 	}
 
 	opts := bswap.Options{
@@ -68,12 +62,11 @@ func (b *BitswapRetrieverBuilder) Build(
 	// nolint:exhaustruct
 	return &BitswapRetriever{
 			log:          log.With().Str("role", "retrieval_bitswap").Caller().Logger(),
-			bitswap:      bswap.New(libp2p, pid, opts),
+			bitswap:      bswap.New(libp2p, protocol.PeerID, opts),
 			done:         make(chan interface{}),
 			events:       make([]TimeEventPair, 0),
 			cidDurations: make(map[cid.Cid]time.Duration),
 			startTime:    time.Time{},
-			supported:    len(*minerProtocols) > 0, // TODO should we keep this?
 		}, func() {
 			libp2p.Close()
 		}, nil
@@ -120,16 +113,16 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	go func() {
 		b.startTime = time.Now()
-		var tout time.Duration
+		// var tout time.Duration
 
-		if timeout > 0 {
-			tout = timeout
-		} else {
-			tout = completionTime
-		}
+		// if timeout > 0 {
+		// 	tout = timeout
+		// } else {
+		// 	tout = completionTime
+		// }
 
-		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
-		defer cancel()
+		// ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
+		// defer cancel()
 
 		err = traverser.traverse(ctx)
 

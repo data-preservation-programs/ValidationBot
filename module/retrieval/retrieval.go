@@ -3,6 +3,7 @@ package retrieval
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
+
+var supportedProtocols []Protocol = []Protocol{GraphSync, Bitswap}
 
 type Dispatcher struct {
 	dealResolver module.DealStatesResolver
@@ -137,8 +140,19 @@ func (Dispatcher) Validate(definition task.Definition) error {
 		return errors.Wrap(err, "failed to unmarshal definition")
 	}
 
-	if len(def.ProtocolPreference) != 1 || !slices.Contains([]Protocol{GraphSync, Bitswap}, def.ProtocolPreference[0]) {
-		return errors.New("currently only GraphSync and Bitswap protocol are supported")
+	if len(def.ProtocolPreference) >= 1 {
+		for _, protocol := range def.ProtocolPreference {
+			if !slices.Contains(supportedProtocols, protocol) {
+				// TODO should we just remove this protocol from def.ProtocolPreference
+				// TODO and log attempt of unsupported protocol?
+				return errors.New(
+					fmt.Sprintf(
+						"protocol %s is not supported, currently only GraphSync and Bitswap protocol are supported",
+						string(protocol),
+					),
+				)
+			}
+		}
 	}
 
 	if definition.IntervalSeconds > 0 && definition.IntervalSeconds < 3600 {
@@ -363,7 +377,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 						string(protocol),
 					).Msg("failed to create libp2p host")
 				}
-				protocols, err := GetMinerProtocols(ctx, minerInfoResult, libp2p, Bitswap)
+				protocols, err := GetMinerProtocols(ctx, minerInfoResult, libp2p)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
@@ -371,11 +385,26 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					).Msg("failed to get miner protocols")
 					continue
 				}
-				bitswap, cleanup, err := q.bitswap.Build(minerInfoResult, &protocols)
+
+				var protocol MinerProtocols
+
+				for _, p := range protocols {
+					if p.Protocol == Bitswap {
+						protocol = p
+					}
+				}
+
+				if protocol.Protocol == "" {
+					q.log.Error().Err(err).Str("provider", provider).Msg(
+						"miner does not support Bitswap protocol")
+					continue
+				}
+
+				bitswap, cleanup, err := q.bitswap.Build(minerInfoResult, protocol, libp2p)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
-						string(protocol),
+						string(protocol.MultiAddrStr[0]),
 					).Msg("failed to build Bitswap retriever")
 					cleanup()
 					continue
@@ -383,10 +412,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 				result, err := bitswap.Retrieve(ctx, dataCid, q.timeout)
 				if err != nil {
-					q.log.Error().Err(err).Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("failed to retrieve data with Bitswap protocol")
+					q.log.Error().Err(err).Str("provider", provider).Msg(
+						fmt.Sprintf("failed to retrieve data with Bitswap protocol: %v", protocol.MultiAddrStr))
 					cleanup()
 					continue
 				}
@@ -407,7 +434,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				}
 
 				if result.Status == Success {
-					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
+					q.log.Info().Str("provider", provider).Str("protocol", string(protocol.Protocol)).Msg("retrieval succeeded")
 				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
