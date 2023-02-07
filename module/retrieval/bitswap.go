@@ -8,10 +8,8 @@ import (
 	"validation-bot/task"
 
 	cid "github.com/ipfs/go-cid"
-	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/multiformats/go-multiaddr"
 
 	bswap "github.com/brossetti1/go-selfish-bitswap-client"
 	gocar "github.com/ipld/go-car"
@@ -46,19 +44,28 @@ func (b *BitswapRetrieverBuilder) Build(
 	protocol MinerProtocols,
 	libp2p host.Host,
 ) (*BitswapRetriever, Cleanup, error) {
-	if protocol.Protocol != "bitswap" {
+	// nolint:goconst
+	if protocol.Protocol.Name != "bitswap" {
 		return nil, nil, errors.New("protocol is not bitswap")
 	}
 
-	var maddrs []multiaddr.Multiaddr
+	// var maddrs []multiaddr.Multiaddr
 
 	// pid := peer.Decode("/p2p" + protocol.PeerID.String())
 
 	for _, addr := range protocol.MultiAddrs {
-		maddr, _ := peer.SplitAddr(addr)
-		maddrs = append(maddrs, maddr)
-
-		libp2p.Peerstore().SetAddrs(protocol.PeerID, maddrs, peerstore.PermanentAddrTTL)
+		if addr == nil {
+			continue
+		}
+		// p2ppart, err := ma.NewComponent("p2p", peer.Encode(protocol.PeerID))
+		// if err != nil {
+		//  nolint:dupword
+		// 	return nil, nil, errors.Wrap(err, "cannot create p2p component")
+		// }
+		// maddr, _ := peer.SplitAddr(addr)
+		// fmt.Printf("maddr: %v; protocols: %v", maddr, addr.Protocols())
+		libp2p.Peerstore().AddAddr(protocol.PeerID, protocol.MultiAddrs[0], peerstore.PermanentAddrTTL)
+		// fmt.Printf("peer info: %v", libp2p.Peerstore().PeerInfo(protocol.PeerID))
 	}
 
 	opts := bswap.Options{
@@ -119,16 +126,16 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	go func() {
 		b.startTime = time.Now()
-		var tout time.Duration
+		// var tout time.Duration
 
-		if timeout > 0 {
-			tout = timeout
-		} else {
-			tout = completionTime
-		}
+		// if timeout > 0 {
+		// 	tout = timeout
+		// } else {
+		// 	tout = completionTime
+		// }
 
-		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
-		defer cancel()
+		// ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
+		// defer cancel()
 
 		err = traverser.traverse(ctx)
 

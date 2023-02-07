@@ -7,8 +7,7 @@ import (
 	"validation-bot/module"
 
 	multiaddrutil "github.com/filecoin-project/go-legs/httpsync/multiaddr"
-	"github.com/libp2p/go-libp2p/core/peerstore"
-	"github.com/multiformats/go-multiaddr"
+	multiaddr "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
 	"fmt"
@@ -17,10 +16,11 @@ import (
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 type MinerProtocols struct {
-	Protocol     Protocol
+	Protocol     types.Protocol
 	PeerID       peer.ID
 	MultiAddrs   []multiaddr.Multiaddr
 	MultiAddrStr []string
@@ -50,8 +50,8 @@ func GetMinerProtocols(
 	var protocols []MinerProtocols
 
 	for _, protocol := range supported.Protocols {
-		maddrs := make([]multiaddr.Multiaddr, len(protocol.Addresses))
-		maddrStrs := make([]string, len(protocol.Addresses))
+		maddrs := make([]multiaddr.Multiaddr, len(supported.Protocols))
+		maddrStrs := make([]string, len(supported.Protocols))
 		protocols = make([]MinerProtocols, len(protocol.Addresses))
 		var peerID peer.ID
 
@@ -80,7 +80,7 @@ func GetMinerProtocols(
 			}
 
 			minerp := MinerProtocols{
-				Protocol:     Protocol(protocol.Name),
+				Protocol:     protocol,
 				PeerID:       peerID,
 				MultiAddrs:   maddrs,
 				MultiAddrStr: maddrStrs,
@@ -124,6 +124,7 @@ func minerSupporttedProtocols(
 	minerInfo peer.AddrInfo,
 	host host.Host,
 ) (*types.QueryResponse, error) {
+	// nolint:gomnd
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 

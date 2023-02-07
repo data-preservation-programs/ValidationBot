@@ -391,12 +391,12 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				var protocol MinerProtocols
 
 				for _, p := range protocols {
-					if p.Protocol == Bitswap {
+					if p.Protocol.Name == string(Bitswap) {
 						protocol = p
 					}
 				}
 
-				if protocol.Protocol == "" {
+				if protocol.Protocol.Name == "" {
 					q.log.Error().Err(err).Str("provider", provider).Msg(
 						"miner does not support Bitswap protocol")
 					continue
@@ -436,7 +436,9 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				}
 
 				if result.Status == Success {
-					q.log.Info().Str("provider", provider).Str("protocol", string(protocol.Protocol)).Msg("retrieval succeeded")
+					for _, addr := range protocol.MultiAddrStr {
+						q.log.Info().Str("provider", provider).Str("protocol", addr).Msg("retrieval succeeded")
+					}
 				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)

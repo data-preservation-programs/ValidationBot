@@ -8,6 +8,7 @@ import (
 	"validation-bot/module"
 	"validation-bot/role"
 
+	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/filecoin-project/lotus/api/client"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
@@ -41,12 +42,12 @@ func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*Bitswa
 		}
 
 		for _, mp := range protocols {
-			if mp.Protocol == "bitswap" {
+			if mp.Protocol.Name == "bitswap" {
 				bitswap = mp
 			}
 		}
 	} else {
-		bitswap = MinerProtocols{Protocol: Bitswap}
+		bitswap = MinerProtocols{Protocol: types.Protocol{Name: string(Bitswap)}}
 	}
 
 	builder := BitswapRetrieverBuilder{}
@@ -203,7 +204,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	t.Skip("Only turn on for live test")
+	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f022352", true)
