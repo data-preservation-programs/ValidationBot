@@ -40,6 +40,7 @@ jobs:
           args: --timeout=5m
           skip-pkg-cache: true
           skip-build-cache: true
+          skip-cache: true
 
       - name: Setup postgreSQL
         uses: harmon758/postgresql-action@v1
