@@ -8,6 +8,7 @@ import (
 	"validation-bot/task"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	completionTime = 8 * time.Minute
+	completionTime = 15 * time.Second
 )
 
 type BitswapRetriever struct {
@@ -35,10 +36,6 @@ type BitswapRetriever struct {
 
 type BitswapRetrieverBuilder struct{}
 
-// github.com/willscott/go-selfish-bitswap-client has a hardcoded timeout for Session
-// of 10 seconds. Because of this, we need to make a new session for each block if we want
-// the Dump process to take longer than 10 seconds in total. This is accomplished by using
-// the bitswapCallback function to create a new session for each block.
 func (b *BitswapRetrieverBuilder) Build(
 	minerInfo *module.MinerInfoResult,
 	protocol MinerProtocols,
@@ -49,23 +46,15 @@ func (b *BitswapRetrieverBuilder) Build(
 		return nil, nil, errors.New("protocol is not bitswap")
 	}
 
-	// var maddrs []multiaddr.Multiaddr
-
-	// pid := peer.Decode("/p2p" + protocol.PeerID.String())
-
 	for _, addr := range protocol.MultiAddrs {
 		if addr == nil {
 			continue
 		}
-		// p2ppart, err := ma.NewComponent("p2p", peer.Encode(protocol.PeerID))
-		// if err != nil {
-		//  nolint:dupword
-		// 	return nil, nil, errors.Wrap(err, "cannot create p2p component")
-		// }
-		// maddr, _ := peer.SplitAddr(addr)
-		// fmt.Printf("maddr: %v; protocols: %v", maddr, addr.Protocols())
-		libp2p.Peerstore().AddAddr(protocol.PeerID, protocol.MultiAddrs[0], peerstore.PermanentAddrTTL)
-		// fmt.Printf("peer info: %v", libp2p.Peerstore().PeerInfo(protocol.PeerID))
+		maddr, err := peer.AddrInfoFromP2pAddr(addr)
+		if err != nil {
+			return nil, nil, err
+		}
+		libp2p.Peerstore().AddAddrs(maddr.ID, maddr.Addrs, peerstore.PermanentAddrTTL)
 	}
 
 	opts := bswap.Options{
@@ -126,16 +115,16 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	go func() {
 		b.startTime = time.Now()
-		// var tout time.Duration
+		var tout time.Duration
 
-		// if timeout > 0 {
-		// 	tout = timeout
-		// } else {
-		// 	tout = completionTime
-		// }
+		if timeout > 0 {
+			tout = timeout
+		} else {
+			tout = completionTime
+		}
 
-		// ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
-		// defer cancel()
+		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
+		defer cancel()
 
 		err = traverser.traverse(ctx)
 
@@ -212,6 +201,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 // the duration of the request from the time the go-selfish-bitswap-client session
 // initializes until when the block was received.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) ([]byte, error) {
+	fmt.Println("In Get")
 	t0 := time.Now()
 	bytes, err := b.bitswap.Get(ctx, c)
 	b.cidDurations[c] = time.Since(t0)

@@ -66,18 +66,20 @@ func GetMinerProtocols(
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
 			case "bitswap":
-				maddrs[i] = multiaddrBytes
-				maddrStrs[i] = multiaddrBytes.String()
+				maddrs[i] = mma
+				maddrStrs[i] = mma.String()
 
 				peerID, err = peerIDFromMultiAddr(mma.String())
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot decode peer id")
 				}
 
-				libp2p.Peerstore().SetAddr(peerID, mma, peerstore.PermanentAddrTTL)
+				libp2p.Peerstore().AddAddr(info.ID, mma, peerstore.PermanentAddrTTL)
 			default:
 				// do nothing right now
 			}
+
+			// fmt.Println(libp2p.Peerstore().Addrs(info.ID))
 
 			minerp := MinerProtocols{
 				Protocol:     protocol,

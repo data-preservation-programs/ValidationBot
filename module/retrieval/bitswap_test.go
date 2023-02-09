@@ -207,14 +207,14 @@ func TestBitswapGetImplLive(t *testing.T) {
 	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
-	b, closer := getBitswapRetriever(t, "f022352", true)
+	b, closer := getBitswapRetriever(t, "f01953925", true)
 	defer closer()
 
-	c, err := cid.Decode("bafybeicozcxftee3qct6mswo7nmchbmyhstqbsteytbdiarq64kqcooa34")
+	c, err := cid.Decode("bafykbzaceb4gqljh5wrijjincngznnrw4f6hwjfpei4evvcwhhgh4jegjb4sy")
 	assert.NoError(err)
 
 	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
-		result, err := b.Retrieve(context.Background(), c, 8*time.Minute)
+		result, err := b.Retrieve(context.Background(), c, 20*time.Second)
 		assert.NoError(err)
 		assert.Empty(result.ErrorMessage)
 
