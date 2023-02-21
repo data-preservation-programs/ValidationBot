@@ -28,7 +28,6 @@ func TestRPCClient__Validate(t *testing.T) {
 
 	assert.NotNil(rpcServer)
 
-	type portNumber = int
 	type stdout = string
 
 	ctx, cancel := context.WithCancel(context.Background())

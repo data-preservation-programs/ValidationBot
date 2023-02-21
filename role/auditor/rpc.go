@@ -93,7 +93,7 @@ func (r *ClientRPC) CallServer(
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Error().Err(errors.Errorf("%v", rec)).Msg("panic")
+			log.Error().Err(errors.Errorf("%v", rec)).Msg("panic - killing process")
 
 			err = cmd.Process.Kill()
 			if err != nil {
@@ -136,7 +136,6 @@ func (r *ClientRPC) Validate(
 	scans := 0
 
 	for scanner.Scan() {
-		// TODO come back and do cborutl.ReadCborRPC?
 		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
 			scans += 1
 			if scans > scanLoops {
@@ -150,8 +149,10 @@ func (r *ClientRPC) Validate(
 	}
 
 	// nolint:forbidigo
-	fmt.Printf("port detected: %d\n", port)
+	log.Info().Msgf("port detected: %d\n", port)
 	conn := fmt.Sprintf("%s:%d", "0.0.0.0", port)
+
+	log.Info().Msgf("dialing http: %s\n", conn)
 	client, err := rpc.DialHTTP("tcp", conn)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")
@@ -173,6 +174,7 @@ func (r *ClientRPC) Validate(
 
 	var reply module.ValidationResult
 
+	log.Info().Msg("calling rpc validate")
 	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")
