@@ -53,7 +53,7 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 
 type portNumber = int
 
-func (ra *RPCServer) Start(ctx context.Context, forcePort int) error {
+func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber) error {
 	rpcServer := new(RPCServer)
 	rpcServer.Modules = ra.Modules
 
