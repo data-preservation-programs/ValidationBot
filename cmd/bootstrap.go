@@ -117,7 +117,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 					if err != nil {
 						panic(err)
 					}
-					return strings.Trim(absPath, " /")
+					return absPath
 				}(),
 			},
 		},
