@@ -105,7 +105,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
-			ConfigRPC: rpcClientConfig{
+			ClientRPC: rpcClientConfig{
 				Timeout: retreivalTimeout + 5*time.Second,
 				BaseDir: os.TempDir(),
 				ExecPath: func() string {
@@ -785,9 +785,9 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	err = container.Provide(
 		func() *auditor.ClientRPC {
 			return auditor.NewClientRPC(auditor.ClientConfig{
-				BaseDir:  cfg.Auditor.ConfigRPC.BaseDir,
-				Timeout:  cfg.Auditor.ConfigRPC.Timeout,
-				ExecPath: cfg.Auditor.ConfigRPC.ExecPath,
+				BaseDir:  cfg.Auditor.ClientRPC.BaseDir,
+				Timeout:  cfg.Auditor.ClientRPC.Timeout,
+				ExecPath: cfg.Auditor.ClientRPC.ExecPath,
 			})
 		},
 		dig.Name("auditor_rpc_client"),

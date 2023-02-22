@@ -65,7 +65,7 @@ type auditorConfig struct {
 	PrivateKey  string
 	ListenAddr  string
 	BiddingWait time.Duration
-	ConfigRPC   rpcClientConfig
+	ClientRPC   rpcClientConfig
 }
 
 type w3sConfig struct {
