@@ -82,11 +82,9 @@ func (r *ClientRPC) CallServer(
 	cmd := exec.CommandContext(ctx, dir, "validation-rpc")
 	cmd.Dir = absdir
 
-	if r.execPath == "" || r.execPath == "/" {
-		cmd.Path = "/app/validation_bot"
-	} else {
-		cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
-	}
+	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
+
+	r.log.Info().Str("cmd.Path", cmd.Path).Msg("executing validation bot rpc from cmd.Path")
 
 	stdout, _ := cmd.StdoutPipe()
 	defer stdout.Close()

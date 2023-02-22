@@ -74,15 +74,20 @@ func TestRPCClient__Validate(t *testing.T) {
 
 func TestRPCClient_Call__FeatureTest(t *testing.T) {
 	wd, err := os.Getwd()
-	assert.NoError(t, err)
+	if err != nil {
+		panic(err)
+	}
+	absPath, err := filepath.Abs(filepath.Dir(wd))
+	if err != nil {
+		panic(err)
+	}
 
-	pathing, err := filepath.Abs(wd)
-	assert.NoError(t, err)
+	path := filepath.Join(absPath, "../")
 
 	rpcClient := NewClientRPC(ClientConfig{
 		BaseDir:  "/tmp",
 		Timeout:  2 * time.Minute,
-		ExecPath: fmt.Sprintf("%s/../..", pathing),
+		ExecPath: path,
 	})
 
 	ctx := context.Background()
