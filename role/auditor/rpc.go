@@ -68,7 +68,10 @@ func (r *ClientRPC) CallServer(
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
 
-	defer os.RemoveAll(dir)
+	defer func() {
+		r.log.Info().Str("defered removal of dir", dir).Msg("removing tmp dir!")
+		os.RemoveAll(dir)
+	}()
 
 	absdir, err := filepath.Abs(dir)
 	if err != nil {
