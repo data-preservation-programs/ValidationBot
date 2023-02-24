@@ -29,7 +29,7 @@ type Block struct {
 type onNewBlockFunc func(Block)
 
 type DataReader interface {
-	Get(context.Context, cid.Cid) ([]byte, error)
+	Get(context.Context, cid.Cid) (Block, error)
 }
 
 type Traverser struct {
