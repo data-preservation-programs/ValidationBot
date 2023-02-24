@@ -8,16 +8,16 @@ import (
 	"validation-bot/task"
 
 	blocks "github.com/ipfs/go-block-format"
+	"github.com/ipfs/go-blockservice"
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	"github.com/ipfs/go-merkledag"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/peerstore"
 
-	gocar "github.com/ipld/go-car"
-	selectorparse "github.com/ipld/go-ipld-prime/traversal/selector/parse"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log "github.com/rs/zerolog/log"
@@ -30,10 +30,15 @@ const (
 	completionTime = 15 * time.Second
 )
 
+type BlockReader interface {
+	GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error)
+	Close() error
+}
+
 type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
-	bitswap      *bsclient.Client
+	bitswap      BlockReader
 	libp2p       host.Host
 	peerInfo     MinerProtocols
 	network      bsnet.BitSwapNetwork
@@ -93,18 +98,18 @@ func (b *BitswapRetriever) Type() task.Type {
 }
 
 // callback gets called after a successful block retrieval during traverser.Dump.
-func (b *BitswapRetriever) onNewBlock(block Block) {
+func (b *BitswapRetriever) onNewBlock(block blocks.Block) {
 	// nolint:exhaustruct
 	event := TimeEventPair{
 		Timestamp: time.Now(),
-		Received:  uint64(len(block.Data)),
+		Received:  uint64(len(block.RawData())),
 	}
 
 	if len(b.events) == 0 {
-		event.Message = fmt.Sprintf("first-bytes received: [Block %s]", block.BlockCID)
+		event.Message = fmt.Sprintf("first-bytes received: [Block %s]", block.Cid())
 		event.Code = string(FirstByteReceived)
 	} else {
-		event.Message = fmt.Sprintf("bytes received: [Block %s]", block.BlockCID)
+		event.Message = fmt.Sprintf("bytes received: [Block %s]", block.Cid())
 		event.Code = string(BlockReceived)
 	}
 
@@ -116,24 +121,19 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 	*ResultContent,
 	error,
 ) {
-	b.network.Start(b.bitswap)
+	b.network.Start(b.bitswap.(*bsclient.Client))
 
-	dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
+	// dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
 
 	addrInfo := peer.AddrInfo{ID: b.peerInfo.PeerID, Addrs: b.peerInfo.MultiAddrs}
 	err := b.libp2p.Connect(ctx, addrInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to miner")
 	}
-
-	traverser, err := NewTraverser(b, []gocar.Dag{dag})
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot prepare Selector")
-	}
-
-	defer func() {
-		b.bitswap.Close()
-	}()
+	// traverser, err := NewTraverser(b, []gocar.Dag{dag})
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "cannot prepare Selector")
+	// }
 
 	go func() {
 		b.startTime = time.Now()
@@ -146,9 +146,19 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		}
 
 		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
-		defer cancel()
+		dserv := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, merkledag.NewDAGService(blockservice.New(blockstore.NewBlockstore(datastore.NewNullDatastore()), b.bitswap))))
 
-		err = traverser.traverse(ctx)
+		defer func() {
+			defer cancel()
+			b.bitswap.Close()
+		}()
+
+		linkGetter := merkledag.GetLinksWithDAG(dserv)
+		visit := func(cid cid.Cid) bool {
+			return true
+		}
+
+		err := merkledag.Walk(ctx, linkGetter, root, visit, merkledag.Concurrent())
 
 		if errors.Is(err, ErrMaxTimeReached) {
 			b.done <- ResultContent{
@@ -172,7 +182,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	select {
 	case <-ctx.Done():
-		b.size = traverser.Size()
+		// b.size = traverser.Size()
 		return b.NewResultContent(RetrieveComplete, ""), nil
 	case result := <-b.done:
 		switch result := result.(type) {
@@ -224,7 +234,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 // initializes until when the block was received.
 func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
-	bytes, err := b.bitswap.Get(ctx, c)
+	blk, err := b.bitswap.GetBlock(ctx, c)
 	b.cidDurations[c] = time.Since(t0)
 	if err != nil {
 		b.events = append(b.events,
@@ -238,6 +248,7 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
 	}
 
-	blk := blocks.NewBlock(bytes)
+	b.onNewBlock(blk)
+
 	return blk, nil
 }
