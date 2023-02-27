@@ -13,6 +13,7 @@ import (
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -36,7 +37,7 @@ func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*Bitswa
 
 	if getProtos {
 		// For Live Testing
-		protocols, err := GetMinerProtocols(ctx, minerInfo, libp2p)
+		protocols, err := GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfo.PeerID, Addrs: minerInfo.MultiAddrs}, libp2p)
 		if err != nil {
 			panic(err)
 		}
@@ -204,7 +205,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	// t.Skip("Only turn on for live test")
+	t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f01953925", true)

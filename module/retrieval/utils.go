@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"time"
-	"validation-bot/module"
 
 	multiaddrutil "github.com/filecoin-project/go-legs/httpsync/multiaddr"
 	multiaddr "github.com/multiformats/go-multiaddr"
@@ -12,11 +11,11 @@ import (
 
 	"fmt"
 
+	// "github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
 	"github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 )
 
 type MinerProtocols struct {
@@ -30,13 +29,9 @@ var ErrMaxTimeReached = errors.New("dump session complete")
 
 func GetMinerProtocols(
 	ctx context.Context,
-	minerInfo *module.MinerInfoResult,
+	info peer.AddrInfo,
 	libp2p host.Host,
 ) ([]MinerProtocols, error) {
-	info := peer.AddrInfo{ID: *minerInfo.PeerID, Addrs: minerInfo.MultiAddrs}
-
-	libp2p.Peerstore().AddAddrs(info.ID, info.Addrs, peerstore.PermanentAddrTTL)
-
 	supported, err := minerSupporttedProtocols(ctx, info, libp2p)
 	if err != nil && strings.Contains(err.Error(), "protocol not supported") {
 		return []MinerProtocols{}, nil
@@ -45,8 +40,6 @@ func GetMinerProtocols(
 		return nil, errors.Wrap(err, "failed to get miner supportted protocols")
 	}
 
-	// nolint:forbidigo
-	fmt.Printf("protocols: %v", supported)
 	var protocols []MinerProtocols
 
 	for _, protocol := range supported.Protocols {
@@ -73,13 +66,9 @@ func GetMinerProtocols(
 				if err != nil {
 					return nil, errors.Wrap(err, "cannot decode peer id")
 				}
-
-				libp2p.Peerstore().AddAddr(info.ID, mma, peerstore.PermanentAddrTTL)
 			default:
 				// do nothing right now
 			}
-
-			// fmt.Println(libp2p.Peerstore().Addrs(info.ID))
 
 			minerp := MinerProtocols{
 				Protocol:     protocol,
