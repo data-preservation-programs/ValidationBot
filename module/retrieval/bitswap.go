@@ -146,7 +146,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 		}
 
 		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
-		dserv := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, merkledag.NewDAGService(blockservice.New(blockstore.NewBlockstore(datastore.NewNullDatastore()), b.bitswap.(*bsclient.Client)))))
+		dserv := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, merkledag.NewDAGService(blockservice.New(blockstore.NewBlockstore(datastore.NewNullDatastore()), b))))
 
 		defer func() {
 			defer cancel()
@@ -228,11 +228,12 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 	}
 }
 
-// Get matches the gocar.ReadStore interface used when traversing a car file.
-// Because we initialize the bitswap session for each Get request, we meassure
-// the duration of the request from the time the go-selfish-bitswap-client session
-// initializes until when the block was received.
-func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+func (b *BitswapRetriever) Close() error {
+	b.network.Stop()
+	return nil
+}
+
+func (b *BitswapRetriever) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
 	blk, err := b.bitswap.GetBlock(ctx, c)
 	b.cidDurations[c] = time.Since(t0)
@@ -251,4 +252,12 @@ func (b *BitswapRetriever) Get(ctx context.Context, c cid.Cid) (blocks.Block, er
 	b.onNewBlock(blk)
 
 	return blk, nil
+}
+
+func (b *BitswapRetriever) GetBlocks(context.Context, []cid.Cid) (<-chan blocks.Block, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (b *BitswapRetriever) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) error {
+	return errors.New("not implemented")
 }
