@@ -43,7 +43,7 @@ linters:
     - wastedassign
     - gocognit
     - wsl
-
+    - musttag
 linters-settings:
   revive:
     rules:
