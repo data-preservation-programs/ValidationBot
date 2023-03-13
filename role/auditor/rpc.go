@@ -1,7 +1,6 @@
 package auditor
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"time"
 	"validation-bot/module"
 
@@ -43,7 +41,7 @@ type ClientConfig struct {
 
 const (
 	scanPause = time.Millisecond * 200
-	scanLoops = 3
+	scanLoops = 6
 )
 
 func NewClientRPC(config ClientConfig) *ClientRPC {
@@ -67,11 +65,6 @@ func (r *ClientRPC) CallServer(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create directory")
 	}
-
-	defer func() {
-		r.log.Info().Str("defered removal of dir", dir).Msg("removing tmp dir!")
-		os.RemoveAll(dir)
-	}()
 
 	absdir, err := filepath.Abs(dir)
 	if err != nil {
@@ -98,6 +91,9 @@ func (r *ClientRPC) CallServer(
 	}
 
 	defer func() {
+		r.log.Info().Str("defered removal of dir", dir).Msg("removing tmp dir!")
+		os.RemoveAll(dir)
+
 		if rec := recover(); rec != nil {
 			log.Error().Err(errors.Errorf("%v", rec)).Msg("panic - killing process")
 
@@ -110,6 +106,7 @@ func (r *ClientRPC) CallServer(
 
 	reply, err := r.Validate(ctx, stdout, input)
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to call validate")
 		return nil, errors.Wrap(err, "failed to call validate")
 	}
 
@@ -136,23 +133,23 @@ func (r *ClientRPC) Validate(
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
 	// listen for rpc server port from stdout - fmt.Printf("%d\n", addr.Port)
-	scanner := bufio.NewScanner(stdout)
+	// scanner := bufio.NewScanner(stdout)
 
-	var port int
-	scans := 0
+	port := 1234
+	// scans := 0
 
-	for scanner.Scan() {
-		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
-			scans += 1
-			if scans > scanLoops {
-				return nil, errors.Wrap(err, "failed to parse port")
-			}
-			time.Sleep(scanPause)
-		} else {
-			port = _port
-			break
-		}
-	}
+	// for scanner.Scan() {
+	// 	if _port, err := strconv.Atoi(scanner.Text()); err != nil {
+	// 		// scans += 1
+	// 		if scans > scanLoops {
+	// 			return nil, errors.Wrap(err, "failed to parse port")
+	// 		}
+	// 		// time.Sleep(scanPause)
+	// 	} else {
+	// 		port = _port
+	// 		break
+	// 	}
+	// }
 
 	// nolint:forbidigo
 	log.Info().Msgf("port detected: %d\n", port)
@@ -160,6 +157,7 @@ func (r *ClientRPC) Validate(
 
 	log.Info().Msgf("dialing http: %s\n", conn)
 	client, err := rpc.DialHTTP("tcp", conn)
+	log.Info().Msgf("client: %v\n", client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")
 	}
@@ -181,6 +179,16 @@ func (r *ClientRPC) Validate(
 	var reply module.ValidationResult
 
 	log.Info().Msg("calling rpc validate")
+
+	var pong string
+
+	err = client.Call("RPCServer.Ping", "ping", &pong)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to call rpc")
+	}
+
+	fmt.Printf("success %s", pong)
+
 	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")

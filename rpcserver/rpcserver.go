@@ -30,6 +30,12 @@ func NewRPCServer(config Config) *RPCServer {
 	}
 }
 
+func (ra *RPCServer) Ping(input string, reply *string) error {
+	ra.log.Info().Msg("Received ping")
+	*reply = "pong"
+	return nil
+}
+
 func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.ValidationResult) error {
 	ctx := context.Background()
 	ra.log.Info().Msgf("Received validation request for task %s", input.TaskID)
@@ -68,7 +74,7 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber) error {
 	if forcePort != 0 {
 		address = fmt.Sprintf("0.0.0.0:%d", forcePort)
 	} else {
-		address = "0.0.0.0:"
+		address = "0.0.0.0:1234"
 	}
 
 	listener, _ := net.Listen("tcp", address)
