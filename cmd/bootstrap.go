@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -113,14 +114,16 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 					if err != nil {
 						panic(err)
 					}
-					absPath, err := filepath.Abs(filepath.Dir(wd))
-					if err != nil {
-						panic(err)
+					// if err != nil {
+					// 	panic(err)
+					// }
+					if _, err := os.Stat(filepath.Join(wd, "app", "validation_bot")); !os.IsNotExist(err) {
+						wd = filepath.Join(wd, "app")
 					}
-					if _, err := os.Stat(filepath.Join(absPath, "app", "validation_bot")); !os.IsNotExist(err) {
-						absPath = filepath.Join(absPath, "app")
-					}
-					return absPath
+
+					fmt.Printf("wd: %s", wd)
+					// fmt.Printf("absPath: %s", absPath)
+					return wd
 				}(),
 			},
 		},
