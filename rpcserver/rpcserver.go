@@ -90,7 +90,8 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber, tmpDir str
 	_port := []byte(strconv.Itoa(addr.Port))
 	log.Info().Msgf("writing to %s to %s/port.txt", _port, tmpDir)
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0644)
+	//nolint:gomnd
+	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0600)
 	if err != nil {
 		return errors.Wrap(err, "failed to write port to file")
 	}

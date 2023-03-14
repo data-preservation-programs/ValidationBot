@@ -110,19 +110,18 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 				Timeout: retreivalTimeout + 5*time.Second,
 				BaseDir: os.TempDir(),
 				ExecPath: func() string {
+					//nolint:varnamelen
 					wd, err := os.Getwd()
 					if err != nil {
 						panic(err)
 					}
-					// if err != nil {
-					// 	panic(err)
-					// }
+
 					if _, err := os.Stat(filepath.Join(wd, "app", "validation_bot")); !os.IsNotExist(err) {
 						wd = filepath.Join(wd, "app")
 					}
 
+					// nolint:forbidigo
 					fmt.Printf("wd: %s", wd)
-					// fmt.Printf("absPath: %s", absPath)
 					return wd
 				}(),
 			},

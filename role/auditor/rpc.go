@@ -103,6 +103,7 @@ func (r *ClientRPC) CallServer(
 	readCount := 0
 
 	for {
+		//nolint:varnamelen
 		p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
 		readCount += 1
 		if err != nil {
@@ -112,7 +113,7 @@ func (r *ClientRPC) CallServer(
 				return nil, errors.Wrap(err, "retry count exhausted, failed to read port.txt")
 			}
 
-			fmt.Printf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
+			r.log.Info().Msgf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
 			time.Sleep(retryPause)
 			continue
 		}
