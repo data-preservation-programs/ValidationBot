@@ -1,7 +1,6 @@
 package auditor
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -19,13 +18,14 @@ import (
 )
 
 type IClientRPC interface {
-	CallServer(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error)
+	CallServer(ctx context.Context, dir string, input module.ValidationInput) (*module.ValidationResult, error)
 	Validate(
 		ctx context.Context,
 		port int,
 		input module.ValidationInput,
 	) (*module.ValidationResult, error)
 	GetTimeout() time.Duration
+	CreateTmpDir() (string, error)
 }
 
 type ClientRPC struct {
@@ -42,8 +42,9 @@ type ClientConfig struct {
 }
 
 const (
-	scanPause = time.Millisecond * 400
-	scanLoops = 10
+	retryPause = time.Millisecond * 200
+	retryMax   = 10
+	tmpDir     = "validation_rpc"
 )
 
 func NewClientRPC(config ClientConfig) *ClientRPC {
@@ -59,40 +60,32 @@ func (r *ClientRPC) GetTimeout() time.Duration {
 	return r.Timeout
 }
 
-func getPort(scanner *bufio.Scanner, scans int) (port int, err error) {
-	if _port, err := strconv.Atoi(scanner.Text()); err != nil {
-		scans += 1
-		log.Info().Msgf("scanning count: %d; port: %s\n", scans, _port)
-		if scans > scanLoops {
-			return 0, errors.Wrap(err, "failed to parse port")
-		}
-		time.Sleep(scanPause)
-		getPort(scanner, scans)
-	} else {
-		port = _port
+func (r *ClientRPC) CreateTmpDir() (string, error) {
+	dir, err := os.MkdirTemp(r.baseDir, tmpDir)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create directory")
 	}
 
-	return port, nil
+	return dir, nil
 }
 
 func (r *ClientRPC) CallServer(
 	ctx context.Context,
+	dir string,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	dir, err := os.MkdirTemp(r.baseDir, "validation_rpc")
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create directory")
-	}
-
 	absdir, err := filepath.Abs(dir)
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to get absolute path")
 		return nil, errors.Wrap(err, "failed to get absolute path")
 	}
 
 	r.log.Info().Str("Absolute dir", absdir).Msg("using absolute path to tmp dir")
 	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
-	// calls /path/to/ValidationBot/validation_bot validation-rpc
+	// calls /path/to/ValidationBot/validation_bot validation-rpc with tmp dir as arg
+	// the rpcserver will write the port to a file in the tmp dir so it can be read
+	// in the Validate call
 	cmd := exec.CommandContext(ctx, dir, "validation-rpc", "-dir", absdir)
 	cmd.Dir = absdir
 
@@ -100,23 +93,39 @@ func (r *ClientRPC) CallServer(
 
 	r.log.Info().Str("cmd.Path", cmd.Path).Msg("executing validation bot rpc from cmd.Path")
 
-	stdout, _ := cmd.StdoutPipe()
-	defer stdout.Close()
-
 	err = cmd.Start()
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to start validation server")
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
 
-	// TODO add redundency
-	time.Sleep(scanPause)
+	var port int
+	readCount := 0
 
-	p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
-	if err != nil {
-		os.RemoveAll(dir)
-		log.Error().Err(err).Msg("failed to read port.txt")
-		return nil, errors.Wrap(err, "failed to read port.txt")
+	for {
+		p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
+		readCount += 1
+		if err != nil {
+			if readCount >= retryMax {
+				os.RemoveAll(dir)
+				r.log.Error().Err(err).Msg("retry count exhausted, failed to read port.txt")
+				return nil, errors.Wrap(err, "retry count exhausted, failed to read port.txt")
+			}
+
+			fmt.Printf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
+			time.Sleep(retryPause)
+			continue
+		}
+
+		r.log.Info().Msgf("port.txt returned: %s\n", p)
+		_port, err := strconv.Atoi(string(p))
+		if err != nil {
+			os.RemoveAll(dir)
+			return nil, errors.Wrap(err, "failed to parse port from port.txt")
+		}
+
+		port = _port
+		break
 	}
 
 	defer func() {
@@ -132,12 +141,6 @@ func (r *ClientRPC) CallServer(
 			}
 		}
 	}()
-
-	r.log.Info().Msgf("port.txt: %s\n", p)
-	port, err := strconv.Atoi(string(p))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse port")
-	}
 
 	reply, err := r.Validate(ctx, port, input)
 	if err != nil {
@@ -167,10 +170,6 @@ func (r *ClientRPC) Validate(
 	port int,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	// listen for rpc server port from stdout - fmt.Printf("%d\n", addr.Port)
-	log.Info().Msgf("pasusing....")
-	time.Sleep(scanPause)
-
 	// nolint:forbidigo
 	log.Info().Msgf("port detected: %d\n", port)
 	conn := fmt.Sprintf("%s:%d", "0.0.0.0", port)
@@ -200,15 +199,10 @@ func (r *ClientRPC) Validate(
 
 	log.Info().Msg("calling rpc validate")
 
-	var pong string
-
-	err = client.Call("RPCServer.Ping", "ping", &pong)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to call rpc")
-	}
-
-	fmt.Printf("success %s", pong)
-
+	// if RPCServer.Validate is not working, you can check the
+	// rpc connection with:
+	// var pong string
+	// err = client.Call("RPCServer.Ping", "ping", &pong)
 	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")

@@ -150,7 +150,12 @@ func (a *Auditor) Start(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, a.clientRPC.GetTimeout())
 				defer cancel()
 
-				result, err := a.clientRPC.CallServer(ctx, *input)
+				dir, err := a.clientRPC.CreateTmpDir()
+				if err != nil {
+					log.Debug().Bytes("task", task).Msgf("failed to MkdirTemp")
+				}
+
+				result, err := a.clientRPC.CallServer(ctx, dir, *input)
 
 				if errors.Is(err, context.DeadlineExceeded) {
 					log.Error().Bytes("task", task).Err(err).Msg("validation timed out")

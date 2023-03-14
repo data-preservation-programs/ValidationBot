@@ -3,7 +3,6 @@ package mockResultPublisher
 
 import (
 	"context"
-	"io"
 	"time"
 	"validation-bot/module"
 
@@ -18,9 +17,10 @@ type MockRPCClient struct {
 
 func (m *MockRPCClient) CallServer(
 	ctx context.Context,
+	dir string,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	args := m.Called(ctx, input)
+	args := m.Called(ctx, dir, input)
 
 	value, ok := args.Get(0).(*module.ValidationResult)
 
@@ -35,12 +35,24 @@ func (m *MockRPCClient) GetTimeout() time.Duration {
 	return m.Timeout
 }
 
+func (m *MockRPCClient) CreateTmpDir() (string, error) {
+	args := m.Called()
+
+	value, ok := args.Get(0).(string)
+
+	if !ok {
+		return "", args.Error(1)
+	}
+
+	return value, args.Error(1)
+}
+
 func (m *MockRPCClient) Validate(
 	ctx context.Context,
-	stdout io.Reader,
+	port int,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	args := m.Called(ctx, stdout, input)
+	args := m.Called(ctx, port, input)
 
 	value, ok := args.Get(0).(*module.ValidationResult)
 

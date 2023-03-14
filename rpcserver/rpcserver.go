@@ -85,13 +85,12 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber, tmpDir str
 		return errors.New("failed type assertion on listener.Addr to *net.TCPAddr")
 	}
 
-	// print port number to stdout so ClientRPC can read it
+	// write port number to tmpdir/port.txt received from client side so ClientRPC can read it
 	//nolint:forbidigo
-	fmt.Printf("%d\n", addr.Port)
 	_port := []byte(strconv.Itoa(addr.Port))
 	log.Info().Msgf("writing to %s to %s/port.txt", _port, tmpDir)
-	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0644)
 
+	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0644)
 	if err != nil {
 		return errors.Wrap(err, "failed to write port to file")
 	}
