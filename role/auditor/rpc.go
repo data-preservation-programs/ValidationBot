@@ -109,8 +109,7 @@ func (r *ClientRPC) CallServer(
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
 
-	time.Sleep(scanPause)
-	time.Sleep(scanPause)
+	// TODO add redundency
 	time.Sleep(scanPause)
 
 	p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
