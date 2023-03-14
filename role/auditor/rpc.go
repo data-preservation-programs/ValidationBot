@@ -108,8 +108,8 @@ func (r *ClientRPC) CallServer(
 		if err != nil {
 			if readCount >= retryMax {
 				os.RemoveAll(dir)
-				r.log.Error().Err(err).Msgf("retry count exhausted at %s attempts; failed to read port.txt", retryMax)
-				return nil, errors.Wrapf(err, "retry count exhausted (%s), failed to read port.txt", retryMax)
+				r.log.Error().Err(err).Msgf("retry count exhausted at %d attempts; failed to read port.txt", retryMax)
+				return nil, errors.Wrapf(err, "retry count exhausted (%d), failed to read port.txt", retryMax)
 			}
 
 			r.log.Info().Msgf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
