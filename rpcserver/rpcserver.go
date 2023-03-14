@@ -47,7 +47,6 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 		return errors.New(fmt.Sprintf("no module found for task type %s", input.Type))
 	}
 
-	// TODO come back and do cborutl.Write/ReadCborRPC?
 	result, err := mod.Validate(ctx, input)
 	if err != nil {
 		//nolint:forbidigo

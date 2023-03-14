@@ -83,9 +83,8 @@ func (r *ClientRPC) CallServer(
 	r.log.Info().Str("Absolute dir", absdir).Msg("using absolute path to tmp dir")
 	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
-	// calls /path/to/ValidationBot/validation_bot validation-rpc with tmp dir as arg
-	// the rpcserver will write the port to a file in the tmp dir so it can be read
-	// in the Validate call
+	// calls /path/to/ValidationBot/validation_bot validation-rpc with tmp dir as arg the rpcserver
+	// will write the port to a file in the tmp dir so it can be read in the ClientRPC.Validate()
 	cmd := exec.CommandContext(ctx, dir, "validation-rpc", "-dir", absdir)
 	cmd.Dir = absdir
 
@@ -109,8 +108,8 @@ func (r *ClientRPC) CallServer(
 		if err != nil {
 			if readCount >= retryMax {
 				os.RemoveAll(dir)
-				r.log.Error().Err(err).Msg("retry count exhausted, failed to read port.txt")
-				return nil, errors.Wrap(err, "retry count exhausted, failed to read port.txt")
+				r.log.Error().Err(err).Msgf("retry count exhausted at %s attempts; failed to read port.txt", retryMax)
+				return nil, errors.Wrapf(err, "retry count exhausted (%s), failed to read port.txt", retryMax)
 			}
 
 			r.log.Info().Msgf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
@@ -202,8 +201,8 @@ func (r *ClientRPC) Validate(
 
 	// if RPCServer.Validate is not working, you can check the
 	// rpc connection with:
-	// var pong string
-	// err = client.Call("RPCServer.Ping", "ping", &pong)
+	//   var pong string
+	//   err = client.Call("RPCServer.Ping", "ping", &pong)
 	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")
