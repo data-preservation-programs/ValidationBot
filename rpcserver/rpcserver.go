@@ -3,9 +3,11 @@ package rpcserver
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
+	"strconv"
 	"validation-bot/module"
 	"validation-bot/task"
 
@@ -59,7 +61,7 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 
 type portNumber = int
 
-func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber) error {
+func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber, tmpDir string) error {
 	rpcServer := new(RPCServer)
 	rpcServer.Modules = ra.Modules
 
@@ -74,7 +76,7 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber) error {
 	if forcePort != 0 {
 		address = fmt.Sprintf("0.0.0.0:%d", forcePort)
 	} else {
-		address = "0.0.0.0:1234"
+		address = ":0"
 	}
 
 	listener, _ := net.Listen("tcp", address)
@@ -86,6 +88,13 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber) error {
 	// print port number to stdout so ClientRPC can read it
 	//nolint:forbidigo
 	fmt.Printf("%d\n", addr.Port)
+	_port := []byte(strconv.Itoa(addr.Port))
+	log.Info().Msgf("writing to %s to %s/port.txt", _port, tmpDir)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0644)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to write port to file")
+	}
 
 	done := make(chan struct{})
 	defer close(done)

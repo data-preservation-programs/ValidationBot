@@ -887,7 +887,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	return cfg, nil
 }
 
-func runRPCServer(ctx context.Context, configPath string) error {
+func runRPCServer(ctx context.Context, configPath string, tmpDir string) error {
 	container := dig.New()
 	log := log3.With().Str("role", "rpc-server").Caller().Logger()
 
@@ -901,7 +901,7 @@ func runRPCServer(ctx context.Context, configPath string) error {
 
 		err = container.Invoke(
 			func(rpcServer *rpcserver.RPCServer) {
-				err := rpcServer.Start(ctx, 0)
+				err := rpcServer.Start(ctx, 0, tmpDir)
 				if err != nil {
 					log.Fatal().Err(err).Msg("cannot start rpc for validation check")
 				}

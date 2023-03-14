@@ -1,13 +1,15 @@
 package auditor
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/rpc"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 	"validation-bot/module"
 
@@ -20,7 +22,7 @@ type IClientRPC interface {
 	CallServer(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error)
 	Validate(
 		ctx context.Context,
-		stdout io.Reader,
+		port int,
 		input module.ValidationInput,
 	) (*module.ValidationResult, error)
 	GetTimeout() time.Duration
@@ -40,8 +42,8 @@ type ClientConfig struct {
 }
 
 const (
-	scanPause = time.Millisecond * 200
-	scanLoops = 6
+	scanPause = time.Millisecond * 400
+	scanLoops = 10
 )
 
 func NewClientRPC(config ClientConfig) *ClientRPC {
@@ -55,6 +57,22 @@ func NewClientRPC(config ClientConfig) *ClientRPC {
 
 func (r *ClientRPC) GetTimeout() time.Duration {
 	return r.Timeout
+}
+
+func getPort(scanner *bufio.Scanner, scans int) (port int, err error) {
+	if _port, err := strconv.Atoi(scanner.Text()); err != nil {
+		scans += 1
+		log.Info().Msgf("scanning count: %d; port: %s\n", scans, _port)
+		if scans > scanLoops {
+			return 0, errors.Wrap(err, "failed to parse port")
+		}
+		time.Sleep(scanPause)
+		getPort(scanner, scans)
+	} else {
+		port = _port
+	}
+
+	return port, nil
 }
 
 func (r *ClientRPC) CallServer(
@@ -75,7 +93,7 @@ func (r *ClientRPC) CallServer(
 	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
 	// calls /path/to/ValidationBot/validation_bot validation-rpc
-	cmd := exec.CommandContext(ctx, dir, "validation-rpc")
+	cmd := exec.CommandContext(ctx, dir, "validation-rpc", "-dir", absdir)
 	cmd.Dir = absdir
 
 	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
@@ -87,7 +105,19 @@ func (r *ClientRPC) CallServer(
 
 	err = cmd.Start()
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to start validation server")
 		return nil, errors.Wrap(err, "failed to start validation server")
+	}
+
+	time.Sleep(scanPause)
+	time.Sleep(scanPause)
+	time.Sleep(scanPause)
+
+	p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
+	if err != nil {
+		os.RemoveAll(dir)
+		log.Error().Err(err).Msg("failed to read port.txt")
+		return nil, errors.Wrap(err, "failed to read port.txt")
 	}
 
 	defer func() {
@@ -104,7 +134,13 @@ func (r *ClientRPC) CallServer(
 		}
 	}()
 
-	reply, err := r.Validate(ctx, stdout, input)
+	r.log.Info().Msgf("port.txt: %s\n", p)
+	port, err := strconv.Atoi(string(p))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse port")
+	}
+
+	reply, err := r.Validate(ctx, port, input)
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to call validate")
 		return nil, errors.Wrap(err, "failed to call validate")
@@ -129,27 +165,12 @@ func (r *ClientRPC) CallServer(
 
 func (r *ClientRPC) Validate(
 	ctx context.Context,
-	stdout io.Reader,
+	port int,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
 	// listen for rpc server port from stdout - fmt.Printf("%d\n", addr.Port)
-	// scanner := bufio.NewScanner(stdout)
-
-	port := 1234
-	// scans := 0
-
-	// for scanner.Scan() {
-	// 	if _port, err := strconv.Atoi(scanner.Text()); err != nil {
-	// 		// scans += 1
-	// 		if scans > scanLoops {
-	// 			return nil, errors.Wrap(err, "failed to parse port")
-	// 		}
-	// 		// time.Sleep(scanPause)
-	// 	} else {
-	// 		port = _port
-	// 		break
-	// 	}
-	// }
+	log.Info().Msgf("pasusing....")
+	time.Sleep(scanPause)
 
 	// nolint:forbidigo
 	log.Info().Msgf("port detected: %d\n", port)
