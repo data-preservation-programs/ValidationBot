@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"io/fs"
 	"math"
 	"math/big"
+	"os"
 	"sync"
 	"time"
 
@@ -154,6 +156,14 @@ func (a *Auditor) Start(ctx context.Context) {
 				if err != nil {
 					log.Debug().Bytes("task", task).Msgf("failed to MkdirTemp")
 				}
+
+				defer func() {
+					_, err := os.Stat(dir)
+
+					if errors.Is(err, fs.ErrExist) {
+						os.RemoveAll(dir)
+					}
+				}()
 
 				result, err := a.clientRPC.CallServer(ctx, dir, *input)
 
