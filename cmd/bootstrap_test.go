@@ -32,7 +32,8 @@ func TestDefaultBoostrapConfig(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	absPath, err := filepath.Abs(filepath.Dir(wd))
+	// make sure we reach the root of the project
+	absPath, err := filepath.Abs(filepath.Dir(fmt.Sprintf("%s/..", wd)))
 	assert.NoError(err)
 
 	filePath := filepath.Join(absPath, "validation_bot")
