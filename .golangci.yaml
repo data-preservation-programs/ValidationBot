@@ -44,6 +44,7 @@ linters:
     - gocognit
     - wsl
     - musttag
+
 linters-settings:
   revive:
     rules:

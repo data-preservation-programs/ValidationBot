@@ -21,6 +21,7 @@ import (
 //nolint:funlen,forbidigo,dupl
 func main() {
 	var configPath string
+	var tmpDir string
 	var privateKey string
 	var w3sToken string
 	var peerIDSlice cli.StringSlice
@@ -45,6 +46,28 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return run(c.Context, configPath)
+				},
+			},
+			{
+				Name:  "validation-rpc",
+				Usage: "start running the rpc server",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						Usage:       "path to the config file",
+						Value:       "./config.yaml",
+						Destination: &configPath,
+					},
+					&cli.StringFlag{
+						Name:        "dir",
+						Aliases:     []string{"d"},
+						Usage:       "path to the tmp dir",
+						Destination: &tmpDir,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					return runRPCServer(c.Context, configPath, tmpDir)
 				},
 			},
 			{
