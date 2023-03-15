@@ -2,16 +2,17 @@ package retrieval
 
 import (
 	"context"
+	"net"
+	"net/url"
 	"strings"
 	"time"
 
-	multiaddrutil "github.com/filecoin-project/go-legs/httpsync/multiaddr"
 	multiaddr "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr/net"
 	"github.com/pkg/errors"
 
 	"fmt"
 
-	// "github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
 	"github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -97,10 +98,69 @@ func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 	return peerID, nil
 }
 
+// ToURL takes a multiaddr of the form:
+// /dns/thing.com/http/urlescape<path/to/root>
+// /ip/192.168.0.1/tcp/80/http
+func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
+	// host should be either the dns name or the IP
+	_, host, err := manet.DialArgs(ma)
+	if err != nil {
+		return nil, err
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if !ip.To4().Equal(ip) {
+			// raw v6 IPs need `[ip]` encapsulation.
+			host = fmt.Sprintf("[%s]", host)
+		}
+	}
+
+	protos := ma.Protocols()
+	pm := make(map[int]string, len(protos))
+	for _, p := range protos {
+		v, err := ma.ValueForProtocol(p.Code)
+		if err == nil {
+			pm[p.Code] = v
+		}
+	}
+
+	scheme := "http"
+	if _, ok := pm[multiaddr.P_HTTPS]; ok {
+		scheme = "https"
+	} else if _, ok = pm[multiaddr.P_HTTP]; ok {
+		// /tls/http == /https
+		if _, ok = pm[multiaddr.P_TLS]; ok {
+			scheme = "https"
+		}
+	} else if _, ok = pm[multiaddr.P_WSS]; ok {
+		scheme = "wss"
+	} else if _, ok = pm[multiaddr.P_WS]; ok {
+		scheme = "ws"
+		// /tls/ws == /wss
+		if _, ok = pm[multiaddr.P_TLS]; ok {
+			scheme = "wss"
+		}
+	}
+
+	path := ""
+	if pb, ok := pm[0x300200]; ok {
+		path, err = url.PathUnescape(pb)
+		if err != nil {
+			path = ""
+		}
+	}
+
+	out := url.URL{
+		Scheme: scheme,
+		Host:   host,
+		Path:   path,
+	}
+	return &out, nil
+}
+
 func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
 	switch proto {
 	case "http", "https":
-		u, err := multiaddrutil.ToURL(ma)
+		u, err := ToURL(ma)
 		if err != nil {
 			return ""
 		}

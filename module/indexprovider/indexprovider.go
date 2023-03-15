@@ -2,14 +2,15 @@ package indexprovider
 
 import (
 	"context"
+	"path"
 
 	"validation-bot/task"
 
 	"validation-bot/module"
 	"validation-bot/role"
 
-	"github.com/filecoin-project/go-legs/p2p/protocol/head"
 	"github.com/filecoin-project/lotus/api"
+	"github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/multiformats/go-multistream"
 	"github.com/pkg/errors"
@@ -105,9 +106,13 @@ func (q Auditor) Enabled(ctx context.Context, provider string) (*ResultContent, 
 		}, nil
 	}
 
-	rootCid, err := head.QueryRootCid(ctx, libp2p, "/indexer/ingest/mainnet", *result.PeerID)
+	topic := "/indexer/ingest/mainnet"
+
+	rootCid, err := QueryRootCid(ctx, libp2p, topic, *result.PeerID)
 	if err != nil {
-		if errors.Is(err, multistream.ErrNotSupported) {
+		protocolID := protocol.ID(path.Join("/legs/head", topic, "0.0.1"))
+
+		if !errors.Is(err, multistream.ErrNotSupported[protocol.ID]{Protos: []protocol.ID{protocolID}}) {
 			q.log.Info().Str("provider", provider).AnErr("err", err).Msg("index provider is not enabled")
 			return &ResultContent{
 				Status: Disabled,
