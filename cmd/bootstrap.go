@@ -888,7 +888,11 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 
 func runRPCServer(ctx context.Context, configPath string, tmpDir string) error {
 	container := dig.New()
-	log := log3.With().Str("role", "rpc-server").Caller().Logger()
+	// Create a ConsoleWriter output writer that writes to standard output
+	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}
+
+	// Create a new logger with the ConsoleWriter output writer
+	log := zerolog.New(consoleWriter).With().Str("role", "rpc-server").Caller().Timestamp().Logger()
 
 	cfg, err := setupDependencies(ctx, container, configPath)
 	if err != nil {
