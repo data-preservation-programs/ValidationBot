@@ -89,14 +89,39 @@ func (r *ClientRPC) CallServer(
 	cmd.Dir = absdir
 
 	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
+	cmd.Env = append(cmd.Env, "PATH=/usr/sbin:/usr/bin:/sbin:/bin")
 
 	r.log.Info().Str("cmd.Path", cmd.Path).Msg("executing validation bot rpc from cmd.Path")
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		r.log.Error().Err(err).Msg("failed to get stdout pipe")
+		return nil, errors.Wrap(err, "failed to get stdout pipe")
+	}
 
 	err = cmd.Start()
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to start validation server")
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
+
+	go func() {
+		defer stdout.Close()
+
+		var output []byte
+		for {
+			buf := make([]byte, 1024)
+			n, err := stdout.Read(buf)
+			if err != nil {
+				break
+			}
+			output = append(output, buf[:n]...)
+			log.Print(string(buf[:n]))
+		}
+
+		// Flush the output buffer to disk
+		log.Print(string(output))
+	}()
 
 	var port int
 	readCount := 0
