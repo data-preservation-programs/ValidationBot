@@ -89,7 +89,6 @@ func (r *ClientRPC) CallServer(
 	cmd.Dir = absdir
 
 	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
-	cmd.Env = append(cmd.Env, "PATH=/usr/sbin:/usr/bin:/sbin:/bin")
 
 	r.log.Info().Str("cmd.Path", cmd.Path).Msg("executing validation bot rpc from cmd.Path")
 
