@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
 	"github.com/jackc/pgtype"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
@@ -379,7 +380,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 						string(protocol),
 					).Msg("failed to create libp2p host")
 				}
-				protocols, err := GetMinerProtocols(ctx, minerInfoResult, libp2p)
+
+				protocols, err := GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfoResult.PeerID, Addrs: minerInfoResult.MultiAddrs}, libp2p)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
