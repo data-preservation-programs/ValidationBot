@@ -61,7 +61,7 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 		return errors.Wrap(err, "failed validating task")
 	}
 
-	ra.log.Info().Msgf("Validation result for task %s: %s", input.Type, result)
+	ra.log.Info().Msgf("Validation result for task %s: %v", input.Type, result)
 
 	*reply = *result
 	return nil
@@ -139,11 +139,11 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber, tmpDir str
 			return errors.Wrap(err, "failed to accept connection")
 		}
 
+		ra.log.Info().Msg("starting rpc server")
 		// nolint:gosec
 		// http.Serve always returns non-nil error when closing: ignore
-		ra.log.Info().Msg("starting rpc server")
 		_ = http.Serve(listener, nil)
-		ra.log.Info().Msg("shutting down rpc server")
+		ra.log.Info().Msgf("shutting down rpc server on port: %q", addr.Port)
 		return nil
 	}
 }

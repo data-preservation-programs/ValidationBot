@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -158,21 +159,34 @@ func calculateLastHopOverhead(hops []Hop) float64 {
 	return lastRTT - firstRTT
 }
 
+//nolint:varnamelen
 func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bool) ([]Hop, error) {
-	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
+	// Create a ConsoleWriter output writer that writes to standard output
+	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}
+
+	// Create a new logger with the ConsoleWriter output writer
+	log := zerolog.New(consoleWriter).With().Str("role", "traceroute").Caller().Timestamp().Logger()
+
+	log.Info().Msg("start traceroute")
+	cmdStr := fmt.Sprintf("./traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
 	if useSudo {
 		cmdStr = fmt.Sprintf("sudo %s", cmdStr)
 	}
 
+	log.Info().Msgf("running command: %s", cmdStr)
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 
+	log.Info().Msg("waiting for command to finish")
 	outputStr, err := cmd.CombinedOutput()
+	log.Info().Msgf("command finished: %s", string(outputStr))
 	if err != nil {
+		log.Error().Err(err).Msg("failed to run traceroute")
 		return nil, errors.Wrap(err, "failed to run traceroute")
 	}
 
 	var output Output
 
+	log.Info().Msg("unmarshaling traceroute output")
 	err = json.Unmarshal(outputStr, &output)
 	if err != nil {
 		errStr := strings.ReplaceAll(string(outputStr), "\n", "")

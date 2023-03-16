@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 	"validation-bot/module"
+	"validation-bot/task"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -25,7 +26,7 @@ type IClientRPC interface {
 		input module.ValidationInput,
 	) (*module.ValidationResult, error)
 	GetTimeout() time.Duration
-	CreateTmpDir() (string, error)
+	CreateTmpDir(modType task.Type) (string, error)
 }
 
 type ClientRPC struct {
@@ -60,8 +61,8 @@ func (r *ClientRPC) GetTimeout() time.Duration {
 	return r.Timeout
 }
 
-func (r *ClientRPC) CreateTmpDir() (string, error) {
-	dir, err := os.MkdirTemp(r.baseDir, tmpDir)
+func (r *ClientRPC) CreateTmpDir(modType task.Type) (string, error) {
+	dir, err := os.MkdirTemp(r.baseDir, fmt.Sprintf("%s-%s", tmpDir, modType))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create directory")
 	}
@@ -109,6 +110,7 @@ func (r *ClientRPC) CallServer(
 
 		var output []byte
 		for {
+			// nolint:gomnd
 			buf := make([]byte, 1024)
 			n, err := stdout.Read(buf)
 			if err != nil {
