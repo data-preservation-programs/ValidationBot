@@ -152,7 +152,7 @@ func (a *Auditor) Start(ctx context.Context) {
 				ctx, cancel := context.WithTimeout(ctx, a.clientRPC.GetTimeout())
 				defer cancel()
 
-				dir, err := a.clientRPC.CreateTmpDir()
+				dir, err := a.clientRPC.CreateTmpDir(input.Type)
 				if err != nil {
 					log.Debug().Bytes("task", task).Msgf("failed to MkdirTemp")
 				}

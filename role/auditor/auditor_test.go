@@ -105,7 +105,7 @@ func TestAuditor_Start(t *testing.T) {
 		Result: definition,
 	}
 
-	mockClientRPC.On("CreateTmpDir").Return("/tmp", nil)
+	mockClientRPC.On("CreateTmpDir", task.Echo).Return("/tmp", nil)
 	mockClientRPC.On("CallServer", mock.Anything, mock.Anything, mock.Anything).
 		Return(&validationResults, nil)
 

@@ -61,7 +61,7 @@ func (ra *RPCServer) Validate(input module.ValidationInput, reply *module.Valida
 		return errors.Wrap(err, "failed validating task")
 	}
 
-	ra.log.Info().Msgf("Validation result for task %s: %s", input.Type, result)
+	ra.log.Info().Msgf("Validation result for task %s: %v", input.Type, result)
 
 	*reply = *result
 	return nil

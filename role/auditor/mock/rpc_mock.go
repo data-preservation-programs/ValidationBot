@@ -5,6 +5,7 @@ import (
 	"context"
 	"time"
 	"validation-bot/module"
+	"validation-bot/task"
 
 	"github.com/stretchr/testify/mock"
 )
@@ -35,8 +36,8 @@ func (m *MockRPCClient) GetTimeout() time.Duration {
 	return m.Timeout
 }
 
-func (m *MockRPCClient) CreateTmpDir() (string, error) {
-	args := m.Called()
+func (m *MockRPCClient) CreateTmpDir(modType task.Type) (string, error) {
+	args := m.Called(modType)
 
 	value, ok := args.Get(0).(string)
 
