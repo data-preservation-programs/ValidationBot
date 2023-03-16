@@ -159,6 +159,7 @@ func calculateLastHopOverhead(hops []Hop) float64 {
 	return lastRTT - firstRTT
 }
 
+//nolint:varnamelen
 func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bool) ([]Hop, error) {
 	// Create a ConsoleWriter output writer that writes to standard output
 	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}

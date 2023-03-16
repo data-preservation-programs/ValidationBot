@@ -110,6 +110,7 @@ func (r *ClientRPC) CallServer(
 
 		var output []byte
 		for {
+			// nolint:gomnd
 			buf := make([]byte, 1024)
 			n, err := stdout.Read(buf)
 			if err != nil {
