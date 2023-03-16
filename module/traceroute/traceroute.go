@@ -167,32 +167,34 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bo
 	// Create a new logger with the ConsoleWriter output writer
 	log := zerolog.New(consoleWriter).With().Str("role", "traceroute").Caller().Timestamp().Logger()
 
-	log.Info().Msg("start traceroute")
+	log.Info().Msgf("start traceroute for %s:%d\n", ip, port)
 	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
 	if useSudo {
 		cmdStr = fmt.Sprintf("sudo %s", cmdStr)
 	}
 
-	log.Info().Msgf("running command: %s", cmdStr)
+	log.Info().Msgf("running command: %s\n", cmdStr)
 	cmd := exec.CommandContext(ctx, "bash", "-c", cmdStr)
 
-	log.Info().Msg("waiting for command to finish")
+	log.Info().Msg("waiting for command to finish\n")
 	outputStr, err := cmd.CombinedOutput()
-	log.Info().Msgf("command finished: %s", string(outputStr))
+	log.Info().Msgf("command finished: %s\n", string(outputStr))
 	if err != nil {
-		log.Error().Err(err).Msg("failed to run traceroute")
+		log.Error().Err(err).Msg("failed to run traceroute\n")
 		return nil, errors.Wrap(err, "failed to run traceroute")
 	}
 
 	var output Output
 
-	log.Info().Msg("unmarshaling traceroute output")
+	log.Info().Msg("unmarshaling traceroute output\n")
 	err = json.Unmarshal(outputStr, &output)
 	if err != nil {
+		log.Error().Err(err).Msg("failed to unmarshal traceroute output\n")
 		errStr := strings.ReplaceAll(string(outputStr), "\n", "")
 		return nil, errors.Wrapf(err, "failed to unmarshal traceroute output: %s", errStr)
 	}
 
+	log.Info().Msgf("traceroute finished: %v\n", output.Hops)
 	return output.Hops, nil
 }
 
