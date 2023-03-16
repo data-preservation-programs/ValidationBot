@@ -168,7 +168,7 @@ func (q Auditor) Traceroute(ctx context.Context, ip string, port int, useSudo bo
 	log := zerolog.New(consoleWriter).With().Str("role", "traceroute").Caller().Timestamp().Logger()
 
 	log.Info().Msg("start traceroute")
-	cmdStr := fmt.Sprintf("./traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
+	cmdStr := fmt.Sprintf("traceroute -TF -m 64 -p %d %s | jc --traceroute", port, ip)
 	if useSudo {
 		cmdStr = fmt.Sprintf("sudo %s", cmdStr)
 	}
