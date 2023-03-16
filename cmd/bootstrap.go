@@ -107,7 +107,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
 			ClientRPC: rpcClientConfig{
-				Timeout: retreivalTimeout + 5*time.Second,
+				Timeout: 15 * time.Minute,
 				BaseDir: os.TempDir(),
 				ExecPath: func() string {
 					//nolint:varnamelen
