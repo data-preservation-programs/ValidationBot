@@ -12,6 +12,7 @@ import (
 	"github.com/filecoin-project/lotus/api/client"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
+	"github.com/ipfs/go-libipfs/blocks"
 	"github.com/ipfs/go-merkledag"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
@@ -106,28 +107,29 @@ func TestBitswapGetImpl(t *testing.T) {
 	v := []byte("hello world")
 	c := cid.NewCidV1(cid.Raw, v)
 
-	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
+	t.Run("GetBlock() returns Block with duration logged", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, c).Return(v, nil)
+		blk := blocks.NewBlock(v)
+		rs.On("GetBlock", mock.Anything, c).Return(blk, nil)
 		b.bitswap = rs
 
 		ctx := context.Background()
 
-		result, err := b.Get(ctx, c)
+		result, err := b.GetBlock(ctx, c)
 		assert.NoError(err)
 
-		assert.Equal(v, result)
+		assert.Equal(blk, result)
 		assert.Equal(len(b.cidDurations), 1)
 	})
 
-	t.Run("Get() returns an error and records the event", func(t *testing.T) {
+	t.Run("GetBlock() returns an error and records the event", func(t *testing.T) {
 		rs := new(mockReadStore)
-		rs.On("Get", mock.Anything, c).Return(v, errors.New("error"))
+		rs.On("GetBlock", mock.Anything, c).Return(blocks.NewBlock(v), errors.New("error"))
 		b.bitswap = rs
 
 		ctx := context.Background()
 
-		_, err := b.Get(ctx, c)
+		_, err := b.GetBlock(ctx, c)
 		assert.Error(err, "error")
 		assert.Equal(len(b.cidDurations), 1)
 		assert.Equal(len(b.events), 1)
@@ -162,7 +164,7 @@ func makeDepthTestingGraph(t *testing.T) (ipld.Node, map[cid.Cid]ipld.Node) {
 func TestRetreiveImpl(t *testing.T) {
 	assert := assert.New(t)
 
-	bit, closer := getBitswapRetriever(t, "f03223", false)
+	bit, closer := getBitswapRetriever(t, "f01953925", false)
 	defer closer()
 
 	rs := new(mockReadStore)
@@ -171,7 +173,7 @@ func TestRetreiveImpl(t *testing.T) {
 	rs.On("Close").Return(nil)
 	for k, v := range nodeMap {
 		fmt.Printf("mocking from nodeMap: key: %s, value: %v\n\n", k, v)
-		rs.On("Get", mock.Anything, k).Return(v.RawData(), nil)
+		rs.On("GetBlock", mock.Anything, k).Return(blocks.NewBlock(v.RawData()), nil)
 	}
 
 	bit.bitswap = rs
@@ -205,7 +207,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	t.Skip("Only turn on for live test")
+	// t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f01953925", true)
@@ -214,15 +216,27 @@ func TestBitswapGetImplLive(t *testing.T) {
 	c, err := cid.Decode("bafykbzaceb4gqljh5wrijjincngznnrw4f6hwjfpei4evvcwhhgh4jegjb4sy")
 	assert.NoError(err)
 
-	t.Run("Get() returns Block with duration logged", func(t *testing.T) {
+	t.Run("GetBlock() returns Block with duration logged", func(t *testing.T) {
 		result, err := b.Retrieve(context.Background(), c, 20*time.Second)
 		assert.NoError(err)
 		assert.Empty(result.ErrorMessage)
 
 		fmt.Printf("result: %v\n", result)
 
+		for i, s := range result.CalculatedStats.Events {
+			fmt.Printf("stat-%d: %v\n", i, s)
+		}
+		for i, e := range b.events {
+			fmt.Printf("event-%d: %v\n", i, e)
+		}
+
+		fmt.Printf("AverageSpeedPerSec: %v\n", result.AverageSpeedPerSec)
+		fmt.Printf("BytesDownloaded: %v\n", result.BytesDownloaded)
+		fmt.Printf("TimeElapsed: %v\n", result.TimeElapsed)
+		fmt.Printf("numberOfEvents: %v\n", len(result.Events))
+
 		assert.NotNil(result)
-		assert.Equal(len(b.cidDurations), 1)
+		assert.Greater(len(b.cidDurations), 1)
 		assert.Greater(result.BytesDownloaded, uint64(0))
 	})
 }

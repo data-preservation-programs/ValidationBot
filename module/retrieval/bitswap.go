@@ -23,6 +23,7 @@ import (
 	log "github.com/rs/zerolog/log"
 
 	bsclient "github.com/ipfs/go-libipfs/bitswap/client"
+	bsmsg "github.com/ipfs/go-libipfs/bitswap/message"
 	bsnet "github.com/ipfs/go-libipfs/bitswap/network"
 )
 
@@ -33,6 +34,16 @@ const (
 type BlockReader interface {
 	GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error)
 	Close() error
+	ReceiveMessage(
+		ctx context.Context,
+		sender peer.ID,
+		incoming bsmsg.BitSwapMessage)
+
+	ReceiveError(error)
+
+	// Connected/Disconnected warns bitswap about peer connections.
+	PeerConnected(peer.ID)
+	PeerDisconnected(peer.ID)
 }
 
 type BitswapRetriever struct {
@@ -97,31 +108,12 @@ func (b *BitswapRetriever) Type() task.Type {
 	return task.Retrieval
 }
 
-// callback gets called after a successful block retrieval during traverser.Dump.
-func (b *BitswapRetriever) onNewBlock(block blocks.Block) {
-	// nolint:exhaustruct
-	event := TimeEventPair{
-		Timestamp: time.Now(),
-		Received:  uint64(len(block.RawData())),
-	}
-
-	if len(b.events) == 0 {
-		event.Message = fmt.Sprintf("first-bytes received: [Block %s]", block.Cid())
-		event.Code = string(FirstByteReceived)
-	} else {
-		event.Message = fmt.Sprintf("bytes received: [Block %s]", block.Cid())
-		event.Code = string(BlockReceived)
-	}
-
-	b.events = append(b.events, event)
-}
-
 // nolint:lll
 func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout time.Duration) (
 	*ResultContent,
 	error,
 ) {
-	b.network.Start(b.bitswap.(*bsclient.Client))
+	b.network.Start(b.bitswap)
 
 	// dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
 
@@ -198,8 +190,11 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 	var timeToFirstByte time.Duration
 	var totalDuration time.Duration
 	var averageSpeedPerSec float64
+	var size uint64
 
 	for _, event := range b.events {
+		size += event.Received
+
 		if event.Code == string(FirstByteReceived) {
 			timeToFirstByte = event.Timestamp.Sub(b.startTime)
 			break
@@ -211,7 +206,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 	}
 
 	if totalDuration != 0 {
-		averageSpeedPerSec = float64(b.size) / float64(totalDuration)
+		averageSpeedPerSec = float64(size) / float64(totalDuration)
 	}
 
 	return &ResultContent{
@@ -220,7 +215,7 @@ func (b *BitswapRetriever) NewResultContent(status ResultStatus, errorMessage st
 		Protocol:     Bitswap,
 		CalculatedStats: CalculatedStats{
 			Events:             b.events,
-			BytesDownloaded:    b.size,
+			BytesDownloaded:    size,
 			AverageSpeedPerSec: averageSpeedPerSec,
 			TimeElapsed:        totalDuration,
 			TimeToFirstByte:    timeToFirstByte,
@@ -249,8 +244,6 @@ func (b *BitswapRetriever) GetBlock(ctx context.Context, c cid.Cid) (blocks.Bloc
 		return nil, errors.Wrap(err, fmt.Sprintf("cannot get block [%s]", c.String()))
 	}
 
-	b.onNewBlock(blk)
-
 	return blk, nil
 }
 
@@ -259,5 +252,23 @@ func (b *BitswapRetriever) GetBlocks(context.Context, []cid.Cid) (<-chan blocks.
 }
 
 func (b *BitswapRetriever) NotifyNewBlocks(ctx context.Context, blks ...blocks.Block) error {
-	return errors.New("not implemented")
+	for _, block := range blks {
+		// nolint:exhaustruct
+		event := TimeEventPair{
+			Timestamp: time.Now(),
+			Received:  uint64(len(block.RawData())),
+		}
+
+		if len(b.events) == 0 {
+			event.Message = fmt.Sprintf("first-bytes received: [Block %s]", block.Cid())
+			event.Code = string(FirstByteReceived)
+		} else {
+			event.Message = fmt.Sprintf("bytes received: [Block %s]", block.Cid())
+			event.Code = string(BlockReceived)
+		}
+
+		b.events = append(b.events, event)
+	}
+
+	return nil
 }
