@@ -27,6 +27,8 @@ import (
 	bsnet "github.com/ipfs/go-libipfs/bitswap/network"
 )
 
+type SessionTimeout string
+
 const (
 	completionTime = 15 * time.Second
 )
@@ -55,7 +57,6 @@ type BitswapRetriever struct {
 	network      bsnet.BitSwapNetwork
 	events       []TimeEventPair
 	cidDurations map[cid.Cid]time.Duration
-	size         uint64
 	startTime    time.Time
 }
 
@@ -84,7 +85,7 @@ func (b *BitswapRetrieverBuilder) Build(
 		libp2p.Peerstore().AddAddrs(maddr.ID, maddr.Addrs, peerstore.PermanentAddrTTL)
 	}
 
-	ctx := context.WithValue(context.Background(), "session-timeout", completionTime)
+	ctx := context.WithValue(context.Background(), SessionTimeout("sessionTimeout"), completionTime)
 
 	bswap := bsclient.New(ctx, network, blockstore.NewBlockstore(datastore.NewNullDatastore()))
 
@@ -115,17 +116,11 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 ) {
 	b.network.Start(b.bitswap)
 
-	// dag := gocar.Dag{Root: root, Selector: selectorparse.CommonSelector_ExploreAllRecursively}
-
 	addrInfo := peer.AddrInfo{ID: b.peerInfo.PeerID, Addrs: b.peerInfo.MultiAddrs}
 	err := b.libp2p.Connect(ctx, addrInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to miner")
 	}
-	// traverser, err := NewTraverser(b, []gocar.Dag{dag})
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "cannot prepare Selector")
-	// }
 
 	go func() {
 		b.startTime = time.Now()
@@ -174,7 +169,6 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 
 	select {
 	case <-ctx.Done():
-		// b.size = traverser.Size()
 		return b.NewResultContent(RetrieveComplete, ""), nil
 	case result := <-b.done:
 		switch result := result.(type) {

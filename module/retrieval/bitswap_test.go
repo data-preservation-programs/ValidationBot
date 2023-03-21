@@ -186,9 +186,6 @@ func TestRetreiveImpl(t *testing.T) {
 		for i, s := range result.CalculatedStats.Events {
 			fmt.Printf("stat-%d: %v\n", i, s)
 		}
-		for i, e := range bit.events {
-			fmt.Printf("event-%d: %v\n", i, e)
-		}
 
 		fmt.Printf("AverageSpeedPerSec: %v\n", result.AverageSpeedPerSec)
 		fmt.Printf("BytesDownloaded: %v\n", result.BytesDownloaded)
@@ -207,7 +204,7 @@ func TestRetreiveImpl(t *testing.T) {
 }
 
 func TestBitswapGetImplLive(t *testing.T) {
-	// t.Skip("Only turn on for live test")
+	t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 
 	b, closer := getBitswapRetriever(t, "f01953925", true)
@@ -224,10 +221,7 @@ func TestBitswapGetImplLive(t *testing.T) {
 		fmt.Printf("result: %v\n", result)
 
 		for i, s := range result.CalculatedStats.Events {
-			fmt.Printf("stat-%d: %v\n", i, s)
-		}
-		for i, e := range b.events {
-			fmt.Printf("event-%d: %v\n", i, e)
+			fmt.Printf("stat-%d: %v\n", i+1, s)
 		}
 
 		fmt.Printf("AverageSpeedPerSec: %v\n", result.AverageSpeedPerSec)
