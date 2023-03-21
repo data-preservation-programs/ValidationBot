@@ -1,10 +1,9 @@
 package auditor
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"net/rpc"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 	"time"
 	"validation-bot/module"
+	"validation-bot/task"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -19,13 +19,14 @@ import (
 )
 
 type IClientRPC interface {
-	CallServer(ctx context.Context, input module.ValidationInput) (*module.ValidationResult, error)
+	CallServer(ctx context.Context, dir string, input module.ValidationInput) (*module.ValidationResult, error)
 	Validate(
 		ctx context.Context,
-		stdout io.Reader,
+		port int,
 		input module.ValidationInput,
 	) (*module.ValidationResult, error)
 	GetTimeout() time.Duration
+	CreateTmpDir(modType task.Type) (string, error)
 }
 
 type ClientRPC struct {
@@ -42,8 +43,9 @@ type ClientConfig struct {
 }
 
 const (
-	scanPause = time.Millisecond * 200
-	scanLoops = 3
+	retryPause = time.Millisecond * 200
+	retryMax   = 10
+	tmpDir     = "validation_rpc"
 )
 
 func NewClientRPC(config ClientConfig) *ClientRPC {
@@ -59,45 +61,103 @@ func (r *ClientRPC) GetTimeout() time.Duration {
 	return r.Timeout
 }
 
-func (r *ClientRPC) CallServer(
-	ctx context.Context,
-	input module.ValidationInput,
-) (*module.ValidationResult, error) {
-	dir, err := os.MkdirTemp(r.baseDir, "validation_rpc")
+func (r *ClientRPC) CreateTmpDir(modType task.Type) (string, error) {
+	dir, err := os.MkdirTemp(r.baseDir, fmt.Sprintf("%s-%s", tmpDir, modType))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create directory")
+		return "", errors.Wrap(err, "failed to create directory")
 	}
 
-	defer func() {
-		r.log.Info().Str("defered removal of dir", dir).Msg("removing tmp dir!")
-		os.RemoveAll(dir)
-	}()
+	return dir, nil
+}
 
+func (r *ClientRPC) CallServer(
+	ctx context.Context,
+	dir string,
+	input module.ValidationInput,
+) (*module.ValidationResult, error) {
 	absdir, err := filepath.Abs(dir)
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to get absolute path")
 		return nil, errors.Wrap(err, "failed to get absolute path")
 	}
 
 	r.log.Info().Str("Absolute dir", absdir).Msg("using absolute path to tmp dir")
 	r.log.Info().Str("Exec Path", r.execPath).Msg("executing validation bot rpc from path")
 
-	// calls /path/to/ValidationBot/validation_bot validation-rpc
-	cmd := exec.CommandContext(ctx, dir, "validation-rpc")
+	// calls /path/to/ValidationBot/validation_bot validation-rpc with tmp dir as arg the rpcserver
+	// will write the port to a file in the tmp dir so it can be read in the ClientRPC.Validate()
+	cmd := exec.CommandContext(ctx, dir, "validation-rpc", "-dir", absdir)
 	cmd.Dir = absdir
 
 	cmd.Path = fmt.Sprintf("%s/validation_bot", r.execPath)
 
 	r.log.Info().Str("cmd.Path", cmd.Path).Msg("executing validation bot rpc from cmd.Path")
 
-	stdout, _ := cmd.StdoutPipe()
-	defer stdout.Close()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		r.log.Error().Err(err).Msg("failed to get stdout pipe")
+		return nil, errors.Wrap(err, "failed to get stdout pipe")
+	}
 
 	err = cmd.Start()
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to start validation server")
 		return nil, errors.Wrap(err, "failed to start validation server")
 	}
 
+	go func() {
+		defer stdout.Close()
+
+		var output []byte
+		for {
+			// nolint:gomnd
+			buf := make([]byte, 1024)
+			n, err := stdout.Read(buf)
+			if err != nil {
+				break
+			}
+			output = append(output, buf[:n]...)
+			log.Print(string(buf[:n]))
+		}
+
+		// Flush the output buffer to disk
+		log.Print(string(output))
+	}()
+
+	var port int
+	readCount := 0
+
+	for {
+		//nolint:varnamelen
+		p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
+		readCount += 1
+		if err != nil {
+			if readCount >= retryMax {
+				os.RemoveAll(dir)
+				r.log.Error().Err(err).Msgf("retry count exhausted at %d attempts; failed to read port.txt", retryMax)
+				return nil, errors.Wrapf(err, "retry count exhausted (%d), failed to read port.txt", retryMax)
+			}
+
+			r.log.Info().Msgf("retry count: %d; retry max: %d; retrying in %d seconds...", readCount, retryMax, retryPause)
+			time.Sleep(retryPause)
+			continue
+		}
+
+		r.log.Info().Msgf("port.txt returned: %s\n", p)
+		_port, err := strconv.Atoi(string(p))
+		if err != nil {
+			os.RemoveAll(dir)
+			return nil, errors.Wrap(err, "failed to parse port from port.txt")
+		}
+
+		port = _port
+		break
+	}
+
 	defer func() {
+		r.log.Info().Str("defered removal of dir", dir).Msg("removing tmp dir!")
+		os.RemoveAll(dir)
+
 		if rec := recover(); rec != nil {
 			log.Error().Err(errors.Errorf("%v", rec)).Msg("panic - killing process")
 
@@ -108,8 +168,9 @@ func (r *ClientRPC) CallServer(
 		}
 	}()
 
-	reply, err := r.Validate(ctx, stdout, input)
+	reply, err := r.Validate(ctx, port, input)
 	if err != nil {
+		r.log.Error().Err(err).Msg("failed to call validate")
 		return nil, errors.Wrap(err, "failed to call validate")
 	}
 
@@ -132,34 +193,16 @@ func (r *ClientRPC) CallServer(
 
 func (r *ClientRPC) Validate(
 	ctx context.Context,
-	stdout io.Reader,
+	port int,
 	input module.ValidationInput,
 ) (*module.ValidationResult, error) {
-	// listen for rpc server port from stdout - fmt.Printf("%d\n", addr.Port)
-	scanner := bufio.NewScanner(stdout)
-
-	var port int
-	scans := 0
-
-	for scanner.Scan() {
-		if _port, err := strconv.Atoi(scanner.Text()); err != nil {
-			scans += 1
-			if scans > scanLoops {
-				return nil, errors.Wrap(err, "failed to parse port")
-			}
-			time.Sleep(scanPause)
-		} else {
-			port = _port
-			break
-		}
-	}
-
 	// nolint:forbidigo
 	log.Info().Msgf("port detected: %d\n", port)
 	conn := fmt.Sprintf("%s:%d", "0.0.0.0", port)
 
 	log.Info().Msgf("dialing http: %s\n", conn)
 	client, err := rpc.DialHTTP("tcp", conn)
+	log.Info().Msgf("client: %v\n", client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial http")
 	}
@@ -181,6 +224,11 @@ func (r *ClientRPC) Validate(
 	var reply module.ValidationResult
 
 	log.Info().Msg("calling rpc validate")
+
+	// if RPCServer.Validate is not working, you can check the
+	// rpc connection with:
+	//   var pong string
+	//   err = client.Call("RPCServer.Ping", "ping", &pong)
 	err = client.Call("RPCServer.Validate", input, &reply)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to call rpc")
