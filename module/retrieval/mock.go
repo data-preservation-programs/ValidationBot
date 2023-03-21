@@ -7,6 +7,8 @@ import (
 	"github.com/filecoin-project/go-address"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
+	bsmsg "github.com/ipfs/go-libipfs/bitswap/message"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -48,6 +50,25 @@ func (m *mockReadStore) Close() error {
 	args := m.Called()
 
 	return args.Error(0)
+}
+
+func (m *mockReadStore) ReceiveMessage(
+	ctx context.Context,
+	sender peer.ID,
+	incoming bsmsg.BitSwapMessage) {
+	m.Called()
+}
+
+func (m *mockReadStore) ReceiveError(error) {
+	m.Called()
+}
+
+// Connected/Disconnected warns bitswap about peer connections.
+func (m *mockReadStore) PeerConnected(peer.ID) {
+	m.Called()
+}
+func (m *mockReadStore) PeerDisconnected(peer.ID) {
+	m.Called()
 }
 
 type BitswapRetrieverMock struct {
