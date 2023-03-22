@@ -13,6 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
+	ma "github.com/multiformats/go-multiaddr"
 	"github.com/multiformats/go-multistream"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -21,11 +22,13 @@ import (
 func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer.ID) (cid.Cid, error) {
 	log := zerolog.Ctx(ctx).With().Str("query-root-cid", topic).Logger()
 
+	//nolint:exhaustruct
 	client := http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				addrInfo := peer.AddrInfo{
-					ID: peerID,
+					Addrs: []ma.Multiaddr{ma.StringCast(addr)},
+					ID:    peerID,
 				}
 				err := host.Connect(ctx, addrInfo)
 				if err != nil {
@@ -55,6 +58,7 @@ func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer
 	// The httpclient expects there to be a host here. `.invalid` is a reserved
 	// TLD for this purpose. See
 	// https://datatracker.ietf.org/doc/html/rfc2606#section-2
+	// nolint:noctx
 	resp, err := client.Get("http://unused.invalid/head")
 	if err != nil {
 		return cid.Undef, err

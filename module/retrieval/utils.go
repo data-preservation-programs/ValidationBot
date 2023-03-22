@@ -99,7 +99,8 @@ func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 }
 
 // ToURL takes a multiaddr of the form:
-// /dns/thing.com/http/urlescape<path/to/root>
+// taken from https://github.com/filecoin-project/go-legs/blame/main/httpsync/multiaddr/convert.go#L43-L84.
+// /dns/thing.com/http/urlescape<path/to/root>.
 // /ip/192.168.0.1/tcp/80/http
 func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 	// host should be either the dns name or the IP
@@ -124,6 +125,7 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 	}
 
 	scheme := "http"
+	//nolint:nestif
 	if _, ok := pm[multiaddr.P_HTTPS]; ok {
 		scheme = "https"
 	} else if _, ok = pm[multiaddr.P_HTTP]; ok {
@@ -149,6 +151,7 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 		}
 	}
 
+	//nolint:exhaustruct
 	out := url.URL{
 		Scheme: scheme,
 		Host:   host,
