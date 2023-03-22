@@ -101,7 +101,7 @@ func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 // ToURL takes a multiaddr of the form:
 // taken from https://github.com/filecoin-project/go-legs/blame/main/httpsync/multiaddr/convert.go#L43-L84.
 // /dns/thing.com/http/urlescape<path/to/root>.
-// /ip/192.168.0.1/tcp/80/http
+// /ip/192.168.0.1/tcp/80/http.
 func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 	// host should be either the dns name or the IP
 	_, host, err := manet.DialArgs(ma)

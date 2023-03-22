@@ -128,7 +128,6 @@ func (r *ClientRPC) CallServer(
 	readCount := 0
 
 	for {
-		//nolint:varnamelen
 		p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
 		readCount += 1
 		if err != nil {
