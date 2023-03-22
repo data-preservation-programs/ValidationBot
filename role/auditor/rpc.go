@@ -3,7 +3,6 @@ package auditor
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/rpc"
 	"os"
 	"os/exec"
@@ -128,7 +127,7 @@ func (r *ClientRPC) CallServer(
 	readCount := 0
 
 	for {
-		p, err := ioutil.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
+		p, err := os.ReadFile(fmt.Sprintf("%s/%s", absdir, "port.txt"))
 		readCount += 1
 		if err != nil {
 			if readCount >= retryMax {

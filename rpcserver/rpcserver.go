@@ -3,7 +3,6 @@ package rpcserver
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -105,7 +104,7 @@ func (ra *RPCServer) Start(ctx context.Context, forcePort portNumber, tmpDir str
 	ra.log.Info().Msgf("writing to %s to %s/port.txt", _port, tmpDir)
 
 	//nolint:gomnd
-	err = ioutil.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0600)
+	err = os.WriteFile(fmt.Sprintf("%s/port.txt", tmpDir), []byte(strconv.Itoa(addr.Port)), 0600)
 	if err != nil {
 		ra.log.Error().Err(err).Msg("failed to write port to file")
 		return errors.Wrap(err, "failed to write port to file")
