@@ -106,7 +106,7 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 	// host should be either the dns name or the IP
 	_, host, err := manet.DialArgs(ma)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get dial args")
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		if !ip.To4().Equal(ip) {

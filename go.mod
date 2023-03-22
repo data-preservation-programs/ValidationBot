@@ -10,6 +10,7 @@ require (
 	github.com/filecoin-project/go-cbor-util v0.0.1
 	github.com/filecoin-project/go-data-transfer/v2 v2.0.0-rc5
 	github.com/filecoin-project/go-fil-markets v1.27.0-rc1
+	github.com/filecoin-project/go-jsonrpc v0.2.3
 	github.com/filecoin-project/go-state-types v0.10.0
 	github.com/filecoin-project/lotus v1.20.4-0.20230320161914-43da1084669f
 	github.com/go-resty/resty/v2 v2.7.0
@@ -89,7 +90,6 @@ require (
 	github.com/filecoin-project/go-hamt-ipld v0.1.5 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v3 v3.1.0 // indirect
-	github.com/filecoin-project/go-jsonrpc v0.2.3 // indirect
 	github.com/filecoin-project/go-legs v0.4.9 // indirect
 	github.com/filecoin-project/go-padreader v0.0.1 // indirect
 	github.com/filecoin-project/go-statemachine v1.0.3 // indirect

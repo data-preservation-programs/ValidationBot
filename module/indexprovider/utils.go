@@ -32,7 +32,7 @@ func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer
 				}
 				err := host.Connect(ctx, addrInfo)
 				if err != nil {
-					return nil, err
+					return nil, errors.Wrap(err, "failed to connect to peer")
 				}
 
 				derivedProtocolID := protocol.ID(path.Join("/legs/head", topic, "0.0.1"))
@@ -41,16 +41,16 @@ func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer
 				if err != nil {
 					// If protocol ID is wrong, then try the old "double-slashed" protocol ID.
 					if !errors.Is(err, multistream.ErrNotSupported[protocol.ID]{Protos: []protocol.ID{derivedProtocolID}}) {
-						return nil, err
+						return nil, errors.Wrap(err, "failed to dial to peer")
 					}
 					oldProtoID := protocol.ID("/legs/head/" + topic + "/0.0.1")
 					conn, err = gostream.Dial(ctx, host, peerID, oldProtoID)
 					if err != nil {
-						return nil, err
+						return nil, errors.Wrap(err, "failed to dial to peer")
 					}
 					log.Warn().Str("protocol", string(oldProtoID)).Msg("using old protocol ID")
 				}
-				return conn, err
+				return conn, errors.Wrap(err, "failed to dial to peer")
 			},
 		},
 	}
@@ -61,7 +61,7 @@ func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer
 	// nolint:noctx
 	resp, err := client.Get("http://unused.invalid/head")
 	if err != nil {
-		return cid.Undef, err
+		return cid.Undef, errors.Wrap(err, "failed to get head")
 	}
 	defer resp.Body.Close()
 
