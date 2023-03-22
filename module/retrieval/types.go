@@ -8,6 +8,7 @@ type Protocol string
 
 const (
 	GraphSync                Protocol     = "GraphSync"
+	Bitswap                  Protocol     = "Bitswap"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"
 	QueryResponseUnavailable ResultStatus = "query_response_unavailable"

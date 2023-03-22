@@ -19,6 +19,15 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+const (
+	HTTP         = "http"
+	HTTPS        = "https"
+	Libp2p       = "libp2p"
+	WS           = "ws"
+	WSS          = "wss"
+	BitswapProto = "bitswap"
+)
+
 type MinerProtocols struct {
 	Protocol     types.Protocol
 	PeerID       peer.ID
@@ -56,10 +65,10 @@ func GetMinerProtocols(
 			}
 
 			switch protocol.Name {
-			case "http", "https", "libp2p", "ws", "wss":
+			case HTTP, HTTPS, Libp2p, WS, WSS:
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-			case "bitswap":
+			case BitswapProto:
 				maddrs[i] = mma
 				maddrStrs[i] = mma.String()
 
@@ -124,22 +133,22 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 		}
 	}
 
-	scheme := "http"
+	scheme := HTTP
 	//nolint:nestif
 	if _, ok := pm[multiaddr.P_HTTPS]; ok {
-		scheme = "https"
+		scheme = HTTPS
 	} else if _, ok = pm[multiaddr.P_HTTP]; ok {
 		// /tls/http == /https
 		if _, ok = pm[multiaddr.P_TLS]; ok {
-			scheme = "https"
+			scheme = HTTPS
 		}
 	} else if _, ok = pm[multiaddr.P_WSS]; ok {
-		scheme = "wss"
+		scheme = WSS
 	} else if _, ok = pm[multiaddr.P_WS]; ok {
-		scheme = "ws"
+		scheme = WS
 		// /tls/ws == /wss
 		if _, ok = pm[multiaddr.P_TLS]; ok {
-			scheme = "wss"
+			scheme = WSS
 		}
 	}
 
@@ -162,7 +171,7 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 
 func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
 	switch proto {
-	case "http", "https":
+	case HTTP, HTTPS:
 		u, err := ToURL(ma)
 		if err != nil {
 			return ""

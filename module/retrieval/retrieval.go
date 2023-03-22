@@ -340,6 +340,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
 					break
 				}
+			case Bitswap:
+				// do nothing
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
