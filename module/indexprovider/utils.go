@@ -13,8 +13,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/protocol"
-	ma "github.com/multiformats/go-multiaddr"
-	"github.com/multiformats/go-multistream"
+	multistream "github.com/multiformats/go-multistream"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -22,13 +21,13 @@ import (
 func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer.ID) (cid.Cid, error) {
 	log := zerolog.Ctx(ctx).With().Str("query-root-cid", topic).Logger()
 
-	//nolint:exhaustruct
 	client := http.Client{
+		//nolint:exhaustruct
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				//nolint:exhaustruct
 				addrInfo := peer.AddrInfo{
-					Addrs: []ma.Multiaddr{ma.StringCast(addr)},
-					ID:    peerID,
+					ID: peerID,
 				}
 				err := host.Connect(ctx, addrInfo)
 				if err != nil {
@@ -41,16 +40,16 @@ func QueryRootCid(ctx context.Context, host host.Host, topic string, peerID peer
 				if err != nil {
 					// If protocol ID is wrong, then try the old "double-slashed" protocol ID.
 					if !errors.Is(err, multistream.ErrNotSupported[protocol.ID]{Protos: []protocol.ID{derivedProtocolID}}) {
-						return nil, errors.Wrap(err, "failed to dial to peer")
+						return nil, errors.Wrap(err, "failed to dial")
 					}
 					oldProtoID := protocol.ID("/legs/head/" + topic + "/0.0.1")
 					conn, err = gostream.Dial(ctx, host, peerID, oldProtoID)
 					if err != nil {
-						return nil, errors.Wrap(err, "failed to dial to peer")
+						return nil, errors.Wrap(err, "failed to dial")
 					}
 					log.Warn().Str("protocol", string(oldProtoID)).Msg("using old protocol ID")
 				}
-				return conn, errors.Wrap(err, "failed to dial to peer")
+				return conn, errors.Wrap(err, "failed to connect to peer")
 			},
 		},
 	}
