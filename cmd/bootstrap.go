@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"validation-bot/module"
@@ -17,6 +19,7 @@ import (
 	"validation-bot/role/dispatcher"
 	"validation-bot/role/observer"
 	"validation-bot/role/trust"
+	"validation-bot/rpcserver"
 	"validation-bot/store"
 	"validation-bot/task"
 
@@ -30,6 +33,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+
 	log3 "github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 	"github.com/ziflex/lecho/v3"
@@ -62,6 +66,7 @@ type taskRemover interface {
 func setConfig(ctx context.Context, configPath string) (*config, error) {
 	log := log3.With().Str("role", "main").Caller().Logger()
 	defaultConnectionString := "host=localhost port=5432 user=postgres password=postgres dbname=postgres"
+	retreivalTimeout := 30 * time.Second
 
 	cfg := config{
 		Log: logConfig{
@@ -101,6 +106,25 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			PrivateKey:  "",
 			ListenAddr:  "/ip4/0.0.0.0/tcp/7999",
 			BiddingWait: 10 * time.Second,
+			ClientRPC: rpcClientConfig{
+				Timeout: 15 * time.Minute,
+				BaseDir: os.TempDir(),
+				ExecPath: func() string {
+					//nolint:varnamelen
+					wd, err := os.Getwd()
+					if err != nil {
+						panic(err)
+					}
+
+					if _, err := os.Stat(filepath.Join(wd, "app", "validation_bot")); !os.IsNotExist(err) {
+						wd = filepath.Join(wd, "app")
+					}
+
+					// nolint:forbidigo
+					fmt.Printf("wd: %s", wd)
+					return wd
+				}(),
+			},
 		},
 		Observer: observerConfig{
 			Enabled:       true,
@@ -117,7 +141,7 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 			Retrieval: retrievalConfig{
 				Enabled: true,
 				TmpDir:  os.TempDir(),
-				Timeout: 30 * time.Second,
+				Timeout: retreivalTimeout,
 				MaxJobs: int64(1),
 				LocationFilter: module.LocationFilterConfig{
 					Continent: nil,
@@ -531,6 +555,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		dig.Out
 		Module module.DispatcherModule `group:"dispatcher_module"`
 	}
+
 	type AuditorModuleResult struct {
 		dig.Out
 		Module module.AuditorModule `group:"auditor_module"`
@@ -762,6 +787,45 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		log.Fatal().Err(err).Msg("cannot provide trust manager")
 	}
 
+	err = container.Provide(
+		func() *auditor.ClientRPC {
+			return auditor.NewClientRPC(auditor.ClientConfig{
+				BaseDir:  cfg.Auditor.ClientRPC.BaseDir,
+				Timeout:  cfg.Auditor.ClientRPC.Timeout,
+				ExecPath: cfg.Auditor.ClientRPC.ExecPath,
+			})
+		},
+		dig.Name("auditor_rpc_client"),
+	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide rpc client")
+	}
+
+	type RPCServerParams struct {
+		dig.In
+		Modules []module.AuditorModule `group:"auditor_module"`
+	}
+
+	err = container.Provide(
+		func(params RPCServerParams) (*rpcserver.RPCServer, error) {
+			modules := make(map[string]module.AuditorModule)
+			for _, m := range params.Modules {
+				modules[m.Type()] = m
+			}
+
+			return rpcserver.NewRPCServer(
+				rpcserver.Config{
+					Modules: modules,
+				},
+			), nil
+		},
+	)
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("cannot provide rpc validator")
+	}
+
 	// DI: auditor.Auditor
 	type AuditorParams struct {
 		dig.In
@@ -770,6 +834,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 		TrustManager            *trust.Manager
 		ResultPublisher         store.Publisher
 		TaskPublisherSubscriber task.PublisherSubscriber `name:"auditor_task_publisher_subscriber"`
+		ClientRPC               *auditor.ClientRPC       `name:"auditor_rpc_client"`
 	}
 
 	err = container.Provide(
@@ -799,6 +864,7 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 					TaskPublisherSubscriber: params.TaskPublisherSubscriber,
 					Modules:                 modules,
 					BiddingWait:             cfg.Auditor.BiddingWait,
+					ClientRPC:               params.ClientRPC,
 				},
 			)
 		},
@@ -818,6 +884,39 @@ func setupDependencies(ctx context.Context, container *dig.Container, configPath
 	}
 
 	return cfg, nil
+}
+
+func runRPCServer(ctx context.Context, configPath string, tmpDir string) error {
+	container := dig.New()
+	// Create a ConsoleWriter output writer that writes to standard output
+	consoleWriter := zerolog.ConsoleWriter{Out: os.Stdout}
+
+	// Create a new logger with the ConsoleWriter output writer
+	log := zerolog.New(consoleWriter).With().Str("role", "rpc-server").Caller().Timestamp().Logger()
+
+	cfg, err := setupDependencies(ctx, container, configPath)
+	if err != nil {
+		return errors.Wrap(err, "cannot setup dependencies")
+	}
+
+	if cfg.Auditor.Enabled {
+		log.Info().Msg("starting rpc with module")
+
+		err = container.Invoke(
+			func(rpcServer *rpcserver.RPCServer) {
+				err := rpcServer.Start(ctx, 0, tmpDir)
+				if err != nil {
+					log.Fatal().Err(err).Msg("cannot start rpc for validation check")
+				}
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, "cannot start auditor rpc server")
+		}
+		return nil
+	} else {
+		return errors.New("auditor is not enabled")
+	}
 }
 
 func run(ctx context.Context, configPath string) error {
