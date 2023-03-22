@@ -108,7 +108,7 @@ func TestBitswapGetImpl(t *testing.T) {
 	c := cid.NewCidV1(cid.Raw, v)
 
 	t.Run("GetBlock() returns Block with duration logged", func(t *testing.T) {
-		rs := new(mockReadStore)
+		rs := new(mockBlockReader)
 		blk := blocks.NewBlock(v)
 		rs.On("GetBlock", mock.Anything, c).Return(blk, nil)
 		b.bitswap = rs
@@ -123,7 +123,7 @@ func TestBitswapGetImpl(t *testing.T) {
 	})
 
 	t.Run("GetBlock() returns an error and records the event", func(t *testing.T) {
-		rs := new(mockReadStore)
+		rs := new(mockBlockReader)
 		rs.On("GetBlock", mock.Anything, c).Return(blocks.NewBlock(v), errors.New("error"))
 		b.bitswap = rs
 
@@ -167,7 +167,7 @@ func TestRetreiveImpl(t *testing.T) {
 	bit, closer := getBitswapRetriever(t, "f01953925", false)
 	defer closer()
 
-	rs := new(mockReadStore)
+	rs := new(mockBlockReader)
 	root, nodeMap := makeDepthTestingGraph(t)
 
 	rs.On("Close").Return(nil)
@@ -176,7 +176,12 @@ func TestRetreiveImpl(t *testing.T) {
 		rs.On("GetBlock", mock.Anything, k).Return(blocks.NewBlock(v.RawData()), nil)
 	}
 
+	lp2p := new(mockLibp2p)
+	lp2p.On("Close").Return(nil)
+	lp2p.On("Connect", mock.Anything, mock.Anything).Return(nil)
+
 	bit.bitswap = rs
+	bit.libp2p = lp2p
 
 	t.Run("Retreive() hits deadline", func(t *testing.T) {
 		ctx := context.Background()

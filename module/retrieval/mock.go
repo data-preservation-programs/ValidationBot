@@ -35,39 +35,39 @@ func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, er
 	return m.Retriever, func() {}, nil
 }
 
-type mockReadStore struct {
+type mockBlockReader struct {
 	mock.Mock
 }
 
 //nolint:forcetypeassert
-func (m *mockReadStore) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
+func (m *mockBlockReader) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	args := m.Called(ctx, c)
 
 	return args.Get(0).(blocks.Block), args.Error(1)
 }
 
-func (m *mockReadStore) Close() error {
+func (m *mockBlockReader) Close() error {
 	args := m.Called()
 
 	return args.Error(0)
 }
 
-func (m *mockReadStore) ReceiveMessage(
+func (m *mockBlockReader) ReceiveMessage(
 	ctx context.Context,
 	sender peer.ID,
 	incoming bsmsg.BitSwapMessage) {
 	m.Called()
 }
 
-func (m *mockReadStore) ReceiveError(error) {
+func (m *mockBlockReader) ReceiveError(error) {
 	m.Called()
 }
 
 // Connected/Disconnected warns bitswap about peer connections.
-func (m *mockReadStore) PeerConnected(peer.ID) {
+func (m *mockBlockReader) PeerConnected(peer.ID) {
 	m.Called()
 }
-func (m *mockReadStore) PeerDisconnected(peer.ID) {
+func (m *mockBlockReader) PeerDisconnected(peer.ID) {
 	m.Called()
 }
 
@@ -82,4 +82,18 @@ func (b *BitswapRetrieverMock) Retrieve(ctx context.Context, root cid.Cid, timeo
 ) {
 	args := b.Called(ctx, root, timeout)
 	return args.Get(0).(*ResultContent), args.Error(1)
+}
+
+type mockLibp2p struct {
+	mock.Mock
+}
+
+func (m *mockLibp2p) Connect(ctx context.Context, addrInfo peer.AddrInfo) error {
+	m.Called()
+	return nil
+}
+
+func (m *mockLibp2p) Close() error {
+	m.Called()
+	return nil
 }

@@ -33,6 +33,12 @@ const (
 	completionTime = 15 * time.Second
 )
 
+// simple Libp2p interface to allow for testing (bypassing Connect on mocks)
+type Libp2pish interface {
+	Connect(ctx context.Context, addrInfo peer.AddrInfo) error
+	Close() error
+}
+
 type BlockReader interface {
 	GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error)
 	Close() error
@@ -52,7 +58,7 @@ type BitswapRetriever struct {
 	log          zerolog.Logger
 	done         chan interface{}
 	bitswap      BlockReader
-	libp2p       host.Host
+	libp2p       Libp2pish
 	peerInfo     MinerProtocols
 	network      bsnet.BitSwapNetwork
 	events       []TimeEventPair
@@ -222,6 +228,7 @@ func (b *BitswapRetriever) Close() error {
 	return nil
 }
 
+// GetBlock
 func (b *BitswapRetriever) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
 	blk, err := b.bitswap.GetBlock(ctx, c)
