@@ -1,6 +1,6 @@
 module validation-bot
 
-go 1.18
+go 1.19
 
 require (
 	github.com/application-research/filclient v0.2.1-0.20230321001127-baad7471f49d
