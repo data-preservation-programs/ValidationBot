@@ -24,16 +24,6 @@ type Libp2pish interface {
 type TransportClient interface {
 	SendQuery(ctx context.Context, p peer.ID) (*types.QueryResponse, error)
 }
-
-const (
-	HTTP         = "http"
-	HTTPS        = "https"
-	Libp2p       = "libp2p"
-	WS           = "ws"
-	WSS          = "wss"
-	BitswapProto = "bitswap"
-)
-
 type MinerProtocols struct {
 	Protocol     types.Protocol
 	PeerID       peer.ID
@@ -108,9 +98,8 @@ func (p *ProtocolProvider) formatMinerProtocols(
 	var protocols []MinerProtocols
 
 	for _, protocol := range protos.Protocols {
-		maddrs := make([]multiaddr.Multiaddr, len(protos.Protocols))
-		maddrStrs := make([]string, len(protos.Protocols))
-		protocols = make([]MinerProtocols, len(protocol.Addresses))
+		maddrs := make([]multiaddr.Multiaddr, len(protocol.Addresses))
+		maddrStrs := make([]string, len(protocol.Addresses))
 		var peerID peer.ID
 
 		for i, mma := range protocol.Addresses {
@@ -119,7 +108,7 @@ func (p *ProtocolProvider) formatMinerProtocols(
 				continue
 			}
 
-			switch protocol.Name {
+			switch Protocol(protocol.Name) {
 			case HTTP, HTTPS, Libp2p, WS, WSS:
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
@@ -134,17 +123,17 @@ func (p *ProtocolProvider) formatMinerProtocols(
 			default:
 				// do nothing right now
 			}
-
-			minerprotos := MinerProtocols{
-				Protocol:     protocol,
-				PeerID:       peerID,
-				MultiAddrs:   maddrs,
-				MultiAddrStr: maddrStrs,
-			}
-
-			// nolint:makezero
-			protocols = append(protocols, minerprotos)
 		}
+
+		minerprotos := MinerProtocols{
+			Protocol:     protocol,
+			PeerID:       peerID,
+			MultiAddrs:   maddrs,
+			MultiAddrStr: maddrStrs,
+		}
+
+		// nolint:makezero
+		protocols = append(protocols, minerprotos)
 	}
 
 	return protocols, nil

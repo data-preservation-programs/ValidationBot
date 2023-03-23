@@ -9,6 +9,12 @@ type Protocol string
 const (
 	GraphSync                Protocol     = "GraphSync"
 	Bitswap                  Protocol     = "Bitswap"
+	HTTP                     Protocol     = "http"
+	HTTPS                    Protocol     = "https"
+	Libp2p                   Protocol     = "libp2p"
+	WS                       Protocol     = "ws"
+	WSS                      Protocol     = "wss"
+	BitswapProto             Protocol     = "bitswap"
 	Success                  ResultStatus = "success"
 	QueryFailure             ResultStatus = "query_failure"
 	QueryResponseUnavailable ResultStatus = "query_response_unavailable"

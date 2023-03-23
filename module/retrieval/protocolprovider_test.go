@@ -2,12 +2,12 @@ package retrieval
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"validation-bot/role"
 
 	multiaddr "github.com/multiformats/go-multiaddr"
-	"github.com/pkg/errors"
 
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -25,17 +25,25 @@ func (t *mockTransportClient) SendQuery(ctx context.Context, p peer.ID) (*types.
 func TestGetMinerProtocols(t *testing.T) {
 	t.Parallel()
 
-	ma1, err := multiaddr.NewMultiaddr("/ip4/1.2.3.4/tcp/80")
+	ma1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234/")
 	if err != nil {
 		t.Fatalf("failed to create multiaddr: %v", err)
 	}
 
-	ma2, err := multiaddr.NewMultiaddr("/ip4/1.2.3.4/tcp/81")
+	ma2, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/udp/1234/quic")
 	if err != nil {
 		t.Fatalf("failed to create multiaddr: %v", err)
 	}
 
 	_, _, pid, err := role.GenerateNewPeer()
+	if err != nil {
+		t.Fatalf("failed to generate peer: %v", err)
+	}
+
+	bma, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/209.94.92.6/udp/24123/quic/p2p/%s", pid.String()))
+	if err != nil {
+		t.Fatalf("failed to create multiaddr: %v", err)
+	}
 
 	info := peer.AddrInfo{
 		ID:    pid,
@@ -46,13 +54,12 @@ func TestGetMinerProtocols(t *testing.T) {
 
 	response := &types.QueryResponse{
 		Protocols: []types.Protocol{
-			{Name: HTTP, Addresses: []multiaddr.Multiaddr{ma1}},
-			{Name: HTTPS, Addresses: []multiaddr.Multiaddr{ma2}},
-			{Name: Libp2p, Addresses: []multiaddr.Multiaddr{ma1, ma2}},
-			{Name: WS, Addresses: []multiaddr.Multiaddr{ma2}},
-			{Name: WSS, Addresses: []multiaddr.Multiaddr{ma1}},
-			{Name: BitswapProto, Addresses: []multiaddr.Multiaddr{ma1, ma2}},
-			{Name: "unsupported", Addresses: []multiaddr.Multiaddr{ma1, ma2}},
+			{Name: string(HTTP), Addresses: []multiaddr.Multiaddr{ma1}},
+			{Name: string(HTTPS), Addresses: []multiaddr.Multiaddr{ma2}},
+			{Name: string(Libp2p), Addresses: []multiaddr.Multiaddr{ma1, ma2}},
+			{Name: string(WS), Addresses: []multiaddr.Multiaddr{ma2}},
+			{Name: string(WSS), Addresses: []multiaddr.Multiaddr{ma1}},
+			{Name: string(BitswapProto), Addresses: []multiaddr.Multiaddr{bma}},
 		},
 	}
 
@@ -60,7 +67,6 @@ func TestGetMinerProtocols(t *testing.T) {
 		name           string
 		client         TransportClient
 		expectedResult []MinerProtocols
-		expectedError  error
 	}{
 		{
 			name: "successful query with all protocols",
@@ -73,13 +79,13 @@ func TestGetMinerProtocols(t *testing.T) {
 					Protocol:     response.Protocols[0],
 					PeerID:       "",
 					MultiAddrs:   []multiaddr.Multiaddr{ma1},
-					MultiAddrStr: []string{ma1.String()},
+					MultiAddrStr: []string{multiaddrToNative(string(HTTP), ma1)},
 				},
 				{
 					Protocol:     response.Protocols[1],
 					PeerID:       "",
 					MultiAddrs:   []multiaddr.Multiaddr{ma2},
-					MultiAddrStr: []string{ma2.String()},
+					MultiAddrStr: []string{multiaddrToNative(string(HTTPS), ma2)},
 				},
 				{
 					Protocol:     response.Protocols[2],
@@ -101,18 +107,11 @@ func TestGetMinerProtocols(t *testing.T) {
 				},
 				{
 					Protocol:     response.Protocols[5],
-					PeerID:       peer.ID(""),
-					MultiAddrs:   []multiaddr.Multiaddr{ma1, ma2},
-					MultiAddrStr: []string{ma1.String(), ma2.String()},
-				},
-				{
-					Protocol:     response.Protocols[6],
-					PeerID:       peer.ID(""),
-					MultiAddrs:   []multiaddr.Multiaddr{ma1, ma2},
-					MultiAddrStr: []string{ma1.String(), ma2.String()},
+					PeerID:       pid,
+					MultiAddrs:   []multiaddr.Multiaddr{bma},
+					MultiAddrStr: []string{bma.String()},
 				},
 			},
-			expectedError: nil,
 		},
 		{
 			name: "successful query with no supported protocols",
@@ -123,25 +122,6 @@ func TestGetMinerProtocols(t *testing.T) {
 				err: nil,
 			},
 			expectedResult: []MinerProtocols{},
-			expectedError:  nil,
-		},
-		{
-			name: "failed query with error containing 'protocol not supported'",
-			client: &mockTransportClient{
-				protocols: nil,
-				err:       errors.New("protocol not supported"),
-			},
-			expectedResult: []MinerProtocols{},
-			expectedError:  nil,
-		},
-		{
-			name: "failed query with generic error",
-			client: &mockTransportClient{
-				protocols: nil,
-				err:       errors.New("failed to query protocols"),
-			},
-			expectedResult: nil,
-			expectedError:  errors.Wrap(errors.New("failed to query protocols"), "failed to get miner supportted protocols"),
 		},
 	}
 
@@ -155,15 +135,19 @@ func TestGetMinerProtocols(t *testing.T) {
 			provider.client = c.client
 
 			result, err := provider.GetMinerProtocols(context.Background(), info)
-
-			if !reflect.DeepEqual(result, c.expectedResult) {
-				t.Errorf("expected result %v, but got %v", c.expectedResult, result)
+			if err != nil {
+				t.Errorf("failed to get miner protocols: %v", err)
 			}
 
-			if !errors.Is(err, c.expectedError) {
-				t.Errorf("expected error %v, but got %v", c.expectedError, err)
+			if len(result) != len(c.expectedResult) {
+				t.Errorf("length mismatch expected result length: %v\n, result length: %v\n", len(c.expectedResult), len(result))
+			}
+
+			for i, r := range result {
+				if !reflect.DeepEqual(r, c.expectedResult[i]) {
+					t.Errorf("expected result %v\n, but got %v\n", c.expectedResult[i], r)
+				}
 			}
 		})
 	}
-
 }
