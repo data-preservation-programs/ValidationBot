@@ -114,7 +114,7 @@ func (p *ProtocolProvider) formatMinerProtocols(
 			case HTTP, HTTPS, Libp2p, WS, WSS:
 				maddrs[i] = multiaddrBytes
 				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-			case BitswapProto:
+			case Bitswap:
 				maddrs[i] = mma
 				maddrStrs[i] = mma.String()
 

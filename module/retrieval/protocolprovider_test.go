@@ -59,7 +59,7 @@ func TestGetMinerProtocols(t *testing.T) {
 			{Name: string(Libp2p), Addresses: []multiaddr.Multiaddr{ma1, ma2}},
 			{Name: string(WS), Addresses: []multiaddr.Multiaddr{ma2}},
 			{Name: string(WSS), Addresses: []multiaddr.Multiaddr{ma1}},
-			{Name: string(BitswapProto), Addresses: []multiaddr.Multiaddr{bma}},
+			{Name: string(Bitswap), Addresses: []multiaddr.Multiaddr{bma}},
 		},
 	}
 
