@@ -48,6 +48,8 @@ func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*Bitswa
 				bitswap = mp
 			}
 		}
+
+		fmt.Printf("bitswap: %v\n", bitswap)
 	} else {
 		bitswap = MinerProtocols{Protocol: types.Protocol{Name: string(Bitswap)}}
 	}
