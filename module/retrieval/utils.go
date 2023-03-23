@@ -98,6 +98,8 @@ func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 	return peerID, nil
 }
 
+// Extracted from multiaddr library
+// https://github.com/filecoin-project/go-legs/blob/main/httpsync/multiaddr/convert.go#L43-L100
 // ToURL takes a multiaddr of the form:
 // /dns/thing.com/http/urlescape<path/to/root>
 // /ip/192.168.0.1/tcp/80/http
