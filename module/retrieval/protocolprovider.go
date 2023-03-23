@@ -15,13 +15,6 @@ import (
 
 const timeout = 10 * time.Second
 
-// simple Libp2p interface to allow for testing (bypassing Connect on mocks).
-type Libp2pish interface {
-	host.Host
-	Connect(ctx context.Context, addrInfo peer.AddrInfo) error
-	Close() error
-}
-
 // interface for mocking lp2pimpl.TransportClient.
 type TransportClient interface {
 	SendQuery(ctx context.Context, p peer.ID) (*types.QueryResponse, error)
@@ -36,11 +29,11 @@ type MinerProtocols struct {
 var ErrMaxTimeReached = errors.New("dump session complete")
 
 type ProtocolProvider struct {
-	host   Libp2pish
+	host   host.Host
 	client TransportClient
 }
 
-func NewProtocolProvider(host Libp2pish) *ProtocolProvider {
+func NewProtocolProvider(host host.Host) *ProtocolProvider {
 	client := lp2pimpl.NewTransportsClient(host)
 
 	return &ProtocolProvider{
