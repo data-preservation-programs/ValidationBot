@@ -90,21 +90,21 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 
 // ToMultiaddr takes a url and converts it into a multiaddr.
 // converts scheme://host:port/path -> /ip/host/tcp/port/scheme/urlescape{path}
-// taken from: https://github.com/filecoin-project/go-legs/blob/271a07f9e97603b453c9964bb67efcf8c8da6eeb/httpsync/multiaddr/convert.go#L102-L104
+// taken from: https://github.com/filecoin-project/go-legs/blob/main/httpsync/multiaddr/convert.go
 func ToMultiaddr(u *url.URL) (multiaddr.Multiaddr, error) {
 	h := u.Hostname()
 	var addr *multiaddr.Multiaddr
 	if n := net.ParseIP(h); n != nil {
 		ipAddr, err := manet.FromIP(n)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to convert IP to multiaddr")
 		}
 		addr = &ipAddr
 	} else {
 		// domain name
 		ma, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_DNS).Name, h)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create DNS component")
 		}
 		mab := multiaddr.Cast(ma.Bytes())
 		addr = &mab
@@ -113,7 +113,7 @@ func ToMultiaddr(u *url.URL) (multiaddr.Multiaddr, error) {
 	if pv != "" {
 		port, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_TCP).Name, pv)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create TCP component")
 		}
 		wport := multiaddr.Join(*addr, port)
 		addr = &wport
@@ -121,14 +121,14 @@ func ToMultiaddr(u *url.URL) (multiaddr.Multiaddr, error) {
 
 	http, err := multiaddr.NewComponent(u.Scheme, "")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to create scheme component")
 	}
 
 	joint := multiaddr.Join(*addr, http)
 	if u.Path != "" {
 		httpath, err := multiaddr.NewComponent("httpath", url.PathEscape(u.Path))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to create path component")
 		}
 		joint = multiaddr.Join(joint, httpath)
 	}
@@ -137,6 +137,7 @@ func ToMultiaddr(u *url.URL) (multiaddr.Multiaddr, error) {
 }
 
 func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
+	// nolint:exhaustive
 	switch Protocol(proto) {
 	case HTTP, HTTPS:
 		u, err := ToURL(ma)

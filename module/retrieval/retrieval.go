@@ -281,6 +281,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				dataCidOrLabel = input.Label
 			}
 
+			// nolint:exhaustive
 			switch protocol {
 			case GraphSync:
 				if dataCidOrLabel == "" {

@@ -13,14 +13,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-// simple Libp2p interface to allow for testing (bypassing Connect on mocks)
+const timeout = 10 * time.Second
+
+// simple Libp2p interface to allow for testing (bypassing Connect on mocks).
 type Libp2pish interface {
 	host.Host
 	Connect(ctx context.Context, addrInfo peer.AddrInfo) error
 	Close() error
 }
 
-// interface for mocking lp2pimpl.TransportClient
+// interface for mocking lp2pimpl.TransportClient.
 type TransportClient interface {
 	SendQuery(ctx context.Context, p peer.ID) (*types.QueryResponse, error)
 }
@@ -48,7 +50,7 @@ func NewProtocolProvider(host Libp2pish) *ProtocolProvider {
 }
 
 func (p *ProtocolProvider) GetMinerProtocols(ctx context.Context, minerInfo peer.AddrInfo) ([]MinerProtocols, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	protocols, err := p.GetRawProtocols(ctx, minerInfo)
@@ -56,7 +58,7 @@ func (p *ProtocolProvider) GetMinerProtocols(ctx context.Context, minerInfo peer
 		return nil, errors.Wrap(err, "failed to get protocols")
 	}
 
-	minerprotos, err := p.formatMinerProtocols(ctx, protocols)
+	minerprotos, err := p.formatMinerProtocols(protocols)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to format protocols")
 	}
@@ -92,10 +94,9 @@ func (p *ProtocolProvider) GetRawProtocols(
 }
 
 func (p *ProtocolProvider) formatMinerProtocols(
-	ctx context.Context,
 	protos *types.QueryResponse,
 ) ([]MinerProtocols, error) {
-	var protocols []MinerProtocols
+	protocols := []MinerProtocols{}
 
 	for _, protocol := range protos.Protocols {
 		maddrs := make([]multiaddr.Multiaddr, len(protocol.Addresses))
@@ -108,6 +109,7 @@ func (p *ProtocolProvider) formatMinerProtocols(
 				continue
 			}
 
+			// nolint:exhaustive
 			switch Protocol(protocol.Name) {
 			case HTTP, HTTPS, Libp2p, WS, WSS:
 				maddrs[i] = multiaddrBytes
