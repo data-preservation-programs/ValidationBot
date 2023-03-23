@@ -4,20 +4,14 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"validation-bot/role"
 
 	multiaddr "github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
 
-	"github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
-
-type mockHost struct{}
-
-func (h *mockHost) Connect(ctx context.Context, p peer.AddrInfo) error {
-	return nil
-}
 
 type mockTransportClient struct {
 	protocols *types.QueryResponse
@@ -41,8 +35,10 @@ func TestGetMinerProtocols(t *testing.T) {
 		t.Fatalf("failed to create multiaddr: %v", err)
 	}
 
+	_, _, pid, err := role.GenerateNewPeer()
+
 	info := peer.AddrInfo{
-		ID:    peer.ID("abc"),
+		ID:    pid,
 		Addrs: []multiaddr.Multiaddr{ma1, ma2},
 	}
 
@@ -62,7 +58,7 @@ func TestGetMinerProtocols(t *testing.T) {
 
 	cases := []struct {
 		name           string
-		client         lp2pimpl.TransportsClient
+		client         TransportClient
 		expectedResult []MinerProtocols
 		expectedError  error
 	}{
@@ -153,7 +149,12 @@ func TestGetMinerProtocols(t *testing.T) {
 		c := c
 
 		t.Run(c.name, func(t *testing.T) {
-			result, err := GetMinerProtocols(context.Background(), info, libp2p, c.client)
+			libp2p.On("Connect", context.Background(), info).Return(nil)
+			provider := NewProtocolProvider(libp2p)
+
+			provider.client = c.client
+
+			result, err := provider.GetMinerProtocols(context.Background(), info)
 
 			if !reflect.DeepEqual(result, c.expectedResult) {
 				t.Errorf("expected result %v, but got %v", c.expectedResult, result)

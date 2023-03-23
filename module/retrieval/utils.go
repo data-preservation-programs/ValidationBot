@@ -1,11 +1,9 @@
 package retrieval
 
 import (
-	"context"
 	"net"
 	"net/url"
 	"strings"
-	"time"
 
 	multiaddr "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -13,87 +11,8 @@ import (
 
 	"fmt"
 
-	"github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
-	"github.com/filecoin-project/boost/retrievalmarket/types"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
-
-const (
-	HTTP         = "http"
-	HTTPS        = "https"
-	Libp2p       = "libp2p"
-	WS           = "ws"
-	WSS          = "wss"
-	BitswapProto = "bitswap"
-)
-
-type MinerProtocols struct {
-	Protocol     types.Protocol
-	PeerID       peer.ID
-	MultiAddrs   []multiaddr.Multiaddr
-	MultiAddrStr []string
-}
-
-var ErrMaxTimeReached = errors.New("dump session complete")
-
-func GetMinerProtocols(
-	ctx context.Context,
-	info peer.AddrInfo,
-	libp2p host.Host,
-) ([]MinerProtocols, error) {
-	supported, err := minerSupporttedProtocols(ctx, info, libp2p)
-	if err != nil && strings.Contains(err.Error(), "protocol not supported") {
-		return []MinerProtocols{}, nil
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get miner supportted protocols")
-	}
-
-	var protocols []MinerProtocols
-
-	for _, protocol := range supported.Protocols {
-		maddrs := make([]multiaddr.Multiaddr, len(supported.Protocols))
-		maddrStrs := make([]string, len(supported.Protocols))
-		protocols = make([]MinerProtocols, len(protocol.Addresses))
-		var peerID peer.ID
-
-		for i, mma := range protocol.Addresses {
-			multiaddrBytes, err := multiaddr.NewMultiaddrBytes(mma.Bytes())
-			if err != nil {
-				continue
-			}
-
-			switch protocol.Name {
-			case HTTP, HTTPS, Libp2p, WS, WSS:
-				maddrs[i] = multiaddrBytes
-				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-			case BitswapProto:
-				maddrs[i] = mma
-				maddrStrs[i] = mma.String()
-
-				peerID, err = peerIDFromMultiAddr(mma.String())
-				if err != nil {
-					return nil, errors.Wrap(err, "cannot decode peer id")
-				}
-			default:
-				// do nothing right now
-			}
-
-			minerp := MinerProtocols{
-				Protocol:     protocol,
-				PeerID:       peerID,
-				MultiAddrs:   maddrs,
-				MultiAddrStr: maddrStrs,
-			}
-
-			// nolint:makezero
-			protocols = append(protocols, minerp)
-		}
-	}
-
-	return protocols, nil
-}
 
 func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 	split := strings.Split(ma, "/")
@@ -180,31 +99,4 @@ func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
 	}
 
 	return ""
-}
-
-func minerSupporttedProtocols(
-	ctx context.Context,
-	minerInfo peer.AddrInfo,
-	host host.Host,
-) (*types.QueryResponse, error) {
-	// nolint:gomnd
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	id, err := peer.Decode(minerInfo.ID.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode peer id %s: %w", minerInfo.ID, err)
-	}
-
-	addrInfo := peer.AddrInfo{ID: id, Addrs: minerInfo.Addrs}
-	if err := host.Connect(ctx, addrInfo); err != nil {
-		return nil, fmt.Errorf("failed to connect to peer %s: %w", addrInfo.ID, err)
-	}
-
-	client := lp2pimpl.NewTransportsClient(host)
-	protocols, err := client.SendQuery(ctx, addrInfo.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to query protocols for miner %s", minerInfo))
-	}
-	return protocols, nil
 }
