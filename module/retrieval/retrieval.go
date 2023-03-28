@@ -356,8 +356,6 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
 
-				// this logic can potentially be ranged over at the end of the switch statmenet
-				// after all results have been collected?
 				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
@@ -447,8 +445,6 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 						q.log.Info().Str("provider", provider).Str("protocol", addr).Msg("retrieval succeeded")
 					}
 				}
-			case HTTP, HTTPS, Libp2p, WS, WSS:
-				// do nothing for now
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}

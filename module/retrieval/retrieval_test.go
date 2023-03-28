@@ -348,7 +348,7 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 	assert.Nil(result)
 }
 
-func TestRetrieval_SuccessRetrieval(t *testing.T) {
+func TestRetrieval_SuccessMockGraphsyncRetrieval(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()
 	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
@@ -394,4 +394,41 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	assert.EqualValues(100, out.TotalBytesDownloaded)
 	assert.EqualValues(10, out.MaxAverageSpeedPerSec)
 	assert.Equal(2*time.Second, out.MinTimeToFirstByte)
+}
+
+func TestRetrieval_SuccessBitswapLiveRetrieval(t *testing.T) {
+	assert := assert.New(t)
+	ctx := context.Background()
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	assert.Nil(err)
+	defer closer()
+	mockRetriever := new(MockGraphSyncRetriever)
+	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
+	auditor, err := NewAuditor(api, &mockRetrieverBuilder, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
+	assert.NoError(err)
+	in := Input{
+		ProtocolPreference: []Protocol{Bitswap},
+		DataCid:            "bafykbzaceb4gqljh5wrijjincngznnrw4f6hwjfpei4evvcwhhgh4jegjb4sy",
+	}
+	input, err := module.NewJSONB(in)
+	assert.NoError(err)
+
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f01953925",
+			},
+			Input: input,
+		},
+	)
+	assert.NoError(err)
+	out := new(Result)
+	err = result.Result.AssignTo(out)
+	assert.NoError(err)
+	fmt.Printf("%+v\n", out)
+	assert.Equal(Success, out.Results[Bitswap].Status)
+	assert.Equal(Success, out.Status)
+	assert.Greater(out.TotalBytesDownloaded, uint64(0))
+	assert.Greater(out.MaxAverageSpeedPerSec, float64(0))
+	assert.Greater(out.MinTimeToFirstByte, 0*time.Second)
 }

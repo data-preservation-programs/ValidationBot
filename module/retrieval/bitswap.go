@@ -80,17 +80,6 @@ func (b *BitswapRetrieverBuilder) Build(
 
 	network := bsnet.NewFromIpfsHost(libp2p, routinghelpers.Null{})
 
-	for _, addr := range protocol.MultiAddrs {
-		if addr == nil {
-			continue
-		}
-		maddr, err := peer.AddrInfoFromP2pAddr(addr)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, fmt.Sprintf("cannot parse multiaddr %s", addr))
-		}
-		libp2p.Peerstore().AddAddrs(maddr.ID, maddr.Addrs, peerstore.PermanentAddrTTL)
-	}
-
 	ctx := context.WithValue(context.Background(), SessionTimeout("sessionTimeout"), completionTime)
 
 	bswap := bsclient.New(ctx, network, blockstore.NewBlockstore(datastore.NewNullDatastore()))
