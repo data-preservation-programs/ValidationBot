@@ -6,6 +6,8 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/ipfs/go-cid"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -30,4 +32,16 @@ type MockGraphSyncRetrieverBuilder struct {
 
 func (m *MockGraphSyncRetrieverBuilder) Build() (GraphSyncRetriever, Cleanup, error) {
 	return m.Retriever, func() {}, nil
+}
+
+type mockHost struct {
+	host.Host
+	mock.Mock
+}
+
+func (h *mockHost) Connect(ctx context.Context, p peer.AddrInfo) error {
+	return nil
+}
+func (h *mockHost) Close() error {
+	return nil
 }

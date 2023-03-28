@@ -57,6 +57,7 @@ func TestQueryAsk_QueryMiner_NotMinerAddress(t *testing.T) {
 
 func TestQueryAsk_QueryMiner_NoPeerId(t *testing.T) {
 	assert := assert.New(t)
+	// nolint:typecheck
 	mockGateway := new(mock2.MockGateway)
 	mockGateway.On("StateMinerInfo", mock.Anything, mock.Anything, mock.Anything).
 		Return(
@@ -75,6 +76,7 @@ func TestQueryAsk_QueryMiner_NoPeerId(t *testing.T) {
 
 func TestQueryAsk_QueryMiner_InvalidMultiAddress(t *testing.T) {
 	assert := assert.New(t)
+	// nolint:typecheck
 	mockGateway := new(mock2.MockGateway)
 	mockGateway.On("StateMinerInfo", mock.Anything, mock.Anything, mock.Anything).
 		Return(

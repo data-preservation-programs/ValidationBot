@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
 
       - name: Install FFI dependencies
         run: sudo apt-get update && sudo apt-get install -y libhwloc-dev ocl-icd-opencl-dev traceroute python3-pip
