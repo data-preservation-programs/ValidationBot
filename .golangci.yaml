@@ -25,6 +25,7 @@ linters:
     - ifshort
     - scopelint
     - varcheck
+    - varnamelen
     - maligned
     - deadcode
     - structcheck
@@ -62,19 +63,6 @@ linters-settings:
       - iface
       - map
       - chan
-  varnamelen:
-    ignore-names:
-      - ok
-      - i
-    ignore-decls:
-      - db *geoip2.Reader
-      - db *gorm.DB
-      - c testing.T
-      - e error
-      - t testing.T
-      - c echo.Context
-      - c *cli.Context
-      - c cid.Cid
   paralleltest:
     ignore-missing: true
   funlen:

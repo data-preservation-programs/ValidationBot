@@ -37,8 +37,10 @@ func getBitswapRetriever(t *testing.T, clientId string, getProtos bool) (*Bitswa
 	var bitswap MinerProtocols
 
 	if getProtos {
+		protoprovider := NewProtocolProvider(libp2p)
+
 		// For Live Testing
-		protocols, err := GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfo.PeerID, Addrs: minerInfo.MultiAddrs}, libp2p)
+		protocols, err := protoprovider.GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfo.PeerID, Addrs: minerInfo.MultiAddrs})
 		if err != nil {
 			panic(err)
 		}

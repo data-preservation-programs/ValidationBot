@@ -381,7 +381,9 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					).Msg("failed to create libp2p host")
 				}
 
-				protocols, err := GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfoResult.PeerID, Addrs: minerInfoResult.MultiAddrs}, libp2p)
+				protoprovider := NewProtocolProvider(libp2p)
+
+				protocols, err := protoprovider.GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfoResult.PeerID, Addrs: minerInfoResult.MultiAddrs})
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",

@@ -110,7 +110,6 @@ func setConfig(ctx context.Context, configPath string) (*config, error) {
 				Timeout: 15 * time.Minute,
 				BaseDir: os.TempDir(),
 				ExecPath: func() string {
-					//nolint:varnamelen
 					wd, err := os.Getwd()
 					if err != nil {
 						panic(err)

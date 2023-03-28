@@ -1,11 +1,9 @@
 package retrieval
 
 import (
-	"context"
 	"net"
 	"net/url"
 	"strings"
-	"time"
 
 	multiaddr "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
@@ -13,78 +11,8 @@ import (
 
 	"fmt"
 
-	"github.com/filecoin-project/boost/retrievalmarket/lp2pimpl"
-	"github.com/filecoin-project/boost/retrievalmarket/types"
-	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
-
-type MinerProtocols struct {
-	Protocol     types.Protocol
-	PeerID       peer.ID
-	MultiAddrs   []multiaddr.Multiaddr
-	MultiAddrStr []string
-}
-
-var ErrMaxTimeReached = errors.New("dump session complete")
-
-func GetMinerProtocols(
-	ctx context.Context,
-	info peer.AddrInfo,
-	libp2p host.Host,
-) ([]MinerProtocols, error) {
-	supported, err := minerSupporttedProtocols(ctx, info, libp2p)
-	if err != nil && strings.Contains(err.Error(), "protocol not supported") {
-		return []MinerProtocols{}, nil
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get miner supportted protocols")
-	}
-
-	var protocols []MinerProtocols
-
-	for _, protocol := range supported.Protocols {
-		maddrs := make([]multiaddr.Multiaddr, len(supported.Protocols))
-		maddrStrs := make([]string, len(supported.Protocols))
-		protocols = make([]MinerProtocols, len(protocol.Addresses))
-		var peerID peer.ID
-
-		for i, mma := range protocol.Addresses {
-			multiaddrBytes, err := multiaddr.NewMultiaddrBytes(mma.Bytes())
-			if err != nil {
-				continue
-			}
-
-			switch protocol.Name {
-			case "http", "https", "libp2p", "ws", "wss":
-				maddrs[i] = multiaddrBytes
-				maddrStrs[i] = multiaddrToNative(protocol.Name, multiaddrBytes)
-			case "bitswap":
-				maddrs[i] = mma
-				maddrStrs[i] = mma.String()
-
-				peerID, err = peerIDFromMultiAddr(mma.String())
-				if err != nil {
-					return nil, errors.Wrap(err, "cannot decode peer id")
-				}
-			default:
-				// do nothing right now
-			}
-
-			minerp := MinerProtocols{
-				Protocol:     protocol,
-				PeerID:       peerID,
-				MultiAddrs:   maddrs,
-				MultiAddrStr: maddrStrs,
-			}
-
-			// nolint:makezero
-			protocols = append(protocols, minerp)
-		}
-	}
-
-	return protocols, nil
-}
 
 func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 	split := strings.Split(ma, "/")
@@ -98,16 +26,15 @@ func peerIDFromMultiAddr(ma string) (peer.ID, error) {
 	return peerID, nil
 }
 
-// Extracted from multiaddr library
-// https://github.com/filecoin-project/go-legs/blob/main/httpsync/multiaddr/convert.go#L43-L100
 // ToURL takes a multiaddr of the form:
-// /dns/thing.com/http/urlescape<path/to/root>
-// /ip/192.168.0.1/tcp/80/http
+// taken from https://github.com/filecoin-project/go-legs/blame/main/httpsync/multiaddr/convert.go#L43-L84.
+// /dns/thing.com/http/urlescape<path/to/root>.
+// /ip/192.168.0.1/tcp/80/http.
 func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 	// host should be either the dns name or the IP
 	_, host, err := manet.DialArgs(ma)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get dial args")
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		if !ip.To4().Equal(ip) {
@@ -125,21 +52,22 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 		}
 	}
 
-	scheme := "http"
+	scheme := HTTP
+	//nolint:nestif
 	if _, ok := pm[multiaddr.P_HTTPS]; ok {
-		scheme = "https"
+		scheme = HTTPS
 	} else if _, ok = pm[multiaddr.P_HTTP]; ok {
 		// /tls/http == /https
 		if _, ok = pm[multiaddr.P_TLS]; ok {
-			scheme = "https"
+			scheme = HTTPS
 		}
 	} else if _, ok = pm[multiaddr.P_WSS]; ok {
-		scheme = "wss"
+		scheme = WSS
 	} else if _, ok = pm[multiaddr.P_WS]; ok {
-		scheme = "ws"
+		scheme = WS
 		// /tls/ws == /wss
 		if _, ok = pm[multiaddr.P_TLS]; ok {
-			scheme = "wss"
+			scheme = WSS
 		}
 	}
 
@@ -151,17 +79,67 @@ func ToURL(ma multiaddr.Multiaddr) (*url.URL, error) {
 		}
 	}
 
+	//nolint:exhaustruct
 	out := url.URL{
-		Scheme: scheme,
+		Scheme: string(scheme),
 		Host:   host,
 		Path:   path,
 	}
 	return &out, nil
 }
 
+// ToMultiaddr takes a url and converts it into a multiaddr.
+// converts scheme://host:port/path -> /ip/host/tcp/port/scheme/urlescape{path}
+// taken from: https://github.com/filecoin-project/go-legs/blob/main/httpsync/multiaddr/convert.go
+func ToMultiaddr(u *url.URL) (multiaddr.Multiaddr, error) {
+	h := u.Hostname()
+	var addr *multiaddr.Multiaddr
+	if n := net.ParseIP(h); n != nil {
+		ipAddr, err := manet.FromIP(n)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to convert IP to multiaddr")
+		}
+		addr = &ipAddr
+	} else {
+		// domain name
+		ma, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_DNS).Name, h)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create DNS component")
+		}
+		mab := multiaddr.Cast(ma.Bytes())
+		addr = &mab
+	}
+	pv := u.Port()
+	if pv != "" {
+		port, err := multiaddr.NewComponent(multiaddr.ProtocolWithCode(multiaddr.P_TCP).Name, pv)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create TCP component")
+		}
+		wport := multiaddr.Join(*addr, port)
+		addr = &wport
+	}
+
+	http, err := multiaddr.NewComponent(u.Scheme, "")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create scheme component")
+	}
+
+	joint := multiaddr.Join(*addr, http)
+	if u.Path != "" {
+		httpath, err := multiaddr.NewComponent("httpath", url.PathEscape(u.Path))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create path component")
+		}
+		joint = multiaddr.Join(joint, httpath)
+	}
+
+	return joint, nil
+}
+
 func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
-	switch proto {
-	case "http", "https":
+	// nolint:exhaustive
+	switch Protocol(proto) {
+	case HTTP, HTTPS:
 		u, err := ToURL(ma)
 		if err != nil {
 			return ""
@@ -169,32 +147,5 @@ func multiaddrToNative(proto string, ma multiaddr.Multiaddr) string {
 		return u.String()
 	}
 
-	return ""
-}
-
-func minerSupporttedProtocols(
-	ctx context.Context,
-	minerInfo peer.AddrInfo,
-	host host.Host,
-) (*types.QueryResponse, error) {
-	// nolint:gomnd
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	id, err := peer.Decode(minerInfo.ID.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode peer id %s: %w", minerInfo.ID, err)
-	}
-
-	addrInfo := peer.AddrInfo{ID: id, Addrs: minerInfo.Addrs}
-	if err := host.Connect(ctx, addrInfo); err != nil {
-		return nil, fmt.Errorf("failed to connect to peer %s: %w", addrInfo.ID, err)
-	}
-
-	client := lp2pimpl.NewTransportsClient(host)
-	protocols, err := client.SendQuery(ctx, addrInfo.ID)
-	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed to query protocols for miner %s", minerInfo))
-	}
-	return protocols, nil
+	return ma.String()
 }

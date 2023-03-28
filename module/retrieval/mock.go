@@ -8,6 +8,7 @@ import (
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	bsmsg "github.com/ipfs/go-libipfs/bitswap/message"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/stretchr/testify/mock"
 )
@@ -95,5 +96,17 @@ func (m *mockLibp2p) Connect(ctx context.Context, addrInfo peer.AddrInfo) error 
 
 func (m *mockLibp2p) Close() error {
 	m.Called()
+	return nil
+}
+
+type mockHost struct {
+	host.Host
+	mock.Mock
+}
+
+func (h *mockHost) Connect(ctx context.Context, p peer.AddrInfo) error {
+	return nil
+}
+func (h *mockHost) Close() error {
 	return nil
 }

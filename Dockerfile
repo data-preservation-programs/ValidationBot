@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/golang:1.18.7
+FROM public.ecr.aws/docker/library/golang:1.19
 ARG GITHUB_TOKEN
 RUN apt-get update && apt-get install -y jq libhwloc-dev ocl-icd-opencl-dev make wget pkg-config hwloc git traceroute jc
 WORKDIR /app
