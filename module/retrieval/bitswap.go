@@ -7,11 +7,11 @@ import (
 	"validation-bot/module"
 	"validation-bot/task"
 
-	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-blockservice"
 	cid "github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	blockstore "github.com/ipfs/go-ipfs-blockstore"
+	blocks "github.com/ipfs/go-libipfs/blocks"
 	"github.com/ipfs/go-merkledag"
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
@@ -33,7 +33,7 @@ const (
 	completionTime = 15 * time.Second
 )
 
-// simple Libp2p interface to allow for testing (bypassing Connect on mocks)
+// simple Libp2p interface to allow for testing (bypassing Connect on mocks).
 type Libp2pish interface {
 	Connect(ctx context.Context, addrInfo peer.AddrInfo) error
 	Close() error
@@ -86,7 +86,7 @@ func (b *BitswapRetrieverBuilder) Build(
 		}
 		maddr, err := peer.AddrInfoFromP2pAddr(addr)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errors.Wrap(err, fmt.Sprintf("cannot parse multiaddr %s", addr))
 		}
 		libp2p.Peerstore().AddAddrs(maddr.ID, maddr.Addrs, peerstore.PermanentAddrTTL)
 	}
@@ -228,7 +228,6 @@ func (b *BitswapRetriever) Close() error {
 	return nil
 }
 
-// GetBlock
 func (b *BitswapRetriever) GetBlock(ctx context.Context, c cid.Cid) (blocks.Block, error) {
 	t0 := time.Now()
 	blk, err := b.bitswap.GetBlock(ctx, c)

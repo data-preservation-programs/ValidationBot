@@ -356,7 +356,6 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
 
-				// TODO:
 				// this logic can potentially be ranged over at the end of the switch statmenet
 				// after all results have been collected?
 				totalBytes += result.BytesDownloaded
@@ -383,7 +382,10 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 				protoprovider := NewProtocolProvider(libp2p)
 
-				protocols, err := protoprovider.GetMinerProtocols(ctx, peer.AddrInfo{ID: *minerInfoResult.PeerID, Addrs: minerInfoResult.MultiAddrs})
+				protocols, err := protoprovider.GetMinerProtocols(ctx, peer.AddrInfo{
+					ID:    *minerInfoResult.PeerID,
+					Addrs: minerInfoResult.MultiAddrs,
+				})
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
@@ -406,6 +408,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 					continue
 				}
 
+				// nolint:contextcheck
 				bitswap, cleanup, err := q.bitswap.Build(minerInfoResult, protocol, libp2p)
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
@@ -444,6 +447,8 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 						q.log.Info().Str("provider", provider).Str("protocol", addr).Msg("retrieval succeeded")
 					}
 				}
+			case HTTP, HTTPS, Libp2p, WS, WSS:
+				// do nothing for now
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
