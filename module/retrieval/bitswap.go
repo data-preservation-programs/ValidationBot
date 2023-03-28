@@ -16,7 +16,6 @@ import (
 	routinghelpers "github.com/libp2p/go-libp2p-routing-helpers"
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"

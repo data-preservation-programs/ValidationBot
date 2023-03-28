@@ -397,6 +397,7 @@ func TestRetrieval_SuccessMockGraphsyncRetrieval(t *testing.T) {
 }
 
 func TestRetrieval_SuccessBitswapLiveRetrieval(t *testing.T) {
+	t.Skip("Only turn on for live test")
 	assert := assert.New(t)
 	ctx := context.Background()
 	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)

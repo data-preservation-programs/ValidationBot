@@ -146,8 +146,6 @@ func (Dispatcher) Validate(definition task.Definition) error {
 	if len(def.ProtocolPreference) >= 1 {
 		for _, protocol := range def.ProtocolPreference {
 			if !slices.Contains(GetSupportedProtocols(), protocol) {
-				// TODO should we just remove this protocol from def.ProtocolPreference
-				// TODO and log attempt of unsupported protocol?
 				return errors.New(
 					fmt.Sprintf(
 						"protocol %s is not supported, currently only GraphSync and Bitswap protocol are supported",
@@ -325,6 +323,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				continue
 			}
 
+			// nolint:exhaustive
 			switch protocol {
 			case GraphSync:
 				retriever, cleanup, err := q.graphsync.Build()
@@ -333,7 +332,6 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 						"protocol",
 						string(protocol),
 					).Msg("failed to build GraphSync retriever")
-					// TODO: is this missing from here?
 					cleanup()
 					continue
 				}
