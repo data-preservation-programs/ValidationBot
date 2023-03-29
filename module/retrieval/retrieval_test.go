@@ -135,28 +135,32 @@ func TestRetrieval_Dispatcher_Validate_InvalidProtocol(t *testing.T) {
 	}
 	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
 	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
+	assert.ErrorContains(err, "currently only GraphSync and Bitswap protocol are supported")
 }
 
 func TestRetrieval_Dispatcher_Validate_IntervalTooShort(t *testing.T) {
 	assert := assert.New(t)
-	def := TaskDefinition{
-		ProtocolPreference: []Protocol{Protocol("graphsync")},
-		DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
-		PieceCids:          []string{"cid5", "cid6"},
+
+	cases := []Protocol{GraphSync, Bitswap}
+	for _, protocol := range cases {
+		def := TaskDefinition{
+			ProtocolPreference: []Protocol{Protocol(protocol)},
+			DataCids:           []string{"cid1", "cid2", "cid3", "cid4"},
+			PieceCids:          []string{"cid5", "cid6"},
+		}
+		definition, err := module.NewJSONB(def)
+		assert.NoError(err)
+		taskDef := task.Definition{
+			Target:          "provider",
+			Definition:      definition,
+			ID:              uuid.New(),
+			Type:            task.Retrieval,
+			IntervalSeconds: 1800,
+		}
+		dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
+		err = dispatcher.Validate(taskDef)
+		assert.ErrorContains(err, "interval must be at least 1 hour")
 	}
-	definition, err := module.NewJSONB(def)
-	assert.NoError(err)
-	taskDef := task.Definition{
-		Target:          "provider",
-		Definition:      definition,
-		ID:              uuid.New(),
-		Type:            task.Retrieval,
-		IntervalSeconds: 1800,
-	}
-	dispatcher := NewDispatcher(new(mock2.MockDealStatesResolver))
-	err = dispatcher.Validate(taskDef)
-	assert.ErrorContains(err, "currently only GraphSync protocol is supported")
 }
 
 func TestRetrieval_CidNotGiven(t *testing.T) {
@@ -171,7 +175,7 @@ func TestRetrieval_CidNotGiven(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
+	auditor, err := NewAuditor(api, graphsync, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -209,7 +213,7 @@ func TestRetrieval_DataNotFound(t *testing.T) {
 		LotusAPI: api,
 		BaseDir:  "/tmp",
 	}
-	auditor, err := NewAuditor(api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
+	auditor, err := NewAuditor(api, graphsync, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -248,7 +252,7 @@ func TestAuditor_ShouldValidate_NoIfMinerNotMatchingLocationFilter(t *testing.T)
 		BaseDir:  "/tmp",
 	}
 	auditor, err := NewAuditor(
-		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+		api, graphsync, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
 		module.IPInfoResolver{},
@@ -284,7 +288,7 @@ func TestAuditor_ShouldValidate_YesIfMinerDoesNotHaveMultiAddr(t *testing.T) {
 		BaseDir:  "/tmp",
 	}
 	auditor, err := NewAuditor(
-		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+		api, graphsync, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
 		module.IPInfoResolver{},
@@ -320,7 +324,7 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 		BaseDir:  "/tmp",
 	}
 	auditor, err := NewAuditor(
-		api, graphsync, 10*time.Second, 1, module.LocationFilterConfig{
+		api, graphsync, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{
 			Continent: []string{"AAA"},
 		},
 		module.IPInfoResolver{},
@@ -344,14 +348,15 @@ func TestRetrieval_SkipIfMinerNotMatchingLocationFilter(t *testing.T) {
 	assert.Nil(result)
 }
 
-func TestRetrieval_SuccessRetrieval(t *testing.T) {
+func TestRetrieval_SuccessMockGraphsyncRetrieval(t *testing.T) {
 	assert := assert.New(t)
 	ctx := context.Background()
 	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	assert.Nil(err)
 	defer closer()
 	mockRetriever := new(MockGraphSyncRetriever)
 	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
-	auditor, err := NewAuditor(api, &mockRetrieverBuilder, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
+	auditor, err := NewAuditor(api, &mockRetrieverBuilder, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
 	assert.NoError(err)
 	in := Input{
 		ProtocolPreference: []Protocol{GraphSync},
@@ -389,4 +394,42 @@ func TestRetrieval_SuccessRetrieval(t *testing.T) {
 	assert.EqualValues(100, out.TotalBytesDownloaded)
 	assert.EqualValues(10, out.MaxAverageSpeedPerSec)
 	assert.Equal(2*time.Second, out.MinTimeToFirstByte)
+}
+
+func TestRetrieval_SuccessBitswapLiveRetrieval(t *testing.T) {
+	t.Skip("Only turn on for live test")
+	assert := assert.New(t)
+	ctx := context.Background()
+	api, closer, err := client.NewGatewayRPCV1(ctx, "https://api.node.glif.io/", nil)
+	assert.Nil(err)
+	defer closer()
+	mockRetriever := new(MockGraphSyncRetriever)
+	mockRetrieverBuilder := MockGraphSyncRetrieverBuilder{Retriever: mockRetriever}
+	auditor, err := NewAuditor(api, &mockRetrieverBuilder, BitswapRetrieverBuilder{}, 10*time.Second, 1, module.LocationFilterConfig{}, module.IPInfoResolver{})
+	assert.NoError(err)
+	in := Input{
+		ProtocolPreference: []Protocol{Bitswap},
+		DataCid:            "bafykbzaceb4gqljh5wrijjincngznnrw4f6hwjfpei4evvcwhhgh4jegjb4sy",
+	}
+	input, err := module.NewJSONB(in)
+	assert.NoError(err)
+
+	result, err := auditor.Validate(
+		ctx, module.ValidationInput{
+			Task: task.Task{
+				Target: "f01953925",
+			},
+			Input: input,
+		},
+	)
+	assert.NoError(err)
+	out := new(Result)
+	err = result.Result.AssignTo(out)
+	assert.NoError(err)
+	fmt.Printf("%+v\n", out)
+	assert.Equal(Success, out.Results[Bitswap].Status)
+	assert.Equal(Success, out.Status)
+	assert.Greater(out.TotalBytesDownloaded, uint64(0))
+	assert.Greater(out.MaxAverageSpeedPerSec, float64(0))
+	assert.Greater(out.MinTimeToFirstByte, 0*time.Second)
 }

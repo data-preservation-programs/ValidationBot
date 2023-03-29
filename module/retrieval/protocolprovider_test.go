@@ -8,6 +8,7 @@ import (
 	"validation-bot/role"
 
 	multiaddr "github.com/multiformats/go-multiaddr"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/filecoin-project/boost/retrievalmarket/types"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -26,24 +27,16 @@ func TestGetMinerProtocols(t *testing.T) {
 	t.Parallel()
 
 	ma1, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/tcp/1234/")
-	if err != nil {
-		t.Fatalf("failed to create multiaddr: %v", err)
-	}
+	assert.NoError(t, err)
 
 	ma2, err := multiaddr.NewMultiaddr("/ip4/127.0.0.1/udp/1234/quic")
-	if err != nil {
-		t.Fatalf("failed to create multiaddr: %v", err)
-	}
+	assert.NoError(t, err)
 
 	_, _, pid, err := role.GenerateNewPeer()
-	if err != nil {
-		t.Fatalf("failed to generate peer: %v", err)
-	}
+	assert.NoError(t, err)
 
 	bma, err := multiaddr.NewMultiaddr(fmt.Sprintf("/ip4/209.94.92.6/udp/24123/quic/p2p/%s", pid.String()))
-	if err != nil {
-		t.Fatalf("failed to create multiaddr: %v", err)
-	}
+	assert.NoError(t, err)
 
 	info := peer.AddrInfo{
 		ID:    pid,

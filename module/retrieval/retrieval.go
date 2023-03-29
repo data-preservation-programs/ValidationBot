@@ -3,18 +3,23 @@ package retrieval
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
 	"math/big"
 	"time"
 
 	"validation-bot/module"
+	"validation-bot/role"
 	"validation-bot/task"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-cid"
+	"github.com/jackc/pgtype"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	log2 "github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 	"golang.org/x/sync/semaphore"
 )
 
@@ -37,6 +42,10 @@ func genRandNumber(max int) int {
 	}
 
 	return int(n.Int64())
+}
+
+func GetSupportedProtocols() []Protocol {
+	return []Protocol{GraphSync, Bitswap}
 }
 
 func (Dispatcher) Type() task.Type {
@@ -134,8 +143,17 @@ func (Dispatcher) Validate(definition task.Definition) error {
 		return errors.Wrap(err, "failed to unmarshal definition")
 	}
 
-	if len(def.ProtocolPreference) != 1 || def.ProtocolPreference[0] != GraphSync {
-		return errors.New("currently only GraphSync protocol is supported")
+	if len(def.ProtocolPreference) >= 1 {
+		for _, protocol := range def.ProtocolPreference {
+			if !slices.Contains(GetSupportedProtocols(), protocol) {
+				return errors.New(
+					fmt.Sprintf(
+						"protocol %s is not supported, currently only GraphSync and Bitswap protocol are supported",
+						string(protocol),
+					),
+				)
+			}
+		}
 	}
 
 	if definition.IntervalSeconds > 0 && definition.IntervalSeconds < 3600 {
@@ -150,6 +168,7 @@ type Auditor struct {
 	log              zerolog.Logger
 	timeout          time.Duration
 	graphsync        GraphSyncRetrieverBuilder
+	bitswap          BitswapRetrieverBuilder
 	sem              *semaphore.Weighted
 	locationFilter   module.LocationFilterConfig
 	locationResolver module.IPInfoResolver
@@ -162,6 +181,7 @@ func (Auditor) Type() task.Type {
 func NewAuditor(
 	lotusAPI api.Gateway,
 	graphsync GraphSyncRetrieverBuilder,
+	bitswap BitswapRetrieverBuilder,
 	timeout time.Duration,
 	maxJobs int64,
 	locationFilter module.LocationFilterConfig,
@@ -172,6 +192,7 @@ func NewAuditor(
 		log:              log2.With().Str("role", "retrieval_auditor").Caller().Logger(),
 		timeout:          timeout,
 		graphsync:        graphsync,
+		bitswap:          bitswap,
 		sem:              semaphore.NewWeighted(maxJobs),
 		locationFilter:   locationFilter,
 		locationResolver: locationResolver,
@@ -224,7 +245,7 @@ func (q Auditor) ShouldValidate(ctx context.Context, input module.ValidationInpu
 	return true, nil
 }
 
-//nolint:cyclop
+//nolint:cyclop,funlen,maintidx,gocyclo
 func (q Auditor) Validate(ctx context.Context, validationInput module.ValidationInput) (
 	*module.ValidationResult,
 	error,
@@ -249,6 +270,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 	}
 
 	results := make(map[Protocol]ResultContent)
+
 	totalBytes := uint64(0)
 	minTTFB := time.Duration(0)
 	maxAvgSpeed := float64(0)
@@ -260,8 +282,11 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		return nil, errors.Wrap(err, "failed to get miner info")
 	}
 
+	// nolint:ineffassign
 	lastStatus := ResultStatus("skipped")
 	lastErrorMessage := ""
+
+	var jsonb pgtype.JSONB
 
 	switch {
 	case minerInfoResult.ErrorCode != "":
@@ -281,32 +306,33 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				dataCidOrLabel = input.Label
 			}
 
+			if dataCidOrLabel == "" {
+				q.log.Error().Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("dataCid or label is required")
+				continue
+			}
+
+			dataCid, err := cid.Decode(dataCidOrLabel)
+			if err != nil {
+				q.log.Error().Err(err).Str("provider", provider).Str(
+					"protocol",
+					string(protocol),
+				).Msg("failed to decode data cid")
+				continue
+			}
+
 			// nolint:exhaustive
 			switch protocol {
 			case GraphSync:
-				if dataCidOrLabel == "" {
-					q.log.Error().Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("dataCid or label is required")
-					continue
-				}
-
-				dataCid, err := cid.Decode(dataCidOrLabel)
-				if err != nil {
-					q.log.Error().Err(err).Str("provider", provider).Str(
-						"protocol",
-						string(protocol),
-					).Msg("failed to decode data cid for GraphSync protocol")
-					continue
-				}
-
 				retriever, cleanup, err := q.graphsync.Build()
 				if err != nil {
 					q.log.Error().Err(err).Str("provider", provider).Str(
 						"protocol",
 						string(protocol),
 					).Msg("failed to build GraphSync retriever")
+					cleanup()
 					continue
 				}
 
@@ -327,6 +353,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 				results[GraphSync] = *result
 				lastStatus = result.Status
 				lastErrorMessage = result.ErrorMessage
+
 				totalBytes += result.BytesDownloaded
 
 				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
@@ -339,10 +366,83 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 
 				if result.Status == Success {
 					q.log.Info().Str("provider", provider).Str("protocol", string(protocol)).Msg("retrieval succeeded")
-					break
 				}
 			case Bitswap:
-				// do nothing
+				libp2p, err := role.NewLibp2pHostWithRandomIdentityAndPort()
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to create libp2p host")
+				}
+
+				protoprovider := NewProtocolProvider(libp2p)
+
+				protocols, err := protoprovider.GetMinerProtocols(ctx, peer.AddrInfo{
+					ID:    *minerInfoResult.PeerID,
+					Addrs: minerInfoResult.MultiAddrs,
+				})
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						string(protocol),
+					).Msg("failed to get miner protocols")
+					continue
+				}
+
+				var protocol MinerProtocols
+
+				for _, p := range protocols {
+					if p.Protocol.Name == string(Bitswap) {
+						protocol = p
+					}
+				}
+
+				if protocol.Protocol.Name == "" {
+					q.log.Error().Err(err).Str("provider", provider).Msg(
+						"miner does not support Bitswap protocol")
+					continue
+				}
+
+				// nolint:contextcheck
+				bitswap, cleanup, err := q.bitswap.Build(minerInfoResult, protocol, libp2p)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Str(
+						"protocol",
+						protocol.MultiAddrStr[0],
+					).Msg("failed to build Bitswap retriever")
+					cleanup()
+					continue
+				}
+
+				result, err := bitswap.Retrieve(ctx, dataCid, q.timeout)
+				if err != nil {
+					q.log.Error().Err(err).Str("provider", provider).Msg(
+						fmt.Sprintf("failed to retrieve data with Bitswap protocol: %v", protocol.MultiAddrStr))
+					cleanup()
+					continue
+				}
+
+				cleanup()
+				result.Protocol = Bitswap
+				results[Bitswap] = *result
+				lastStatus = result.Status
+				lastErrorMessage = result.ErrorMessage
+				totalBytes += result.BytesDownloaded
+
+				if minTTFB == 0 || result.TimeToFirstByte < minTTFB {
+					minTTFB = result.TimeToFirstByte
+				}
+
+				if result.AverageSpeedPerSec > maxAvgSpeed {
+					maxAvgSpeed = result.AverageSpeedPerSec
+				}
+
+				if result.Status == Success {
+					for _, addr := range protocol.MultiAddrStr {
+						q.log.Info().Str("provider", provider).Str("protocol", addr).Msg("retrieval succeeded")
+					}
+				}
 			default:
 				return nil, errors.Errorf("unsupported protocol: %s", protocol)
 			}
@@ -358,7 +458,7 @@ func (q Auditor) Validate(ctx context.Context, validationInput module.Validation
 		Results:               results,
 	}
 
-	jsonb, err := module.NewJSONB(result)
+	jsonb, err = module.NewJSONB(result)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal result")
 	}
