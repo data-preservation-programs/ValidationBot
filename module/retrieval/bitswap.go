@@ -126,7 +126,7 @@ func (b *BitswapRetriever) Retrieve(ctx context.Context, root cid.Cid, timeout t
 			tout = completionTime
 		}
 
-		ctx, cancel := context.WithDeadline(ctx, b.startTime.Add(tout))
+		ctx, cancel := context.WithTimeout(ctx, tout)
 		dserv := merkledag.NewReadOnlyDagService(merkledag.NewSession(ctx, merkledag.NewDAGService(blockservice.New(blockstore.NewBlockstore(datastore.NewNullDatastore()), b))))
 
 		defer func() {
