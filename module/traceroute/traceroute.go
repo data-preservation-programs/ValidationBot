@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"validation-bot/task"
@@ -105,6 +107,14 @@ func (q Auditor) ValidateProvider(ctx context.Context, provider string) (*Result
 
 		hops, err := q.Traceroute(ctx, host, port, q.useSudo)
 		if err != nil {
+			re := regexp.MustCompile("network is unreachable")
+			var netErr net.OpError
+			if ok := errors.As(err, &netErr); ok && re.MatchString(err.Error()) {
+				return &ResultContent{
+					Status:       ConnectError,
+					ErrorMessage: "network is unreachable",
+				}, nil
+			}
 			return nil, errors.Wrap(err, "failed to traceroute")
 		}
 

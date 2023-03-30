@@ -24,6 +24,7 @@ const (
 	Success             Status = "success"
 	InvalidMultiAddress Status = "invalid_multi_address"
 	NoMultiAddress      Status = "no_multi_address"
+	ConnectError        Status = "connect_error"
 )
 
 type HopResult struct {
